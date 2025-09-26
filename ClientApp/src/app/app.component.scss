@@ -23,7 +23,31 @@
 .board {
   position: relative;
   display: flex;
+  gap: 1.5rem;
   justify-content: center;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.controls button {
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(12, 27, 42, 0.8);
+  color: #f7fcff;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.controls button:hover {
+  background: rgba(12, 27, 42, 0.95);
 }
 
 .game-host {

@@ -18,6 +18,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   readonly title = 'Christmas Puzzle';
 
   puzzleComplete = false;
+  showDebug = true;
 
   private game?: Phaser.Game;
   private sceneEvents?: Phaser.Events.EventEmitter;
@@ -43,7 +44,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       width,
       height,
       parent: host,
-      backgroundColor: '#0c1b2a',
+      backgroundColor: '#BEC6A8',
       banner: false,
       scale: {
         mode: Phaser.Scale.FIT,
@@ -56,7 +57,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     const emitter = new Phaser.Events.EventEmitter();
     this.sceneEvents = emitter;
 
-    this.game.scene.add('PuzzleScene', PuzzleScene, true, { emitter });
+    this.game.scene.add('PuzzleScene', PuzzleScene, true, { emitter, showDebug: this.showDebug });
 
     emitter.on('puzzle-complete', () => {
       this.puzzleComplete = true;
@@ -81,5 +82,15 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       this.game.destroy(true);
       this.game = undefined;
     }
+  }
+
+  toggleDebug(): void {
+    this.showDebug = !this.showDebug;
+    if (!this.game) {
+      return;
+    }
+
+    const scene = this.game.scene.getScene('PuzzleScene') as PuzzleScene | undefined;
+    scene?.setDebugVisible(this.showDebug);
   }
 }

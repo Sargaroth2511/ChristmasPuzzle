@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 
 type SceneData = {
   emitter?: Phaser.Events.EventEmitter;
+  showDebug?: boolean;
 };
 
 type PuzzlePoint = {
@@ -38,18 +39,7 @@ type PuzzleBounds = {
   height: number;
 };
 
-const COLORS = [
-  0xffb400,
-  0xff7b54,
-  0xff6fb7,
-  0xc084f5,
-  0x61c0bf,
-  0xffd166,
-  0x3dccc7,
-  0xf55f6a,
-  0x4f9dff,
-  0x8ddfcb
-];
+const FROST_BASE_COLOR = 0xffffff;
 
 export class PuzzleScene extends Phaser.Scene {
   private config?: PuzzleConfig;
@@ -58,6 +48,7 @@ export class PuzzleScene extends Phaser.Scene {
   private placedCount = 0;
   private startTime = 0;
   private debugOverlay?: Phaser.GameObjects.Graphics;
+  private debugEnabled = true;
 
   constructor() {
     super('PuzzleScene');
@@ -69,6 +60,7 @@ export class PuzzleScene extends Phaser.Scene {
 
   init(data: SceneData): void {
     this.emitter = data?.emitter;
+    this.debugEnabled = data.showDebug ?? true;
   }
 
   create(): void {
@@ -81,7 +73,7 @@ export class PuzzleScene extends Phaser.Scene {
 
     this.pieces = [];
     this.placedCount = 0;
-    this.cameras.main.setBackgroundColor('#0b1627');
+    this.cameras.main.setBackgroundColor('#BEC6A8');
 
     this.drawGuide();
     this.spawnPieces();
@@ -113,6 +105,8 @@ export class PuzzleScene extends Phaser.Scene {
     guide.fillPath();
     guide.strokePath();
     guide.setDepth(-20);
+    guide.setVisible(true);
+    guide.name = 'guide-overlay';
   }
 
   private spawnPieces(): void {
@@ -141,27 +135,28 @@ export class PuzzleScene extends Phaser.Scene {
         Phaser.Math.Distance.Between(start.x, start.y, geometry.target.x, geometry.target.y) < minSeparation
       );
 
-      const shape = this.add.polygon(start.x, start.y, geometry.coords, COLORS[index % COLORS.length], 0.95);
-      shape.setStrokeStyle(2, 0x0b1d2f, 0.9);
+      const shape = this.add.polygon(start.x, start.y, geometry.coords, 0x000000, 0);
+      shape.setFillStyle(FROST_BASE_COLOR, 0);
+      shape.setAlpha(1);
+      shape.setStrokeStyle(2.5, 0x000000, 0.9);
       shape.setData('pieceIndex', this.pieces.length);
       shape.setInteractive(
         new Phaser.Geom.Polygon(geometry.hitArea),
         Phaser.Geom.Polygon.Contains
       );
       shape.input!.cursor = 'grab';
-
       shape.on('pointerover', () => {
         if (!shape.input?.enabled) {
           return;
         }
-        shape.setAlpha(1);
+        shape.setStrokeStyle(3.5, 0x000000, 0.9);
       });
 
       shape.on('pointerout', () => {
         if (!shape.input?.enabled) {
           return;
         }
-        shape.setAlpha(0.95);
+        shape.setStrokeStyle(2.5, 0x000000, 0.9);
       });
 
       this.input.setDraggable(shape);
@@ -190,7 +185,9 @@ export class PuzzleScene extends Phaser.Scene {
 
       piece.shape.setDepth(50 + index);
       piece.shape.input!.cursor = 'grabbing';
-      this.showDebugOutline(piece);
+      if (this.debugEnabled) {
+        this.showDebugOutline(piece);
+      }
     });
 
     this.input.on('drag', (_pointer, gameObject, dragX: number, dragY: number) => {
@@ -220,11 +217,13 @@ export class PuzzleScene extends Phaser.Scene {
 
       piece.shape.input!.cursor = 'grab';
 
-      this.hideDebugOutline();
+      if (this.debugEnabled) {
+        this.hideDebugOutline();
+      }
     });
 
-    this.input.on('pointerup', () => this.hideDebugOutline());
-    this.input.on('pointerupoutside', () => this.hideDebugOutline());
+    this.input.on('pointerup', () => this.debugEnabled && this.hideDebugOutline());
+    this.input.on('pointerupoutside', () => this.debugEnabled && this.hideDebugOutline());
   }
 
   private showCompletionBanner(totalSeconds: number): void {
@@ -514,5 +513,13 @@ export class PuzzleScene extends Phaser.Scene {
       width: maxX - minX,
       height: maxY - minY
     };
+  }
+
+  setDebugVisible(show: boolean): void {
+    this.debugEnabled = show;
+
+    if (!show) {
+      this.hideDebugOutline();
+    }
   }
 }

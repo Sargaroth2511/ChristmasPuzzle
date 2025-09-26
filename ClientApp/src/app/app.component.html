@@ -4,7 +4,12 @@
     <p>Drag the shards into place to restore the festive star.</p>
   </header>
 
-  <section class="board">
+<section class="board">
+    <div class="controls">
+      <button type="button" (click)="toggleDebug()">
+        {{ showDebug ? 'Hide' : 'Show' }} Guides
+      </button>
+    </div>
     <div #gameHost class="game-host" aria-label="Puzzle board"></div>
   </section>
 </main>
