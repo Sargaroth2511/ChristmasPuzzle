@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{B8574140-79EC-4E41-AB19-7F2A0D40D208}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Server", "Server", "{0B35CAC7-79E7-44EC-9D76-1A65E7A4D43E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChristmasPuzzle.Server", "src\Server\ChristmasPuzzle.Server\ChristmasPuzzle.Server.csproj", "{C44F50CB-8C23-4D0F-A13A-561914888A1C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C44F50CB-8C23-4D0F-A13A-561914888A1C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C44F50CB-8C23-4D0F-A13A-561914888A1C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C44F50CB-8C23-4D0F-A13A-561914888A1C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C44F50CB-8C23-4D0F-A13A-561914888A1C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0B35CAC7-79E7-44EC-9D76-1A65E7A4D43E} = {B8574140-79EC-4E41-AB19-7F2A0D40D208}
+		{C44F50CB-8C23-4D0F-A13A-561914888A1C} = {0B35CAC7-79E7-44EC-9D76-1A65E7A4D43E}
+	EndGlobalSection
+EndGlobal
