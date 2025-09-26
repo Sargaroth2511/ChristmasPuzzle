@@ -6,17 +6,5 @@
 
   <section class="board">
     <div #gameHost class="game-host" aria-label="Puzzle board"></div>
-
-    <div class="overlay" *ngIf="loadingMessage">
-      <span>{{ loadingMessage }}</span>
-    </div>
-
-    <div class="overlay error" *ngIf="errorMessage">
-      <span>{{ errorMessage }}</span>
-    </div>
-
-    <div class="overlay success" *ngIf="puzzleComplete">
-      <span>Star complete! 🎄</span>
-    </div>
   </section>
 </main>

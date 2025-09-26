@@ -1,16 +1,41 @@
 import Phaser from 'phaser';
-import { PuzzleConfig, PuzzlePoint } from '../app/shared/puzzle-config.model';
 
 type SceneData = {
-  config: PuzzleConfig;
-  emitter: Phaser.Events.EventEmitter;
+  emitter?: Phaser.Events.EventEmitter;
+};
+
+type PuzzlePoint = {
+  x: number;
+  y: number;
+};
+
+type PuzzlePiece = {
+  id: string;
+  points: PuzzlePoint[];
+  anchor: PuzzlePoint;
+};
+
+type PuzzleConfig = {
+  outline: PuzzlePoint[];
+  pieces: PuzzlePiece[];
+  bounds: PuzzleBounds;
 };
 
 type PieceRuntime = {
   id: string;
   target: Phaser.Math.Vector2;
   shape: Phaser.GameObjects.Polygon;
-  placed: boolean;
+  footprint: Phaser.Math.Vector2[];
+  shapePoints: PuzzlePoint[];
+};
+
+type PuzzleBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
 };
 
 const COLORS = [
@@ -32,20 +57,27 @@ export class PuzzleScene extends Phaser.Scene {
   private pieces: PieceRuntime[] = [];
   private placedCount = 0;
   private startTime = 0;
+  private debugOverlay?: Phaser.GameObjects.Graphics;
 
   constructor() {
     super('PuzzleScene');
   }
 
+  preload(): void {
+    this.load.text('puzzle-svg', 'assets/pieces/Zeichnung.svg');
+  }
+
   init(data: SceneData): void {
-    this.config = data.config;
-    this.emitter = data.emitter;
+    this.emitter = data?.emitter;
   }
 
   create(): void {
-    if (!this.config) {
-      throw new Error('Puzzle configuration missing.');
+    const svgText = this.cache.text.get('puzzle-svg');
+    if (!svgText) {
+      throw new Error('Puzzle SVG data missing.');
     }
+
+    this.config = this.createConfigFromSvg(svgText);
 
     this.pieces = [];
     this.placedCount = 0;
@@ -55,11 +87,13 @@ export class PuzzleScene extends Phaser.Scene {
     this.spawnPieces();
     this.setupDragHandlers();
 
-    this.add.text(this.scale.width * 0.5, this.scale.height - 28, 'Snap pieces inside the glowing outline', {
-      color: "#b7c7ff",
-      fontSize: "20px",
-      fontFamily: "Segoe UI, Roboto, sans-serif"
-    }).setOrigin(0.5, 0.5);
+    this.add
+      .text(this.scale.width * 0.5, this.scale.height - 28, 'Snap pieces inside the glowing outline', {
+        color: '#b7c7ff',
+        fontSize: '20px',
+        fontFamily: 'Segoe UI, Roboto, sans-serif'
+      })
+      .setOrigin(0.5, 0.5);
 
     this.startTime = this.time.now;
     this.emitter?.emit('puzzle-reset');
@@ -78,7 +112,7 @@ export class PuzzleScene extends Phaser.Scene {
     guide.closePath();
     guide.fillPath();
     guide.strokePath();
-    guide.setDepth(-10);
+    guide.setDepth(-20);
   }
 
   private spawnPieces(): void {
@@ -88,21 +122,30 @@ export class PuzzleScene extends Phaser.Scene {
 
     config.pieces.forEach((piece, index) => {
       const actualPoints = piece.points.map((pt) => this.toCanvasPoint(pt));
-      const centroid = this.computeCentroid(actualPoints);
-      const relative = actualPoints.map((pt) => new Phaser.Math.Vector2(pt.x - centroid.x, pt.y - centroid.y));
+      const anchor = this.toCanvasPoint(piece.anchor);
+      const geometry = this.buildPieceGeometry(actualPoints, anchor);
 
-      const coords: number[] = [];
-      relative.forEach((pt) => coords.push(pt.x, pt.y));
+      const minSeparation = Math.max(this.scale.width, this.scale.height) * 0.12;
+      let attempts = 0;
+      let start: Phaser.Math.Vector2;
 
-      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-      const distance = scatterRadius + Phaser.Math.Between(40, 120);
-      const start = new Phaser.Math.Vector2(Math.cos(angle), Math.sin(angle)).scale(distance).add(center);
+      do {
+        const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+        const distance = Phaser.Math.Between(scatterRadius * 0.6, scatterRadius);
+        start = new Phaser.Math.Vector2(Math.cos(angle), Math.sin(angle)).scale(distance).add(center);
+        start.x = Phaser.Math.Clamp(start.x, 48, this.scale.width - 48);
+        start.y = Phaser.Math.Clamp(start.y, 48, this.scale.height - 48);
+        attempts += 1;
+      } while (
+        attempts < 8 &&
+        Phaser.Math.Distance.Between(start.x, start.y, geometry.target.x, geometry.target.y) < minSeparation
+      );
 
-      const shape = this.add.polygon(start.x, start.y, coords, COLORS[index % COLORS.length], 0.95);
+      const shape = this.add.polygon(start.x, start.y, geometry.coords, COLORS[index % COLORS.length], 0.95);
       shape.setStrokeStyle(2, 0x0b1d2f, 0.9);
       shape.setData('pieceIndex', this.pieces.length);
       shape.setInteractive(
-        new Phaser.Geom.Polygon(relative.map((pt) => new Phaser.Geom.Point(pt.x, pt.y))),
+        new Phaser.Geom.Polygon(geometry.hitArea),
         Phaser.Geom.Polygon.Contains
       );
       shape.input!.cursor = 'grab';
@@ -125,9 +168,10 @@ export class PuzzleScene extends Phaser.Scene {
 
       this.pieces.push({
         id: piece.id,
-        target: centroid,
+        target: geometry.target,
         shape,
-        placed: false
+        footprint: actualPoints,
+        shapePoints: piece.points
       });
     });
   }
@@ -140,12 +184,13 @@ export class PuzzleScene extends Phaser.Scene {
       }
 
       const piece = this.pieces[index as number];
-      if (!piece || piece.placed) {
+      if (!piece) {
         return;
       }
 
       piece.shape.setDepth(50 + index);
       piece.shape.input!.cursor = 'grabbing';
+      this.showDebugOutline(piece);
     });
 
     this.input.on('drag', (_pointer, gameObject, dragX: number, dragY: number) => {
@@ -155,7 +200,7 @@ export class PuzzleScene extends Phaser.Scene {
       }
 
       const piece = this.pieces[index as number];
-      if (!piece || piece.placed) {
+      if (!piece) {
         return;
       }
 
@@ -169,40 +214,17 @@ export class PuzzleScene extends Phaser.Scene {
       }
 
       const piece = this.pieces[index as number];
-      if (!piece || piece.placed) {
+      if (!piece) {
         return;
       }
 
       piece.shape.input!.cursor = 'grab';
-      const distance = Phaser.Math.Distance.Between(piece.shape.x, piece.shape.y, piece.target.x, piece.target.y);
-      const snapThreshold = Math.max(this.scale.width, this.scale.height) * 0.03;
 
-      if (distance <= snapThreshold) {
-        this.lockPiece(piece);
-      }
-    });
-  }
-
-  private lockPiece(piece: PieceRuntime): void {
-    piece.placed = true;
-    piece.shape.setPosition(piece.target.x, piece.target.y);
-    piece.shape.setDepth(10);
-    piece.shape.disableInteractive();
-    this.tweens.add({
-      targets: piece.shape,
-      scale: 1.02,
-      yoyo: true,
-      duration: 150,
-      ease: Phaser.Math.Easing.Sine.Out
+      this.hideDebugOutline();
     });
 
-    this.placedCount += 1;
-
-    if (this.placedCount === this.pieces.length) {
-      const totalTime = (this.time.now - this.startTime) / 1000;
-      this.emitter?.emit('puzzle-complete', { seconds: totalTime });
-      this.showCompletionBanner(totalTime);
-    }
+    this.input.on('pointerup', () => this.hideDebugOutline());
+    this.input.on('pointerupoutside', () => this.hideDebugOutline());
   }
 
   private showCompletionBanner(totalSeconds: number): void {
@@ -218,12 +240,26 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   private toCanvasPoint(point: PuzzlePoint): Phaser.Math.Vector2 {
-    return new Phaser.Math.Vector2(point.x * this.scale.width, point.y * this.scale.height);
+    if (!this.config) {
+      return new Phaser.Math.Vector2(point.x, point.y);
+    }
+
+    const bounds = this.config.bounds;
+    const spanX = Math.max(bounds.width, 1e-6);
+    const spanY = Math.max(bounds.height, 1e-6);
+    const uniformScale = Math.min(this.scale.width / spanX, this.scale.height / spanY);
+
+    const offsetX = (this.scale.width - spanX * uniformScale) * 0.5;
+    const offsetY = (this.scale.height - spanY * uniformScale) * 0.5;
+
+    const x = offsetX + (point.x - bounds.minX) * uniformScale;
+    const y = offsetY + (point.y - bounds.minY) * uniformScale;
+    return new Phaser.Math.Vector2(x, y);
   }
 
-  private computeCentroid(points: Phaser.Math.Vector2[]): Phaser.Math.Vector2 {
+  private computeCentroid(points: PuzzlePoint[]): PuzzlePoint {
     if (points.length === 0) {
-      return new Phaser.Math.Vector2(0, 0);
+      return { x: 0, y: 0 };
     }
 
     let area = 0;
@@ -240,12 +276,243 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     if (Math.abs(area) < 1e-6) {
-      const fallback = points.reduce((acc, pt) => acc.add(pt), new Phaser.Math.Vector2(0, 0));
-      return fallback.scale(1 / points.length);
+      const sum = points.reduce(
+        (acc, pt) => ({ x: acc.x + pt.x, y: acc.y + pt.y }),
+        { x: 0, y: 0 }
+      );
+      return { x: sum.x / points.length, y: sum.y / points.length };
     }
 
     area *= 0.5;
     const factor = 1 / (6 * area);
-    return new Phaser.Math.Vector2(cx * factor, cy * factor);
+    return { x: cx * factor, y: cy * factor };
+  }
+
+  private round(value: number): number {
+    const factor = 1_000_000;
+    if (value === 0) {
+      return 0;
+    }
+
+    return (Math.sign(value) * Math.round(Math.abs(value) * factor)) / factor;
+  }
+
+  private buildPieceGeometry(points: Phaser.Math.Vector2[], anchor: Phaser.Math.Vector2): {
+    coords: number[];
+    hitArea: Phaser.Geom.Point[];
+    target: Phaser.Math.Vector2;
+  } {
+    if (points.length === 0) {
+      return { coords: [], hitArea: [], target: anchor.clone() };
+    }
+
+    const coords: number[] = [];
+    const hitArea: Phaser.Geom.Point[] = [];
+
+    const sanitized = [...points];
+    if (sanitized.length > 1) {
+      const first = sanitized[0];
+      const last = sanitized[sanitized.length - 1];
+      if (Math.abs(first.x - last.x) < 1e-6 && Math.abs(first.y - last.y) < 1e-6) {
+        sanitized.pop();
+      }
+    }
+
+    sanitized.forEach((point) => {
+      const localX = point.x - anchor.x;
+      const localY = point.y - anchor.y;
+      coords.push(localX, localY);
+      hitArea.push(new Phaser.Geom.Point(localX, localY));
+    });
+
+    return { coords, hitArea, target: anchor.clone() };
+  }
+
+  private showDebugOutline(piece: PieceRuntime): void {
+    if (!this.debugOverlay) {
+      this.debugOverlay = this.add.graphics();
+      this.debugOverlay.setDepth(150);
+    }
+
+    const overlay = this.debugOverlay;
+    overlay.clear();
+    overlay.setVisible(true);
+    overlay.lineStyle(4, 0x9efcff, 0.9);
+    overlay.fillStyle(0x9efcff, 0.12);
+
+    const points = piece.footprint;
+    if (points.length === 0) {
+      return;
+    }
+
+    overlay.beginPath();
+    overlay.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) {
+      overlay.lineTo(points[i].x, points[i].y);
+    }
+    overlay.closePath();
+    overlay.strokePath();
+    overlay.fillPath();
+  }
+
+  private hideDebugOutline(): void {
+    if (!this.debugOverlay) {
+      return;
+    }
+
+    this.debugOverlay.clear();
+    this.debugOverlay.setVisible(false);
+  }
+
+  private createConfigFromSvg(svgContent: string): PuzzleConfig {
+    const parser = new DOMParser();
+    const documentNode = parser.parseFromString(svgContent, 'image/svg+xml');
+    const root = documentNode.documentElement;
+    const viewBoxRaw = root.getAttribute('viewBox');
+
+    if (!viewBoxRaw) {
+      throw new Error('SVG viewBox is required to normalise coordinates.');
+    }
+
+    const viewBoxValues = viewBoxRaw.split(/[\s,]+/).map(Number);
+    if (viewBoxValues.length !== 4 || viewBoxValues.some((value) => Number.isNaN(value))) {
+      throw new Error('SVG viewBox is invalid.');
+    }
+
+    const [minX, minY, width, height] = viewBoxValues;
+    const outlineElement = documentNode.querySelector<SVGPathElement>('#outline');
+
+    if (!outlineElement) {
+      throw new Error('SVG outline path not found.');
+    }
+
+    const outlinePoints = this.samplePath(outlineElement);
+
+    const pieceElements = Array.from(documentNode.querySelectorAll<SVGPathElement>('[id^="piece_"]'));
+
+    if (pieceElements.length === 0) {
+      throw new Error('No puzzle pieces found in SVG.');
+    }
+
+    const pieces = pieceElements
+      .map<PuzzlePiece | null>((element) => {
+        const id = element.id;
+        const d = element.getAttribute('d');
+        if (!d) {
+          return null;
+        }
+
+        const points = this.samplePath(element);
+        if (points.length < 3) {
+          return null;
+        }
+
+        const anchor = this.computeCentroid(points);
+        return {
+          id,
+          points,
+          anchor
+        };
+      })
+      .filter((piece): piece is PuzzlePiece => piece !== null)
+      .sort((a, b) => {
+        const numericA = parseInt(a.id.replace(/[^0-9]/g, ''), 10);
+        const numericB = parseInt(b.id.replace(/[^0-9]/g, ''), 10);
+        if (Number.isNaN(numericA) || Number.isNaN(numericB)) {
+          return a.id.localeCompare(b.id);
+        }
+        return numericA - numericB;
+      });
+
+    const bounds = this.computeBounds(outlinePoints, pieces);
+
+    return { outline: outlinePoints, pieces, bounds };
+  }
+
+  private samplePath(pathElement: SVGPathElement): PuzzlePoint[] {
+    const pathData = pathElement.getAttribute('d');
+    if (!pathData) {
+      return [];
+    }
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', pathData);
+
+    const totalLength = path.getTotalLength();
+    if (!Number.isFinite(totalLength) || totalLength === 0) {
+      return [];
+    }
+
+    const steps = Math.max(Math.ceil(totalLength / 4), 64);
+    const points: PuzzlePoint[] = [];
+
+    for (let i = 0; i <= steps; i++) {
+      const distance = (i / steps) * totalLength;
+      const { x, y } = path.getPointAtLength(distance);
+      points.push({ x: this.round(x), y: this.round(y) });
+    }
+
+    return this.compactPoints(points);
+  }
+
+  private compactPoints(points: PuzzlePoint[], epsilon = 1e-4): PuzzlePoint[] {
+    if (points.length === 0) {
+      return points;
+    }
+
+    const compacted: PuzzlePoint[] = [points[0]];
+
+    for (let i = 1; i < points.length; i++) {
+      const prev = compacted[compacted.length - 1];
+      const current = points[i];
+      const dx = Math.abs(prev.x - current.x);
+      const dy = Math.abs(prev.y - current.y);
+      if (dx > epsilon || dy > epsilon) {
+        compacted.push(current);
+      }
+    }
+
+    if (compacted.length > 2) {
+      const first = compacted[0];
+      const last = compacted[compacted.length - 1];
+      if (Math.abs(first.x - last.x) > epsilon || Math.abs(first.y - last.y) > epsilon) {
+        compacted.push({ ...first });
+      }
+    }
+
+    return compacted;
+  }
+
+  private computeBounds(outline: PuzzlePoint[], pieces: PuzzlePiece[]): PuzzleBounds {
+    const allPoints: PuzzlePoint[] = [...outline];
+    pieces.forEach((piece) => {
+      allPoints.push(...piece.points);
+    });
+
+    if (allPoints.length === 0) {
+      return { minX: 0, minY: 0, maxX: 1, maxY: 1, width: 1, height: 1 };
+    }
+
+    let minX = allPoints[0].x;
+    let maxX = allPoints[0].x;
+    let minY = allPoints[0].y;
+    let maxY = allPoints[0].y;
+
+    for (let i = 1; i < allPoints.length; i++) {
+      const point = allPoints[i];
+      if (point.x < minX) minX = point.x;
+      if (point.x > maxX) maxX = point.x;
+      if (point.y < minY) minY = point.y;
+      if (point.y > maxY) maxY = point.y;
+    }
+
+    return {
+      minX,
+      minY,
+      maxX,
+      maxY,
+      width: maxX - minX,
+      height: maxY - minY
+    };
   }
 }
