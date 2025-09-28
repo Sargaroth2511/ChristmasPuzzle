@@ -34,19 +34,27 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+var pathBaseSegment = NormalizePathBase(builder.Configuration["PathBase"] ?? builder.Configuration["ASPNETCORE_PATHBASE"]);
+if (!string.IsNullOrWhiteSpace(pathBaseSegment))
+{
+    app.UsePathBase(pathBaseSegment);
+}
+
 var spaDistPath = ResolveSpaDistPath(app);
+PhysicalFileProvider? spaFileProvider = null;
+
 if (spaDistPath is not null)
 {
-    var distProvider = new PhysicalFileProvider(spaDistPath);
+    spaFileProvider = new PhysicalFileProvider(spaDistPath);
 
     app.UseDefaultFiles(new DefaultFilesOptions
     {
-        FileProvider = distProvider
+        FileProvider = spaFileProvider
     });
 
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = distProvider
+        FileProvider = spaFileProvider
     });
 }
 else
@@ -61,13 +69,11 @@ app.UseCors("ClientOrigin");
 
 app.MapControllers();
 
-if (spaDistPath is not null)
+if (spaFileProvider is not null)
 {
-    var distProvider = new PhysicalFileProvider(spaDistPath);
-
     app.MapFallbackToFile("{*path}", "index.html", new StaticFileOptions
     {
-        FileProvider = distProvider
+        FileProvider = spaFileProvider
     });
 }
 
@@ -95,4 +101,14 @@ static string? ResolveSpaDistPath(WebApplication app)
     }
 
     return null;
+}
+
+static string? NormalizePathBase(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return null;
+    }
+
+    return value.StartsWith('/') ? value : "/" + value;
 }
