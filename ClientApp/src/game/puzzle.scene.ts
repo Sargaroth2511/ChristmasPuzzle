@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 type SceneData = {
   emitter?: Phaser.Events.EventEmitter;
   showDebug?: boolean;
+  useGlassStyle?: boolean;
 };
 
 type PuzzlePoint = {
@@ -14,6 +15,8 @@ type PuzzlePiece = {
   id: string;
   points: PuzzlePoint[];
   anchor: PuzzlePoint;
+  fillColor: number;
+  fillAlpha: number;
 };
 
 type PuzzleConfig = {
@@ -33,6 +36,8 @@ type PieceRuntime = {
   origin: Phaser.Math.Vector2;
   hitArea: Phaser.Geom.Point[];
   scatterTarget: Phaser.Math.Vector2;
+  fillColor: number;
+  fillAlpha: number;
   velocity?: Phaser.Math.Vector2;
   angularVelocity?: number;
   exploding?: boolean;
@@ -53,7 +58,7 @@ type PuzzleBounds = {
   width: number;
   height: number;
 };
-const STAG_BASE_COLOR = 0xBEC6A8;
+const STAG_BASE_COLOR = 0xffffff;
 const FROST_BASE_COLOR = 0xffffff;
 // Duration (ms) of the snap tween when a piece locks into place.
 const SNAP_ANIMATION_DURATION = 180;
@@ -116,6 +121,7 @@ export class PuzzleScene extends Phaser.Scene {
   private explosionComplete = false;
   private shiverTweens: Phaser.Tweens.Tween[] = [];
   private shiverStartTime = 0;
+  private glassMode = false;
 
   private resetDragState(piece: PieceRuntime): void {
     piece.isDragging = false;
@@ -134,8 +140,9 @@ export class PuzzleScene extends Phaser.Scene {
   private stylePieceForBurst(piece: PieceRuntime, depth: number): void {
     piece.shape.disableInteractive();
     piece.shape.setDepth(120 + depth);
-    piece.shape.setFillStyle(FROST_BASE_COLOR, 0.2);
-    piece.shape.setStrokeStyle(2.5, 0x000000, 0.9);
+    const { fillColor, fillAlpha, strokeAlpha } = this.getActiveStyle(piece);
+    piece.shape.setFillStyle(fillColor, fillAlpha);
+    piece.shape.setStrokeStyle(2.5, 0x000000, strokeAlpha);
     piece.shape.setAlpha(1);
     piece.shape.setScale(1);
     piece.shape.rotation = 0;
@@ -152,8 +159,9 @@ export class PuzzleScene extends Phaser.Scene {
 
   private stylePieceForPuzzle(piece: PieceRuntime, depth: number): void {
     piece.shape.setDepth(30 + depth);
-    piece.shape.setFillStyle(FROST_BASE_COLOR, 0.2);
-    piece.shape.setStrokeStyle(2.5, 0x000000, 0.9);
+    const { fillColor, fillAlpha, strokeAlpha } = this.getActiveStyle(piece);
+    piece.shape.setFillStyle(fillColor, fillAlpha);
+    piece.shape.setStrokeStyle(2.5, 0x000000, strokeAlpha);
     piece.shape.setAlpha(1);
     piece.shape.setInteractive(new Phaser.Geom.Polygon(piece.hitArea), Phaser.Geom.Polygon.Contains);
     if (piece.shape.input) {
@@ -186,6 +194,7 @@ export class PuzzleScene extends Phaser.Scene {
   init(data: SceneData): void {
     this.emitter = data?.emitter;
     this.debugEnabled = data.showDebug ?? false;
+    this.glassMode = data.useGlassStyle ?? false;
   }
 
   create(): void {
@@ -260,13 +269,14 @@ export class PuzzleScene extends Phaser.Scene {
     const config = this.config!;
 
     config.pieces.forEach((piece) => {
+      const fillColor = piece.fillColor ?? STAG_BASE_COLOR;
+      const fillAlpha = piece.fillAlpha ?? 0.2;
       const actualPoints = piece.points.map((pt) => this.toCanvasPoint(pt));
       const anchor = this.toCanvasPoint(piece.anchor);
       const geometry = this.buildPieceGeometry(actualPoints, anchor);
 
-      const shape = this.add.polygon(anchor.x, anchor.y, geometry.coords, 0x000000, 0);
+      const shape = this.add.polygon(anchor.x, anchor.y, geometry.coords, fillColor, fillAlpha);
       shape.setDepth(10 + this.pieces.length);
-      shape.setFillStyle(STAG_BASE_COLOR, 1);
       shape.setAlpha(1);
       shape.setStrokeStyle(2.5, 0x000000, 0.9);
 
@@ -277,14 +287,16 @@ export class PuzzleScene extends Phaser.Scene {
         if (!shape.input?.enabled) {
           return;
         }
-        shape.setStrokeStyle(3.5, 0x000000, 0.9);
+        shape.setStrokeStyle(3.5, 0x000000, this.glassMode ? 0.8 : 0.9);
       });
 
       shape.on('pointerout', () => {
         if (!shape.input?.enabled) {
           return;
         }
-        shape.setStrokeStyle(2.5, 0x000000, 0.9);
+        const active = this.getActiveStyleFromValues(fillColor, fillAlpha);
+        shape.setFillStyle(active.fillColor, active.fillAlpha);
+        shape.setStrokeStyle(2.5, 0x000000, active.strokeAlpha);
       });
 
       const origin = new Phaser.Math.Vector2(shape.displayOriginX, shape.displayOriginY);
@@ -301,6 +313,8 @@ export class PuzzleScene extends Phaser.Scene {
         origin,
         hitArea: geometry.hitArea,
         scatterTarget: anchor.clone(),
+        fillColor,
+        fillAlpha,
         restPosition: new Phaser.Math.Vector2(anchor.x + origin.x, anchor.y + origin.y),
         restRotation: 0
       });
@@ -722,6 +736,9 @@ export class PuzzleScene extends Phaser.Scene {
       if (!snapped) {
         piece.shape.input!.cursor = 'grab';
         piece.shape.setDepth(30 + index);
+        const active = this.getActiveStyle(piece);
+        piece.shape.setFillStyle(active.fillColor, active.fillAlpha);
+        piece.shape.setStrokeStyle(2.5, 0x000000, active.strokeAlpha);
       }
 
       this.input.setDefaultCursor('default');
@@ -797,7 +814,7 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     piece.shape.setStrokeStyle(2.5, 0x000000, 0.9);
-    piece.shape.setFillStyle(STAG_BASE_COLOR, 1);
+    piece.shape.setFillStyle(piece.fillColor ?? STAG_BASE_COLOR, piece.fillAlpha ?? 1);
 
     this.placedCount += 1;
 
@@ -975,6 +992,7 @@ export class PuzzleScene extends Phaser.Scene {
 
     const outlinePoints = this.samplePath(outlineElement);
 
+    const classFillMap = this.extractClassFillMap(documentNode);
     const pieceElements = Array.from(documentNode.querySelectorAll<SVGPathElement>('[id^="piece_"]'));
 
     if (pieceElements.length === 0) {
@@ -995,10 +1013,15 @@ export class PuzzleScene extends Phaser.Scene {
         }
 
         const anchor = this.computeCentroid(points);
+        const fillInfo = this.extractFillFromElement(element, classFillMap);
+        const fillColor = fillInfo.fillColor ?? STAG_BASE_COLOR;
+        const fillAlpha = fillInfo.fillAlpha ?? 0.2;
         return {
           id,
           points,
-          anchor
+          anchor,
+          fillColor,
+          fillAlpha
         };
       })
       .filter((piece): piece is PuzzlePiece => piece !== null)
@@ -1014,6 +1037,111 @@ export class PuzzleScene extends Phaser.Scene {
     const bounds = this.computeBounds(outlinePoints, pieces);
 
     return { outline: outlinePoints, pieces, bounds };
+  }
+
+  private extractClassFillMap(documentNode: Document): Map<string, { fillColor?: number; fillAlpha?: number }> {
+    const styleEntries = new Map<string, { fillColor?: number; fillAlpha?: number }>();
+    const styleElements = Array.from(documentNode.querySelectorAll('style'));
+    const ruleRegex = /\.([a-zA-Z0-9_-]+)\s*\{([^}]*)\}/g;
+
+    styleElements.forEach((styleEl) => {
+      const css = styleEl.textContent ?? '';
+      let match: RegExpExecArray | null;
+      while ((match = ruleRegex.exec(css)) !== null) {
+        const className = match[1];
+        const declarations = match[2];
+        const fillMatch = /fill\s*:\s*([^;]+)/i.exec(declarations);
+        const fillOpacityMatch = /fill-opacity\s*:\s*([^;]+)/i.exec(declarations);
+        const fillColor = this.parseColorValue(fillMatch?.[1]);
+        const fillAlpha = fillOpacityMatch ? this.parseAlphaValue(fillOpacityMatch[1]) : undefined;
+        styleEntries.set(className, { fillColor, fillAlpha });
+      }
+    });
+
+    return styleEntries;
+  }
+
+  private extractFillFromElement(
+    element: SVGPathElement,
+    classFillMap: Map<string, { fillColor?: number; fillAlpha?: number }>
+  ): { fillColor?: number; fillAlpha?: number } {
+    const fillAttr = element.getAttribute('fill');
+    const fillOpacityAttr = element.getAttribute('fill-opacity');
+    let fillColor = this.parseColorValue(fillAttr);
+    let fillAlpha = fillOpacityAttr ? this.parseAlphaValue(fillOpacityAttr) : undefined;
+
+    const styleAttr = element.getAttribute('style');
+    if (styleAttr) {
+      const inlineFill = /fill\s*:\s*([^;]+)/i.exec(styleAttr);
+      const inlineOpacity = /fill-opacity\s*:\s*([^;]+)/i.exec(styleAttr);
+      if (inlineFill) {
+        fillColor = this.parseColorValue(inlineFill[1]) ?? fillColor;
+      }
+      if (inlineOpacity) {
+        fillAlpha = this.parseAlphaValue(inlineOpacity[1]);
+      }
+    }
+
+    if (!fillColor) {
+      const classAttr = element.getAttribute('class');
+      if (classAttr) {
+        const classNames = classAttr.split(/\s+/);
+        for (const className of classNames) {
+          const entry = classFillMap.get(className);
+          if (entry?.fillColor !== undefined) {
+            fillColor = entry.fillColor;
+          }
+          if (entry?.fillAlpha !== undefined) {
+            fillAlpha = entry.fillAlpha;
+          }
+        }
+      }
+    }
+
+    return { fillColor, fillAlpha };
+  }
+
+  private parseColorValue(value?: string | null): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.toLowerCase() === 'none') {
+      return undefined;
+    }
+
+    if (/^0x[0-9a-fA-F]+$/.test(trimmed)) {
+      return parseInt(trimmed, 16);
+    }
+
+    if (trimmed.startsWith('#')) {
+      try {
+        return Phaser.Display.Color.HexStringToColor(trimmed).color;
+      } catch {
+        return undefined;
+      }
+    }
+
+    const rgbMatch = trimmed.match(/^rgba?\(([^)]+)\)$/i);
+    if (rgbMatch) {
+      const [r = 0, g = 0, b = 0] = rgbMatch[1]
+        .split(',')
+        .map((component) => Number.parseFloat(component.trim())) as [number, number, number];
+      return Phaser.Display.Color.GetColor(r, g, b);
+    }
+
+    return undefined;
+  }
+
+  private parseAlphaValue(value?: string | null): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+    const alpha = Number.parseFloat(value.trim());
+    if (!Number.isFinite(alpha)) {
+      return undefined;
+    }
+    return Phaser.Math.Clamp(alpha, 0, 1);
   }
 
   private samplePath(pathElement: SVGPathElement): PuzzlePoint[] {
@@ -1113,6 +1241,57 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     this.refreshSnapToleranceForAll();
+  }
+
+  setGlassMode(enabled: boolean): void {
+    if (this.glassMode === enabled) {
+      return;
+    }
+
+    this.glassMode = enabled;
+
+    this.pieces.forEach((piece) => {
+      if (piece.placed) {
+        piece.shape.setFillStyle(piece.fillColor, piece.fillAlpha);
+        piece.shape.setStrokeStyle(1.6, 0x142031, 0.6);
+      } else {
+        const active = this.getActiveStyle(piece);
+        piece.shape.setFillStyle(active.fillColor, active.fillAlpha);
+        piece.shape.setStrokeStyle(2.5, 0x000000, active.strokeAlpha);
+      }
+    });
+  }
+
+  private getActiveStyle(piece: Pick<PieceRuntime, 'fillColor' | 'fillAlpha'>): {
+    fillColor: number;
+    fillAlpha: number;
+    strokeAlpha: number;
+  } {
+    if (!this.glassMode) {
+      return { fillColor: piece.fillColor, fillAlpha: piece.fillAlpha, strokeAlpha: 0.9 };
+    }
+
+    return {
+      fillColor: piece.fillColor,
+      fillAlpha: piece.fillAlpha * 0.25,
+      strokeAlpha: 0.7
+    };
+  }
+
+  private getActiveStyleFromValues(fillColor: number, fillAlpha: number): {
+    fillColor: number;
+    fillAlpha: number;
+    strokeAlpha: number;
+  } {
+    if (!this.glassMode) {
+      return { fillColor, fillAlpha, strokeAlpha: 0.9 };
+    }
+
+    return {
+      fillColor,
+      fillAlpha: fillAlpha * 0.25,
+      strokeAlpha: 0.7
+    };
   }
 
 }

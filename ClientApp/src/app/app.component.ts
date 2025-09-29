@@ -19,6 +19,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   puzzleComplete = false;
   showDebug = false;
+  useGlassStyle = false;
 
   private game?: Phaser.Game;
   private sceneEvents?: Phaser.Events.EventEmitter;
@@ -57,7 +58,11 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     const emitter = new Phaser.Events.EventEmitter();
     this.sceneEvents = emitter;
 
-    this.game.scene.add('PuzzleScene', PuzzleScene, true, { emitter, showDebug: this.showDebug });
+    this.game.scene.add('PuzzleScene', PuzzleScene, true, {
+      emitter,
+      showDebug: this.showDebug,
+      useGlassStyle: this.useGlassStyle
+    });
 
     emitter.on('puzzle-complete', () => {
       this.puzzleComplete = true;
@@ -92,5 +97,15 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
     const scene = this.game.scene.getScene('PuzzleScene') as PuzzleScene | undefined;
     scene?.setDebugVisible(this.showDebug);
+  }
+
+  toggleGlassMode(): void {
+    this.useGlassStyle = !this.useGlassStyle;
+    if (!this.game) {
+      return;
+    }
+
+    const scene = this.game.scene.getScene('PuzzleScene') as PuzzleScene | undefined;
+    scene?.setGlassMode(this.useGlassStyle);
   }
 }

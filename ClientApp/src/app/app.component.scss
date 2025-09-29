@@ -2,7 +2,7 @@
   display: grid;
   gap: 2rem;
   padding: 2rem;
-  max-width: 1080px;
+  // max-width: 1080px;
   margin: 0 auto;
 }
 
@@ -22,17 +22,20 @@
 
 .board {
   position: relative;
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
+  display: block;
+  padding: 0 220px;
 }
 
 .controls {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  justify-content: flex-start;
-  min-width: 160px;
+  min-width: 200px;
+  align-items: flex-start;
 }
 
 .controls button {
@@ -58,18 +61,20 @@
   background: rgba(12, 27, 42, 0.85);
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
   overflow: hidden;
+  margin: 0 auto;
 }
 
 @media (max-width: 720px) {
   .board {
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
+    padding: 0;
   }
 
   .controls {
+    position: static;
+    transform: none;
     flex-direction: row;
     align-items: center;
+    justify-content: center;
   }
 }
 

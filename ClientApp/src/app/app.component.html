@@ -9,6 +9,9 @@
       <button type="button" (click)="toggleDebug()">
         {{ showDebug ? 'Hide' : 'Show' }} Guides
       </button>
+      <button type="button" (click)="toggleGlassMode()">
+        {{ useGlassStyle ? 'Opaque Pieces' : 'Glass Pieces' }}
+      </button>
     </div>
     <div #gameHost class="game-host" aria-label="Puzzle board"></div>
   </section>
