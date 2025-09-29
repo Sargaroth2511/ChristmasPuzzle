@@ -59,6 +59,9 @@ const SNAP_ANIMATION_DURATION = 180;
 const SNAP_BASE_FACTOR = 0.09;
 const SNAP_DEBUG_MULTIPLIER = 2.6;
 const INTRO_HOLD_DURATION = 1200;
+const EXPLOSION_SHIVER_DURATION = 2000;
+const EXPLOSION_SHIVER_AMPLITUDE = { min: 0.6, max: 2.2 } as const;
+const EXPLOSION_SHIVER_INTERVAL = { min: 220, max: 320 } as const;
 const EXPLOSION_STAGGER = 60;
 const EXPLOSION_GRAVITY = 2200;
 const EXPLOSION_TRAVEL_TIME = { min: 0.72, max: 0.95 } as const;
@@ -86,11 +89,13 @@ export class PuzzleScene extends Phaser.Scene {
   private placedCount = 0;
   private startTime = 0;
   private debugOverlay?: Phaser.GameObjects.Graphics;
-  private debugEnabled = true;
+  private debugEnabled = false;
   private guideOverlay?: Phaser.GameObjects.Graphics;
   private helpLabel?: Phaser.GameObjects.Text;
   private explosionActive = false;
   private explosionComplete = false;
+  private shiverTweens: Phaser.Tweens.Tween[] = [];
+  private shiverStartTime = 0;
 
   private resetDragState(piece: PieceRuntime): void {
     piece.isDragging = false;
@@ -159,7 +164,7 @@ export class PuzzleScene extends Phaser.Scene {
 
   init(data: SceneData): void {
     this.emitter = data?.emitter;
-    this.debugEnabled = data.showDebug ?? true;
+    this.debugEnabled = data.showDebug ?? false;
   }
 
   create(): void {
@@ -187,7 +192,7 @@ export class PuzzleScene extends Phaser.Scene {
       .setOrigin(0.5, 0.5)
       .setVisible(false);
 
-    this.time.delayedCall(INTRO_HOLD_DURATION, () => this.beginIntroExplosion());
+    this.time.delayedCall(INTRO_HOLD_DURATION, () => this.beginIntroShiver());
   }
 
   private drawGuide(): void {
@@ -258,6 +263,71 @@ export class PuzzleScene extends Phaser.Scene {
         restRotation: 0
       });
     });
+  }
+
+  private beginIntroShiver(): void {
+    if (this.pieces.length === 0) {
+      this.preparePiecesForPuzzle();
+      return;
+    }
+
+    this.stopShiverTweens();
+    this.shiverStartTime = this.time.now;
+
+    this.pieces.forEach((piece) => {
+      const rest = piece.restPosition ?? new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
+      piece.shape.setPosition(rest.x, rest.y);
+      piece.shape.rotation = 0;
+      this.shiverTweens.push(this.createPieceShiverTween(piece, rest));
+    });
+
+    this.time.delayedCall(EXPLOSION_SHIVER_DURATION, () => this.endIntroShiver());
+  }
+
+  private createPieceShiverTween(piece: PieceRuntime, anchor: Phaser.Math.Vector2): Phaser.Tweens.Tween {
+    const amplitude = Phaser.Math.FloatBetween(EXPLOSION_SHIVER_AMPLITUDE.min, EXPLOSION_SHIVER_AMPLITUDE.max);
+    const offsetX = Phaser.Math.FloatBetween(-amplitude, amplitude);
+    const offsetY = Phaser.Math.FloatBetween(-amplitude, amplitude);
+
+    const tween = this.tweens.add({
+      targets: piece.shape,
+      x: anchor.x + offsetX,
+      y: anchor.y + offsetY,
+      duration: Phaser.Math.Between(EXPLOSION_SHIVER_INTERVAL.min, EXPLOSION_SHIVER_INTERVAL.max),
+      ease: 'Sine.easeInOut',
+      repeat: -1,
+      yoyo: true
+    });
+
+    tween.timeScale = 0.5;
+
+    tween.on('yoyo', () => {
+      const nextAmplitude = Phaser.Math.FloatBetween(EXPLOSION_SHIVER_AMPLITUDE.min, EXPLOSION_SHIVER_AMPLITUDE.max);
+      const nextOffsetX = Phaser.Math.FloatBetween(-nextAmplitude, nextAmplitude);
+      const nextOffsetY = Phaser.Math.FloatBetween(-nextAmplitude, nextAmplitude);
+      tween.updateTo('x', anchor.x + nextOffsetX, true);
+      tween.updateTo('y', anchor.y + nextOffsetY, true);
+    });
+
+    return tween;
+  }
+
+  private endIntroShiver(): void {
+    this.stopShiverTweens();
+
+    this.pieces.forEach((piece) => {
+      const rest = piece.restPosition ?? new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
+      piece.shape.setPosition(rest.x, rest.y);
+      piece.shape.rotation = 0;
+    });
+
+    this.beginIntroExplosion();
+  }
+
+  private stopShiverTweens(): void {
+    this.shiverTweens.forEach((tween) => tween.remove());
+    this.shiverTweens = [];
+    this.shiverStartTime = 0;
   }
 
   private beginIntroExplosion(): void {
@@ -338,17 +408,14 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   private preparePiecesForPuzzle(): void {
-    this.guideOverlay?.setVisible(true);
-    this.helpLabel?.setVisible(true);
+    this.stopShiverTweens();
+    this.helpLabel?.setVisible(this.debugEnabled);
 
     this.pieces.forEach((piece, index) => {
       const restPosition = piece.restPosition ?? new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
-      const clampedX = Phaser.Math.Clamp(restPosition.x, EXPLOSION_WALL_MARGIN, this.scale.width - EXPLOSION_WALL_MARGIN);
-      const clampedY = Phaser.Math.Clamp(restPosition.y, 96, this.scale.height - 40);
-      piece.shape.setPosition(clampedX, clampedY);
+      piece.shape.setPosition(restPosition.x, restPosition.y);
       const startRotation = piece.restRotation ?? 0;
       piece.shape.rotation = startRotation;
-      piece.shape.setScale(1);
       this.recordRestingState(piece);
       piece.shape.setData('pieceIndex', index);
       this.stylePieceForPuzzle(piece, index);
@@ -374,6 +441,15 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    if (this.shiverTweens.length > 0 && this.shiverStartTime > 0) {
+      const elapsed = this.time.now - this.shiverStartTime;
+      const progress = Phaser.Math.Clamp(elapsed / EXPLOSION_SHIVER_DURATION, 0, 1);
+      const timeScale = Phaser.Math.Linear(0.45, 2.3, progress);
+      this.shiverTweens.forEach((tween) => {
+        tween.timeScale = timeScale;
+      });
+    }
+
     if (this.explosionActive && !this.explosionComplete) {
       this.updateExplosion(delta);
     }
@@ -448,6 +524,7 @@ export class PuzzleScene extends Phaser.Scene {
             piece.exploding = false;
             piece.velocity = undefined;
             piece.angularVelocity = undefined;
+            piece.shape.setScale(1);
             this.recordRestingState(piece);
             settledCount += 1;
             return;
@@ -465,6 +542,7 @@ export class PuzzleScene extends Phaser.Scene {
         if (correction > 0) {
           piece.shape.y -= correction;
         }
+        piece.shape.setScale(1);
         this.recordRestingState(piece);
         settledCount += 1;
       }
@@ -961,6 +1039,8 @@ export class PuzzleScene extends Phaser.Scene {
 
   setDebugVisible(show: boolean): void {
     this.debugEnabled = show;
+
+    this.helpLabel?.setVisible(show);
 
     if (!show) {
       this.hideDebugOutline();

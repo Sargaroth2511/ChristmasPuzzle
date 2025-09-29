@@ -18,7 +18,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   readonly title = 'Christmas Puzzle';
 
   puzzleComplete = false;
-  showDebug = true;
+  showDebug = false;
 
   private game?: Phaser.Game;
   private sceneEvents?: Phaser.Events.EventEmitter;
