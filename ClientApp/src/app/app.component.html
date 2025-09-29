@@ -5,6 +5,7 @@
   </header>
 
 <section class="board">
+    <div #gameHost class="game-host" aria-label="Puzzle board"></div>
     <div class="controls">
       <button type="button" (click)="toggleDebug()">
         {{ showDebug ? 'Hide' : 'Show' }} Guides
@@ -13,6 +14,5 @@
         {{ useGlassStyle ? 'Opaque Pieces' : 'Glass Pieces' }}
       </button>
     </div>
-    <div #gameHost class="game-host" aria-label="Puzzle board"></div>
   </section>
 </main>

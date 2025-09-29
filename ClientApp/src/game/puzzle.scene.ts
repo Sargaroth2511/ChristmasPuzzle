@@ -60,6 +60,8 @@ type PuzzleBounds = {
 };
 const STAG_BASE_COLOR = 0xffffff;
 const FROST_BASE_COLOR = 0xffffff;
+const PIECE_STROKE_WIDTH = 2.5;
+const PIECE_HOVER_STROKE_WIDTH = 3.5;
 // Duration (ms) of the snap tween when a piece locks into place.
 const SNAP_ANIMATION_DURATION = 180;
 // Multiplier used to derive snap tolerance from the piece bounds.
@@ -142,7 +144,7 @@ export class PuzzleScene extends Phaser.Scene {
     piece.shape.setDepth(120 + depth);
     const { fillColor, fillAlpha, strokeAlpha } = this.getActiveStyle(piece);
     piece.shape.setFillStyle(fillColor, fillAlpha);
-    piece.shape.setStrokeStyle(2.5, 0x000000, strokeAlpha);
+    piece.shape.setStrokeStyle(PIECE_STROKE_WIDTH, 0x000000, strokeAlpha);
     piece.shape.setAlpha(1);
     piece.shape.setScale(1);
     piece.shape.rotation = 0;
@@ -161,7 +163,7 @@ export class PuzzleScene extends Phaser.Scene {
     piece.shape.setDepth(30 + depth);
     const { fillColor, fillAlpha, strokeAlpha } = this.getActiveStyle(piece);
     piece.shape.setFillStyle(fillColor, fillAlpha);
-    piece.shape.setStrokeStyle(2.5, 0x000000, strokeAlpha);
+    piece.shape.setStrokeStyle(PIECE_STROKE_WIDTH, 0x000000, strokeAlpha);
     piece.shape.setAlpha(1);
     piece.shape.setInteractive(new Phaser.Geom.Polygon(piece.hitArea), Phaser.Geom.Polygon.Contains);
     if (piece.shape.input) {
@@ -278,7 +280,7 @@ export class PuzzleScene extends Phaser.Scene {
       const shape = this.add.polygon(anchor.x, anchor.y, geometry.coords, fillColor, fillAlpha);
       shape.setDepth(10 + this.pieces.length);
       shape.setAlpha(1);
-      shape.setStrokeStyle(2.5, 0x000000, 0.9);
+      shape.setStrokeStyle(PIECE_STROKE_WIDTH, 0x000000, 0.9);
 
       const index = this.pieces.length;
       shape.setData('pieceIndex', index);
@@ -287,7 +289,7 @@ export class PuzzleScene extends Phaser.Scene {
         if (!shape.input?.enabled) {
           return;
         }
-        shape.setStrokeStyle(3.5, 0x000000, this.glassMode ? 0.8 : 0.9);
+        shape.setStrokeStyle(PIECE_HOVER_STROKE_WIDTH, 0x000000, this.glassMode ? 0.8 : 0.9);
       });
 
       shape.on('pointerout', () => {
@@ -296,7 +298,7 @@ export class PuzzleScene extends Phaser.Scene {
         }
         const active = this.getActiveStyleFromValues(fillColor, fillAlpha);
         shape.setFillStyle(active.fillColor, active.fillAlpha);
-        shape.setStrokeStyle(2.5, 0x000000, active.strokeAlpha);
+        shape.setStrokeStyle(PIECE_STROKE_WIDTH, 0x000000, active.strokeAlpha);
       });
 
       const origin = new Phaser.Math.Vector2(shape.displayOriginX, shape.displayOriginY);
@@ -738,7 +740,7 @@ export class PuzzleScene extends Phaser.Scene {
         piece.shape.setDepth(30 + index);
         const active = this.getActiveStyle(piece);
         piece.shape.setFillStyle(active.fillColor, active.fillAlpha);
-        piece.shape.setStrokeStyle(2.5, 0x000000, active.strokeAlpha);
+        piece.shape.setStrokeStyle(PIECE_STROKE_WIDTH, 0x000000, active.strokeAlpha);
       }
 
       this.input.setDefaultCursor('default');
@@ -813,7 +815,7 @@ export class PuzzleScene extends Phaser.Scene {
       piece.shape.setPosition(targetPosition.x, targetPosition.y);
     }
 
-    piece.shape.setStrokeStyle(2.5, 0x000000, 0.9);
+    piece.shape.setStrokeStyle(PIECE_STROKE_WIDTH, 0x000000, 0.9);
     piece.shape.setFillStyle(piece.fillColor ?? STAG_BASE_COLOR, piece.fillAlpha ?? 1);
 
     this.placedCount += 1;
@@ -1253,11 +1255,15 @@ export class PuzzleScene extends Phaser.Scene {
     this.pieces.forEach((piece) => {
       if (piece.placed) {
         piece.shape.setFillStyle(piece.fillColor, piece.fillAlpha);
-        piece.shape.setStrokeStyle(1.6, 0x142031, 0.6);
+        if (this.glassMode) {
+          piece.shape.setStrokeStyle(PIECE_STROKE_WIDTH, 0x142031, 0.6);
+        } else {
+          piece.shape.setStrokeStyle(PIECE_STROKE_WIDTH, 0x000000, 0.9);
+        }
       } else {
         const active = this.getActiveStyle(piece);
         piece.shape.setFillStyle(active.fillColor, active.fillAlpha);
-        piece.shape.setStrokeStyle(2.5, 0x000000, active.strokeAlpha);
+        piece.shape.setStrokeStyle(PIECE_STROKE_WIDTH, 0x000000, active.strokeAlpha);
       }
     });
   }
