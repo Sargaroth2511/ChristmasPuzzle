@@ -10,37 +10,4 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
   </ItemGroup>
 
-  <PropertyGroup>
-    <SpaDistRoot>$(MSBuildProjectDirectory)/../../../ClientApp/dist</SpaDistRoot>
-  </PropertyGroup>
-
-  <Target Name="CopySpaDistToPublish" AfterTargets="_PublishCopyResolvedFilesToPublishDir">
-    <ItemGroup>
-      <SpaDistFiles Include="$(SpaDistRoot)\**\*" Condition="Exists('$(SpaDistRoot)')" />
-    </ItemGroup>
-
-    <Error Condition="'@(SpaDistFiles)' == ''" Text="ClientApp dist folder not found. Run 'npm run build' inside ClientApp before publishing." />
-
-    <Message Importance="high" Text="Copying SPA assets from $(SpaDistRoot) to $(PublishDir)wwwroot" Condition="'@(SpaDistFiles)' != ''" />
-
-    <MakeDir Directories="$(PublishDir)wwwroot" Condition="'@(SpaDistFiles)' != ''" />
-
-    <Copy SourceFiles="@(SpaDistFiles)"
-          DestinationFiles="@(SpaDistFiles->'$(PublishDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true"
-          Condition="'@(SpaDistFiles)' != ''" />
-  </Target>
-
-  <Target Name="CopySpaDistToProject" AfterTargets="Build" Condition="Exists('$(SpaDistRoot)')">
-    <ItemGroup>
-      <SpaProjectFiles Include="$(SpaDistRoot)\**\*" />
-    </ItemGroup>
-
-    <MakeDir Directories="$(MSBuildProjectDirectory)/wwwroot" />
-
-    <Copy SourceFiles="@(SpaProjectFiles)"
-          DestinationFiles="@(SpaProjectFiles->'$(MSBuildProjectDirectory)/wwwroot\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-  </Target>
-
 </Project>
