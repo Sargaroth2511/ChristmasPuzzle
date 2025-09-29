@@ -219,20 +219,11 @@ export class PuzzleScene extends Phaser.Scene {
     const outlinePoints = this.config!.outline.map((point) => this.toCanvasPoint(point));
     this.guideOverlay?.destroy();
     const guide = this.add.graphics();
-    guide.fillStyle(0xffffff, 0.08);
-    guide.lineStyle(2, 0xffffff, 0.35);
-    guide.beginPath();
-    guide.moveTo(outlinePoints[0].x, outlinePoints[0].y);
-    for (let i = 1; i < outlinePoints.length; i++) {
-      guide.lineTo(outlinePoints[i].x, outlinePoints[i].y);
-    }
-    guide.closePath();
-    guide.fillPath();
-    guide.strokePath();
+    this.guideOverlay = guide;
+    this.redrawGuideWithColors(0xcfe9ff, 0.55, 0xffffff, 0.88);
     guide.setDepth(-20);
     guide.setVisible(true);
     guide.name = 'guide-overlay';
-    this.guideOverlay = guide;
   }
   private initializePiecesAtTarget(): void {
     const config = this.config!;
@@ -774,7 +765,7 @@ export class PuzzleScene extends Phaser.Scene {
       piece.shape.setPosition(targetPosition.x, targetPosition.y);
     }
 
-    piece.shape.setStrokeStyle(1.4, 0x1d2f52, 0.7);
+    piece.shape.setStrokeStyle(2.5, 0x000000, 0.9);
     piece.shape.setFillStyle(FROST_BASE_COLOR, 0.18);
 
     this.placedCount += 1;
@@ -789,6 +780,7 @@ export class PuzzleScene extends Phaser.Scene {
       const elapsedSeconds = (this.time.now - this.startTime) / 1000;
       this.showCompletionBanner(elapsedSeconds);
       this.emitter?.emit('puzzle-complete');
+      this.flashGuideToMonochrome();
     }
   }
 
@@ -802,6 +794,8 @@ export class PuzzleScene extends Phaser.Scene {
       fontFamily: 'Segoe UI, Roboto, sans-serif'
     });
     message.setOrigin(0.5, 0.5);
+
+    this.flashGuideToMonochrome();
   }
 
   private toCanvasPoint(point: PuzzlePoint): Phaser.Math.Vector2 {
@@ -1091,5 +1085,78 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     this.refreshSnapToleranceForAll();
+  }
+
+  private flashGuideToMonochrome(): void {
+    if (!this.guideOverlay) {
+      return;
+    }
+
+    const glowColor = { value: 0xcfe9ff };
+    const coreColor = { value: 0xffffff };
+    const glowAlpha = { value: 0.55 };
+    const coreAlpha = { value: 0.88 };
+
+    this.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: 320,
+      ease: Phaser.Math.Easing.Sine.InOut,
+      onUpdate: (tween) => {
+        const progress = tween.getValue();
+        const eased = Phaser.Math.Easing.Sine.InOut(progress);
+        glowColor.value = Phaser.Display.Color.Interpolate.ColorWithColor(
+          Phaser.Display.Color.ValueToColor(0xcfe9ff),
+          Phaser.Display.Color.ValueToColor(0x000000),
+          1,
+          eased
+        ).color;
+        coreColor.value = Phaser.Display.Color.Interpolate.ColorWithColor(
+          Phaser.Display.Color.ValueToColor(0xffffff),
+          Phaser.Display.Color.ValueToColor(0x000000),
+          1,
+          eased
+        ).color;
+        glowAlpha.value = Phaser.Math.Interpolation.Linear([0.55, 0.05], eased);
+        coreAlpha.value = Phaser.Math.Interpolation.Linear([0.88, 1], eased);
+        this.redrawGuideWithColors(glowColor.value, glowAlpha.value, coreColor.value, coreAlpha.value);
+      }
+    });
+  }
+
+  private redrawGuideWithColors(glowColor: number, glowAlpha: number, coreColor: number, coreAlpha: number): void {
+    if (!this.guideOverlay || !this.config) {
+      return;
+    }
+
+    const outlinePoints = this.config.outline.map((point) => this.toCanvasPoint(point));
+    const guide = this.guideOverlay;
+    guide.clear();
+    guide.fillStyle(0xffffff, 0.14);
+    guide.beginPath();
+    guide.moveTo(outlinePoints[0].x, outlinePoints[0].y);
+    for (let i = 1; i < outlinePoints.length; i++) {
+      guide.lineTo(outlinePoints[i].x, outlinePoints[i].y);
+    }
+    guide.closePath();
+    guide.fillPath();
+
+    guide.lineStyle(4.2, glowColor, glowAlpha);
+    guide.beginPath();
+    guide.moveTo(outlinePoints[0].x, outlinePoints[0].y);
+    for (let i = 1; i < outlinePoints.length; i++) {
+      guide.lineTo(outlinePoints[i].x, outlinePoints[i].y);
+    }
+    guide.closePath();
+    guide.strokePath();
+
+    guide.lineStyle(2.3, coreColor, coreAlpha);
+    guide.beginPath();
+    guide.moveTo(outlinePoints[0].x, outlinePoints[0].y);
+    for (let i = 1; i < outlinePoints.length; i++) {
+      guide.lineTo(outlinePoints[i].x, outlinePoints[i].y);
+    }
+    guide.closePath();
+    guide.strokePath();
   }
 }
