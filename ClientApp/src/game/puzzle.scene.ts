@@ -53,7 +53,7 @@ type PuzzleBounds = {
   width: number;
   height: number;
 };
-
+const STAG_BASE_COLOR = 0xBEC6A8;
 const FROST_BASE_COLOR = 0xffffff;
 // Duration (ms) of the snap tween when a piece locks into place.
 const SNAP_ANIMATION_DURATION = 180;
@@ -134,7 +134,7 @@ export class PuzzleScene extends Phaser.Scene {
   private stylePieceForBurst(piece: PieceRuntime, depth: number): void {
     piece.shape.disableInteractive();
     piece.shape.setDepth(120 + depth);
-    piece.shape.setFillStyle(FROST_BASE_COLOR, 0);
+    piece.shape.setFillStyle(FROST_BASE_COLOR, 0.2);
     piece.shape.setStrokeStyle(2.5, 0x000000, 0.9);
     piece.shape.setAlpha(1);
     piece.shape.setScale(1);
@@ -152,7 +152,7 @@ export class PuzzleScene extends Phaser.Scene {
 
   private stylePieceForPuzzle(piece: PieceRuntime, depth: number): void {
     piece.shape.setDepth(30 + depth);
-    piece.shape.setFillStyle(FROST_BASE_COLOR, 0);
+    piece.shape.setFillStyle(FROST_BASE_COLOR, 0.2);
     piece.shape.setStrokeStyle(2.5, 0x000000, 0.9);
     piece.shape.setAlpha(1);
     piece.shape.setInteractive(new Phaser.Geom.Polygon(piece.hitArea), Phaser.Geom.Polygon.Contains);
@@ -266,7 +266,7 @@ export class PuzzleScene extends Phaser.Scene {
 
       const shape = this.add.polygon(anchor.x, anchor.y, geometry.coords, 0x000000, 0);
       shape.setDepth(10 + this.pieces.length);
-      shape.setFillStyle(FROST_BASE_COLOR, 0);
+      shape.setFillStyle(STAG_BASE_COLOR, 1);
       shape.setAlpha(1);
       shape.setStrokeStyle(2.5, 0x000000, 0.9);
 
@@ -797,7 +797,7 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     piece.shape.setStrokeStyle(2.5, 0x000000, 0.9);
-    piece.shape.setFillStyle(FROST_BASE_COLOR, 0);
+    piece.shape.setFillStyle(STAG_BASE_COLOR, 1);
 
     this.placedCount += 1;
 
