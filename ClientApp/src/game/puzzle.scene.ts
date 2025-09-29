@@ -180,6 +180,7 @@ export class PuzzleScene extends Phaser.Scene {
 
   preload(): void {
     this.load.text('puzzle-svg', 'assets/pieces/Zeichnung.svg');
+    this.load.image('scene-background', 'assets/background/snowy_mauntains_background.png');
   }
 
   init(data: SceneData): void {
@@ -197,7 +198,7 @@ export class PuzzleScene extends Phaser.Scene {
 
     this.pieces = [];
     this.placedCount = 0;
-    this.cameras.main.setBackgroundColor('#BEC6A8');
+    this.addSceneBackground();
 
     this.drawGuide();
     this.setupDragHandlers();
@@ -213,6 +214,18 @@ export class PuzzleScene extends Phaser.Scene {
       .setVisible(false);
 
     this.time.delayedCall(INTRO_HOLD_DURATION, () => this.beginIntroShiver());
+  }
+
+  private addSceneBackground(): void {
+    const bg = this.add.image(this.scale.width * 0.5, this.scale.height * 0.5, 'scene-background');
+    const scale = Math.max(this.scale.width / bg.width, this.scale.height / bg.height);
+    bg.setScale(scale);
+    bg.setScrollFactor(0);
+    bg.setDepth(-200);
+    if (bg.postFX) {
+      bg.postFX.clear();
+      bg.postFX.addBlur(0, 3.2, 1.4);
+    }
   }
 
   private drawGuide(): void {
