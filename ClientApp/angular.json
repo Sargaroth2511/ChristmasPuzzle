@@ -48,6 +48,19 @@
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
+            },
+            "qa": {
+              "baseHref": "/xmaspuzzlegame/",
+              "deployUrl": "/xmaspuzzlegame/",
+              "outputPath": "dist/xmaspuzzlegame",
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1000kb",
+                  "maximumError": "2mb"
+                }
+              ],
+              "outputHashing": "all"
             }
           },
           "defaultConfiguration": "development"

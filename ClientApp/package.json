@@ -5,7 +5,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve --host=127.0.0.1 --port=4300",
-    "build": "ng build --output-path dist --base-href=/",
+    "build": "ng build",
+    "build:qa": "ng build --configuration qa",
     "test": "ng test",
     "lint": "ng lint"
   },

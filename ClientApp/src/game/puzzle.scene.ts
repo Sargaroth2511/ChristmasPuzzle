@@ -55,24 +55,44 @@ type PuzzleBounds = {
 };
 
 const FROST_BASE_COLOR = 0xffffff;
+// Duration (ms) of the snap tween when a piece locks into place.
 const SNAP_ANIMATION_DURATION = 180;
+// Multiplier used to derive snap tolerance from the piece bounds.
 const SNAP_BASE_FACTOR = 0.09;
+// Wider tolerance applied whenever debug guides are visible.
 const SNAP_DEBUG_MULTIPLIER = 2.6;
+
+// Delay (ms) after scene load before the shiver/explosion sequence kicks off.
 const INTRO_HOLD_DURATION = 1200;
+// Total time (ms) pieces jitter in place ahead of the launch.
 const EXPLOSION_SHIVER_DURATION = 2000;
+// Maximum pixel offset applied during the shiver; tweak for subtler or wilder jitter.
 const EXPLOSION_SHIVER_AMPLITUDE = { min: 0.6, max: 2.2 } as const;
+// Base tween duration range (ms) for a single shiver cycle before timeScale ramps up.
 const EXPLOSION_SHIVER_INTERVAL = { min: 220, max: 320 } as const;
-const EXPLOSION_STAGGER = 60;
+// Spacing (ms) between launching consecutive pieces.
+const EXPLOSION_STAGGER = 5;
+// Downward acceleration (px/s^2) applied while pieces are airborne.
 const EXPLOSION_GRAVITY = 2200;
+// Target travel time window (s) used to solve each ballistic arc.
 const EXPLOSION_TRAVEL_TIME = { min: 0.72, max: 0.95 } as const;
-const EXPLOSION_RADIAL_BOOST = { min: 260, max: 420 } as const;
-const EXPLOSION_SPIN_RANGE = { min: -2.4, max: 2.4 } as const;
+// Extra outward impulse (px/s) layered on top of the arc for radial spread.
+const EXPLOSION_RADIAL_BOOST = { min: 260, max: 800 } as const;
+// Initial angular velocity range (rad/s) imparted when a piece launches.
+const EXPLOSION_SPIN_RANGE = { min: -4.4, max: 4.4 } as const;
+// Energy retention applied to the vertical component after a ground bounce.
 const EXPLOSION_BOUNCE_DAMPING = 0.36;
+// Horizontal speed multiplier applied on ground contact to simulate friction.
 const EXPLOSION_GROUND_FRICTION = 0.82;
+// Dampens the spin each time a piece hits the floor.
 const EXPLOSION_SPIN_DAMPING = 0.7;
+// Velocity threshold (px/s) below which pieces are considered settled.
 const EXPLOSION_MIN_REST_SPEED = 40;
+// Delay (ms) after all pieces settle before control returns to the puzzle.
 const EXPLOSION_REST_DELAY = 220;
+// Unplayable border (px) that keeps pieces away from the camera edge.
 const EXPLOSION_WALL_MARGIN = 64;
+// Horizontal damping applied when ricocheting off the wall margin.
 const EXPLOSION_WALL_DAMPING = 0.42;
 
 const calculateSnapTolerance = (shape: Phaser.GameObjects.Polygon, multiplier = 1): number => {
@@ -598,6 +618,10 @@ export class PuzzleScene extends Phaser.Scene {
       }
 
       piece.isDragging = true;
+      this.input.setDefaultCursor('grabbing');
+      if (this.input.manager?.canvas) {
+        this.input.manager.canvas.style.cursor = 'grabbing';
+      }
       const pointerWorldX = pointer.worldX ?? pointer.x;
       const pointerWorldY = pointer.worldY ?? pointer.y;
       piece.dragStartRotation = piece.shape.rotation;
@@ -678,13 +702,33 @@ export class PuzzleScene extends Phaser.Scene {
         piece.shape.setDepth(30 + index);
       }
 
+      this.input.setDefaultCursor('default');
+      if (this.input.manager?.canvas) {
+        this.input.manager.canvas.style.cursor = 'default';
+      }
       if (this.debugEnabled) {
         this.hideDebugOutline();
       }
     });
 
-    this.input.on('pointerup', () => this.debugEnabled && this.hideDebugOutline());
-    this.input.on('pointerupoutside', () => this.debugEnabled && this.hideDebugOutline());
+    this.input.on('pointerup', () => {
+      this.input.setDefaultCursor('default');
+      if (this.input.manager?.canvas) {
+        this.input.manager.canvas.style.cursor = 'default';
+      }
+      if (this.debugEnabled) {
+        this.hideDebugOutline();
+      }
+    });
+    this.input.on('pointerupoutside', () => {
+      this.input.setDefaultCursor('default');
+      if (this.input.manager?.canvas) {
+        this.input.manager.canvas.style.cursor = 'default';
+      }
+      if (this.debugEnabled) {
+        this.hideDebugOutline();
+      }
+    });
   }
 
   private trySnapPiece(piece: PieceRuntime): boolean {
@@ -752,7 +796,7 @@ export class PuzzleScene extends Phaser.Scene {
     const banner = this.add.rectangle(this.scale.width * 0.5, 72, 480, 96, 0x183d2f, 0.82);
     banner.setStrokeStyle(2, 0x8ddfcb, 0.9);
 
-    const message = this.add.text(this.scale.width * 0.5, 72, `Star restored in ${totalSeconds.toFixed(1)}s`, {
+    const message = this.add.text(this.scale.width * 0.5, 72, `Puzzle completed in ${totalSeconds.toFixed(1)}s`, {
       color: '#e3fff5',
       fontSize: '30px',
       fontFamily: 'Segoe UI, Roboto, sans-serif'
