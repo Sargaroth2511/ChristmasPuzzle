@@ -1,48 +1,38 @@
 import Phaser from 'phaser';
 
-type SceneData = {
-  emitter?: Phaser.Events.EventEmitter;
-  showDebug?: boolean;
-  useGlassStyle?: boolean;
-};
-
-type PuzzlePoint = {
-  x: number;
-  y: number;
-};
-
-type PuzzlePiece = {
-  id: string;
-  points: PuzzlePoint[];
-  anchor: PuzzlePoint;
-  fillColor: number;
-  fillAlpha: number;
-  strokeColor?: number;
-  strokeAlpha?: number;
-  strokeWidth?: number;
-};
-
-type PuzzleConfig = {
-  outline: PuzzlePoint[];
-  pieces: PuzzlePiece[];
-  bounds: PuzzleBounds;
-};
-
-type SvgStyleAttributes = {
-  fillColor?: number;
-  fillAlpha?: number;
-  strokeColor?: number;
-  strokeAlpha?: number;
-  strokeWidth?: number;
-};
-
-type PieceStyling = {
-  fillColor: number;
-  fillAlpha: number;
-  strokeColor: number;
-  strokeAlpha: number;
-  strokeWidth: number;
-};
+import {
+  DEFAULT_FILL_ALPHA,
+  DEFAULT_STROKE_ALPHA,
+  INTRO_HOLD_DURATION,
+  EXPLOSION_BOUNCE_DAMPING,
+  EXPLOSION_GRAVITY,
+  EXPLOSION_GROUND_FRICTION,
+  EXPLOSION_MIN_REST_SPEED,
+  EXPLOSION_RADIAL_BOOST,
+  EXPLOSION_REST_DELAY,
+  EXPLOSION_SHIVER_AMPLITUDE,
+  EXPLOSION_SHIVER_DURATION,
+  EXPLOSION_SHIVER_INTERVAL,
+  EXPLOSION_SPIN_DAMPING,
+  EXPLOSION_SPIN_RANGE,
+  EXPLOSION_STAGGER,
+  EXPLOSION_TRAVEL_TIME,
+  EXPLOSION_WALL_DAMPING,
+  EXPLOSION_WALL_MARGIN,
+  GUIDE_FILL_STYLE,
+  GUIDE_STROKE_STYLE,
+  HOVER_STROKE_DELTA,
+  PIECE_HOVER_STROKE_RATIO,
+  PIECE_HOVER_STROKE_WIDTH,
+  PIECE_STROKE_WIDTH,
+  SNAP_ANIMATION_DURATION,
+  SNAP_BASE_FACTOR,
+  SNAP_DEBUG_MULTIPLIER,
+  SNAP_TOLERANCE_LIMITS,
+  STAG_BASE_COLOR
+} from './puzzle.constants';
+import { PieceStyling, PuzzleConfig, PuzzlePoint, SceneData } from './puzzle.types';
+import { createPuzzleConfigFromSvg } from './puzzle-config';
 
 type PieceRuntime = {
   id: string;
@@ -73,69 +63,12 @@ type PieceRuntime = {
   isDragging?: boolean;
 };
 
-type PuzzleBounds = {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-  width: number;
-  height: number;
-};
-const STAG_BASE_COLOR = 0xffffff;
-const FROST_BASE_COLOR = 0xffffff;
-const PIECE_STROKE_WIDTH = 2.5;
-const PIECE_HOVER_STROKE_WIDTH = 3.5;
-const PIECE_HOVER_STROKE_RATIO = PIECE_HOVER_STROKE_WIDTH / PIECE_STROKE_WIDTH;
-// Duration (ms) of the snap tween when a piece locks into place.
-const SNAP_ANIMATION_DURATION = 180;
-// Multiplier used to derive snap tolerance from the piece bounds.
-const SNAP_BASE_FACTOR = 0.09;
-// Wider tolerance applied whenever debug guides are visible.
-const SNAP_DEBUG_MULTIPLIER = 2.6;
-
-// Delay (ms) after scene load before the shiver/explosion sequence kicks off.
-const INTRO_HOLD_DURATION = 1200;
-// Total time (ms) pieces jitter in place ahead of the launch.
-const EXPLOSION_SHIVER_DURATION = 2000;
-// Maximum pixel offset applied during the shiver; tweak for subtler or wilder jitter.
-const EXPLOSION_SHIVER_AMPLITUDE = { min: 0.6, max: 2.2 } as const;
-// Base tween duration range (ms) for a single shiver cycle before timeScale ramps up.
-const EXPLOSION_SHIVER_INTERVAL = { min: 220, max: 320 } as const;
-// Spacing (ms) between launching consecutive pieces.
-const EXPLOSION_STAGGER = 5;
-// Downward acceleration (px/s^2) applied while pieces are airborne.
-const EXPLOSION_GRAVITY = 2200;
-// Target travel time window (s) used to solve each ballistic arc.
-const EXPLOSION_TRAVEL_TIME = { min: 0.72, max: 0.95 } as const;
-// Extra outward impulse (px/s) layered on top of the arc for radial spread.
-const EXPLOSION_RADIAL_BOOST = { min: 260, max: 800 } as const;
-// Initial angular velocity range (rad/s) imparted when a piece launches.
-const EXPLOSION_SPIN_RANGE = { min: -4.4, max: 4.4 } as const;
-// Energy retention applied to the vertical component after a ground bounce.
-const EXPLOSION_BOUNCE_DAMPING = 0.36;
-// Horizontal speed multiplier applied on ground contact to simulate friction.
-const EXPLOSION_GROUND_FRICTION = 0.82;
-// Dampens the spin each time a piece hits the floor.
-const EXPLOSION_SPIN_DAMPING = 0.7;
-// Velocity threshold (px/s) below which pieces are considered settled.
-const EXPLOSION_MIN_REST_SPEED = 40;
-// Delay (ms) after all pieces settle before control returns to the puzzle.
-const EXPLOSION_REST_DELAY = 220;
-// Unplayable border (px) that keeps pieces away from the camera edge.
-const EXPLOSION_WALL_MARGIN = 64;
-// Horizontal damping applied when ricocheting off the wall margin.
-const EXPLOSION_WALL_DAMPING = 0.42;
-
-// Bounding constants that keep the SVG-to-polygon sampling dense enough to preserve sharp edges.
-const SVG_SAMPLING_MAX_STEP = 0.6;
-const SVG_SAMPLING_MIN_STEPS = 256;
-const SVG_SAMPLING_MAX_STEPS = 4096;
-
 const calculateSnapTolerance = (shape: Phaser.GameObjects.Polygon, multiplier = 1): number => {
   const bounds = shape.getBounds();
   const maxAxis = Math.max(bounds.width, bounds.height) || 0;
   const dynamicTolerance = maxAxis * SNAP_BASE_FACTOR * multiplier;
-  return Phaser.Math.Clamp(dynamicTolerance, 18, 120);
+  const { min, max } = SNAP_TOLERANCE_LIMITS;
+  return Phaser.Math.Clamp(dynamicTolerance, min, max);
 };
 
 export class PuzzleScene extends Phaser.Scene {
@@ -234,7 +167,7 @@ export class PuzzleScene extends Phaser.Scene {
       throw new Error('Puzzle SVG data missing.');
     }
 
-    this.config = this.createConfigFromSvg(svgText);
+    this.config = createPuzzleConfigFromSvg(svgText);
 
     this.pieces = [];
     this.placedCount = 0;
@@ -273,7 +206,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.guideOverlay?.destroy();
     const guide = this.add.graphics();
 
-    guide.fillStyle(0xffffff, 0.06);
+    guide.fillStyle(GUIDE_FILL_STYLE.color, GUIDE_FILL_STYLE.alpha);
     guide.beginPath();
     guide.moveTo(outlinePoints[0].x, outlinePoints[0].y);
     for (let i = 1; i < outlinePoints.length; i++) {
@@ -282,7 +215,7 @@ export class PuzzleScene extends Phaser.Scene {
     guide.closePath();
     guide.fillPath();
 
-    guide.lineStyle(0.2, 0x000000, 0.95);
+    guide.lineStyle(GUIDE_STROKE_STYLE.width, GUIDE_STROKE_STYLE.color, GUIDE_STROKE_STYLE.alpha);
     guide.beginPath();
     guide.moveTo(outlinePoints[0].x, outlinePoints[0].y);
     for (let i = 1; i < outlinePoints.length; i++) {
@@ -301,9 +234,9 @@ export class PuzzleScene extends Phaser.Scene {
 
     config.pieces.forEach((piece) => {
       const fillColor = piece.fillColor ?? STAG_BASE_COLOR;
-      const fillAlpha = Phaser.Math.Clamp(piece.fillAlpha ?? 0.2, 0, 1);
+      const fillAlpha = Phaser.Math.Clamp(piece.fillAlpha ?? DEFAULT_FILL_ALPHA, 0, 1);
       const strokeColor = piece.strokeColor ?? 0x000000;
-      const strokeAlpha = Phaser.Math.Clamp(piece.strokeAlpha ?? 0.9, 0, 1);
+      const strokeAlpha = Phaser.Math.Clamp(piece.strokeAlpha ?? DEFAULT_STROKE_ALPHA, 0, 1);
       const strokeWidth = this.toCanvasStrokeWidth(piece.strokeWidth);
       const actualPoints = piece.points.map((pt) => this.toCanvasPoint(pt));
       const anchor = this.toCanvasPoint(piece.anchor);
@@ -933,46 +866,6 @@ export class PuzzleScene extends Phaser.Scene {
     return new Phaser.Math.Vector2(x, y);
   }
 
-  private computeCentroid(points: PuzzlePoint[]): PuzzlePoint {
-    if (points.length === 0) {
-      return { x: 0, y: 0 };
-    }
-
-    let area = 0;
-    let cx = 0;
-    let cy = 0;
-
-    for (let i = 0; i < points.length; i++) {
-      const current = points[i];
-      const next = points[(i + 1) % points.length];
-      const cross = current.x * next.y - next.x * current.y;
-      area += cross;
-      cx += (current.x + next.x) * cross;
-      cy += (current.y + next.y) * cross;
-    }
-
-    if (Math.abs(area) < 1e-6) {
-      const sum = points.reduce(
-        (acc, pt) => ({ x: acc.x + pt.x, y: acc.y + pt.y }),
-        { x: 0, y: 0 }
-      );
-      return { x: sum.x / points.length, y: sum.y / points.length };
-    }
-
-    area *= 0.5;
-    const factor = 1 / (6 * area);
-    return { x: cx * factor, y: cy * factor };
-  }
-
-  private round(value: number): number {
-    const factor = 1_000_000;
-    if (value === 0) {
-      return 0;
-    }
-
-    return (Math.sign(value) * Math.round(Math.abs(value) * factor)) / factor;
-  }
-
   private buildPieceGeometry(points: Phaser.Math.Vector2[], anchor: Phaser.Math.Vector2): {
     coords: number[];
     hitArea: Phaser.Geom.Point[];
@@ -1040,321 +933,6 @@ export class PuzzleScene extends Phaser.Scene {
     this.debugOverlay.setVisible(false);
   }
 
-  private createConfigFromSvg(svgContent: string): PuzzleConfig {
-    const parser = new DOMParser();
-    const documentNode = parser.parseFromString(svgContent, 'image/svg+xml');
-    const root = documentNode.documentElement;
-    const viewBoxRaw = root.getAttribute('viewBox');
-
-    if (!viewBoxRaw) {
-      throw new Error('SVG viewBox is required to normalise coordinates.');
-    }
-
-    const viewBoxValues = viewBoxRaw.split(/[\s,]+/).map(Number);
-    if (viewBoxValues.length !== 4 || viewBoxValues.some((value) => Number.isNaN(value))) {
-      throw new Error('SVG viewBox is invalid.');
-    }
-
-    const [minX, minY, width, height] = viewBoxValues;
-    const outlineElement = documentNode.querySelector<SVGPathElement>('#outline');
-
-    if (!outlineElement) {
-      throw new Error('SVG outline path not found.');
-    }
-
-    const outlinePoints = this.samplePath(outlineElement);
-
-    const classStyleMap = this.extractClassStyleMap(documentNode);
-    const pieceElements = Array.from(documentNode.querySelectorAll<SVGPathElement>('[id^="piece_"]'));
-
-    if (pieceElements.length === 0) {
-      throw new Error('No puzzle pieces found in SVG.');
-    }
-
-    const pieces = pieceElements
-      .map<PuzzlePiece | null>((element) => {
-        const id = element.id;
-        const d = element.getAttribute('d');
-        if (!d) {
-          return null;
-        }
-
-        const points = this.samplePath(element);
-        if (points.length < 3) {
-          return null;
-        }
-
-        const anchor = this.computeCentroid(points);
-        const styleInfo = this.extractStyleFromElement(element, classStyleMap);
-        const fillColor = styleInfo.fillColor ?? STAG_BASE_COLOR;
-        const fillAlpha = styleInfo.fillAlpha ?? 0.2;
-        const strokeColor = styleInfo.strokeColor;
-        const strokeAlpha = styleInfo.strokeAlpha;
-        const strokeWidth = styleInfo.strokeWidth;
-        return {
-          id,
-          points,
-          anchor,
-          fillColor,
-          fillAlpha,
-          strokeColor,
-          strokeAlpha,
-          strokeWidth
-        };
-      })
-      .filter((piece): piece is PuzzlePiece => piece !== null)
-      .sort((a, b) => {
-        const numericA = parseInt(a.id.replace(/[^0-9]/g, ''), 10);
-        const numericB = parseInt(b.id.replace(/[^0-9]/g, ''), 10);
-        if (Number.isNaN(numericA) || Number.isNaN(numericB)) {
-          return a.id.localeCompare(b.id);
-        }
-        return numericA - numericB;
-      });
-
-    const bounds = this.computeBounds(outlinePoints, pieces);
-
-    return { outline: outlinePoints, pieces, bounds };
-  }
-
-  private extractClassStyleMap(documentNode: Document): Map<string, SvgStyleAttributes> {
-    const styleEntries = new Map<string, SvgStyleAttributes>();
-    const styleElements = Array.from(documentNode.querySelectorAll('style'));
-    const ruleRegex = /\.([a-zA-Z0-9_-]+)\s*\{([^}]*)\}/g;
-
-    styleElements.forEach((styleEl) => {
-      const css = styleEl.textContent ?? '';
-      let match: RegExpExecArray | null;
-      while ((match = ruleRegex.exec(css)) !== null) {
-        const className = match[1];
-        const declarations = match[2];
-        const fillMatch = /fill\s*:\s*([^;]+)/i.exec(declarations);
-        const fillOpacityMatch = /fill-opacity\s*:\s*([^;]+)/i.exec(declarations);
-        const strokeMatch = /stroke\s*:\s*([^;]+)/i.exec(declarations);
-        const strokeOpacityMatch = /stroke-opacity\s*:\s*([^;]+)/i.exec(declarations);
-        const strokeWidthMatch = /stroke-width\s*:\s*([^;]+)/i.exec(declarations);
-        const fillColor = this.parseColorValue(fillMatch?.[1]);
-        const fillAlpha = fillOpacityMatch ? this.parseAlphaValue(fillOpacityMatch[1]) : undefined;
-        const strokeColor = this.parseColorValue(strokeMatch?.[1]);
-        const strokeAlpha = strokeOpacityMatch ? this.parseAlphaValue(strokeOpacityMatch[1]) : undefined;
-        const strokeWidth = strokeWidthMatch ? this.parseLengthValue(strokeWidthMatch[1]) : undefined;
-        styleEntries.set(className, { fillColor, fillAlpha, strokeColor, strokeAlpha, strokeWidth });
-      }
-    });
-
-    return styleEntries;
-  }
-
-  private extractStyleFromElement(
-    element: SVGPathElement,
-    classStyleMap: Map<string, SvgStyleAttributes>
-  ): SvgStyleAttributes {
-    const fillAttr = element.getAttribute('fill');
-    const fillOpacityAttr = element.getAttribute('fill-opacity');
-    const strokeAttr = element.getAttribute('stroke');
-    const strokeOpacityAttr = element.getAttribute('stroke-opacity');
-    const strokeWidthAttr = element.getAttribute('stroke-width');
-    let fillColor = this.parseColorValue(fillAttr);
-    let fillAlpha = fillOpacityAttr ? this.parseAlphaValue(fillOpacityAttr) : undefined;
-    let strokeColor = this.parseColorValue(strokeAttr);
-    let strokeAlpha = strokeOpacityAttr ? this.parseAlphaValue(strokeOpacityAttr) : undefined;
-    let strokeWidth = this.parseLengthValue(strokeWidthAttr);
-
-    const styleAttr = element.getAttribute('style');
-    if (styleAttr) {
-      const inlineFill = /fill\s*:\s*([^;]+)/i.exec(styleAttr);
-      const inlineOpacity = /fill-opacity\s*:\s*([^;]+)/i.exec(styleAttr);
-      const inlineStroke = /stroke\s*:\s*([^;]+)/i.exec(styleAttr);
-      const inlineStrokeOpacity = /stroke-opacity\s*:\s*([^;]+)/i.exec(styleAttr);
-      const inlineStrokeWidth = /stroke-width\s*:\s*([^;]+)/i.exec(styleAttr);
-      if (inlineFill) {
-        fillColor = this.parseColorValue(inlineFill[1]) ?? fillColor;
-      }
-      if (inlineOpacity) {
-        fillAlpha = this.parseAlphaValue(inlineOpacity[1]);
-      }
-      if (inlineStroke) {
-        strokeColor = this.parseColorValue(inlineStroke[1]) ?? strokeColor;
-      }
-      if (inlineStrokeOpacity) {
-        strokeAlpha = this.parseAlphaValue(inlineStrokeOpacity[1]);
-      }
-      if (inlineStrokeWidth) {
-        strokeWidth = this.parseLengthValue(inlineStrokeWidth[1]) ?? strokeWidth;
-      }
-    }
-
-    const classAttr = element.getAttribute('class');
-    if (classAttr) {
-      const classNames = classAttr.split(/\s+/);
-      for (const className of classNames) {
-        const entry = classStyleMap.get(className);
-        if (!entry) {
-          continue;
-        }
-        if (fillColor === undefined && entry.fillColor !== undefined) {
-          fillColor = entry.fillColor;
-        }
-        if (fillAlpha === undefined && entry.fillAlpha !== undefined) {
-          fillAlpha = entry.fillAlpha;
-        }
-        if (strokeColor === undefined && entry.strokeColor !== undefined) {
-          strokeColor = entry.strokeColor;
-        }
-        if (strokeAlpha === undefined && entry.strokeAlpha !== undefined) {
-          strokeAlpha = entry.strokeAlpha;
-        }
-        if (strokeWidth === undefined && entry.strokeWidth !== undefined) {
-          strokeWidth = entry.strokeWidth;
-        }
-      }
-    }
-
-    return { fillColor, fillAlpha, strokeColor, strokeAlpha, strokeWidth };
-  }
-
-  private parseColorValue(value?: string | null): number | undefined {
-    if (!value) {
-      return undefined;
-    }
-    const trimmed = value.trim();
-    if (!trimmed || trimmed.toLowerCase() === 'none') {
-      return undefined;
-    }
-
-    if (/^0x[0-9a-fA-F]+$/.test(trimmed)) {
-      return parseInt(trimmed, 16);
-    }
-
-    if (trimmed.startsWith('#')) {
-      try {
-        return Phaser.Display.Color.HexStringToColor(trimmed).color;
-      } catch {
-        return undefined;
-      }
-    }
-
-    const rgbMatch = trimmed.match(/^rgba?\(([^)]+)\)$/i);
-    if (rgbMatch) {
-      const [r = 0, g = 0, b = 0] = rgbMatch[1]
-        .split(',')
-        .map((component) => Number.parseFloat(component.trim())) as [number, number, number];
-      return Phaser.Display.Color.GetColor(r, g, b);
-    }
-
-    return undefined;
-  }
-
-  private parseAlphaValue(value?: string | null): number | undefined {
-    if (!value) {
-      return undefined;
-    }
-    const alpha = Number.parseFloat(value.trim());
-    if (!Number.isFinite(alpha)) {
-      return undefined;
-    }
-    return Phaser.Math.Clamp(alpha, 0, 1);
-  }
-
-  private parseLengthValue(value?: string | null): number | undefined {
-    if (!value) {
-      return undefined;
-    }
-    const numeric = Number.parseFloat(value.trim());
-    if (!Number.isFinite(numeric)) {
-      return undefined;
-    }
-    return Math.max(numeric, 0);
-  }
-
-  private samplePath(pathElement: SVGPathElement): PuzzlePoint[] {
-    const pathData = pathElement.getAttribute('d');
-    if (!pathData) {
-      return [];
-    }
-
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', pathData);
-
-    const totalLength = path.getTotalLength();
-    if (!Number.isFinite(totalLength) || totalLength === 0) {
-      return [];
-    }
-
-    const estimatedSteps = Math.ceil(totalLength / SVG_SAMPLING_MAX_STEP);
-    const steps = Phaser.Math.Clamp(estimatedSteps, SVG_SAMPLING_MIN_STEPS, SVG_SAMPLING_MAX_STEPS);
-    const points: PuzzlePoint[] = [];
-
-    for (let i = 0; i <= steps; i++) {
-      const distance = (i / steps) * totalLength;
-      const { x, y } = path.getPointAtLength(distance);
-      points.push({ x: this.round(x), y: this.round(y) });
-    }
-
-    return this.compactPoints(points);
-  }
-
-  private compactPoints(points: PuzzlePoint[], epsilon = 1e-4): PuzzlePoint[] {
-    if (points.length === 0) {
-      return points;
-    }
-
-    const compacted: PuzzlePoint[] = [points[0]];
-
-    for (let i = 1; i < points.length; i++) {
-      const prev = compacted[compacted.length - 1];
-      const current = points[i];
-      const dx = Math.abs(prev.x - current.x);
-      const dy = Math.abs(prev.y - current.y);
-      if (dx > epsilon || dy > epsilon) {
-        compacted.push(current);
-      }
-    }
-
-    if (compacted.length > 2) {
-      const first = compacted[0];
-      const last = compacted[compacted.length - 1];
-      if (Math.abs(first.x - last.x) > epsilon || Math.abs(first.y - last.y) > epsilon) {
-        compacted.push({ ...first });
-      }
-    }
-
-    return compacted;
-  }
-
-  private computeBounds(outline: PuzzlePoint[], pieces: PuzzlePiece[]): PuzzleBounds {
-    const allPoints: PuzzlePoint[] = [...outline];
-    pieces.forEach((piece) => {
-      allPoints.push(...piece.points);
-    });
-
-    if (allPoints.length === 0) {
-      return { minX: 0, minY: 0, maxX: 1, maxY: 1, width: 1, height: 1 };
-    }
-
-    let minX = allPoints[0].x;
-    let maxX = allPoints[0].x;
-    let minY = allPoints[0].y;
-    let maxY = allPoints[0].y;
-
-    for (let i = 1; i < allPoints.length; i++) {
-      const point = allPoints[i];
-      if (point.x < minX) minX = point.x;
-      if (point.x > maxX) maxX = point.x;
-      if (point.y < minY) minY = point.y;
-      if (point.y > maxY) maxY = point.y;
-    }
-
-    return {
-      minX,
-      minY,
-      maxX,
-      maxY,
-      width: maxX - minX,
-      height: maxY - minY
-    };
-  }
-
   setDebugVisible(show: boolean): void {
     this.debugEnabled = show;
 
@@ -1416,7 +994,7 @@ export class PuzzleScene extends Phaser.Scene {
 
   private getHoverStrokeStyle(piece: PieceRuntime): { width: number; color: number; alpha: number } {
     const base = this.getActiveStyle(piece);
-    const width = Math.max(base.strokeWidth * PIECE_HOVER_STROKE_RATIO, base.strokeWidth + 0.6);
+    const width = Math.max(base.strokeWidth * PIECE_HOVER_STROKE_RATIO, base.strokeWidth + HOVER_STROKE_DELTA);
     const alphaBoost = this.glassMode ? 0.08 : 0.06;
     const alpha = Phaser.Math.Clamp(base.strokeAlpha + alphaBoost, 0, 1);
     return { width, color: base.strokeColor, alpha };
