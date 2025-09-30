@@ -33,6 +33,6 @@ export const DEFAULT_STROKE_ALPHA = 0.9;
 export const SNAP_TOLERANCE_LIMITS = { min: 18, max: 120 } as const;
 
 export const GUIDE_FILL_STYLE = { color: 0xffffff, alpha: 0.06 } as const;
-export const GUIDE_STROKE_STYLE = { width: 3.2, color: 0x000000, alpha: 0.95 } as const;
+export const GUIDE_STROKE_STYLE = { width: 0.2, color: 0x000000, alpha: 0.95 } as const;
 
 export const HOVER_STROKE_DELTA = 0.6;

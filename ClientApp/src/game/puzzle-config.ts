@@ -16,9 +16,7 @@ import {
   SvgStyleAttributes
 } from './puzzle.types';
 
-export const createPuzzleConfigFromSvg = (svgContent: string): PuzzleConfig => {
-  const parser = new DOMParser();
-  const documentNode = parser.parseFromString(svgContent, 'image/svg+xml');
+export const createPuzzleConfigFromSvg = (documentNode: Document): PuzzleConfig => {
   const root = documentNode.documentElement;
   const viewBoxRaw = root.getAttribute('viewBox');
 
@@ -36,7 +34,7 @@ export const createPuzzleConfigFromSvg = (svgContent: string): PuzzleConfig => {
     throw new Error('SVG outline path not found.');
   }
 
-  const outlinePoints = samplePath(outlineElement);
+  const outlinePoints = sampleSvgPath(outlineElement);
   const classStyleMap = extractClassStyleMap(documentNode);
   const pieceElements = Array.from(documentNode.querySelectorAll<SVGPathElement>('[id^="piece_"]'));
 
@@ -51,7 +49,7 @@ export const createPuzzleConfigFromSvg = (svgContent: string): PuzzleConfig => {
         return null;
       }
 
-      const points = samplePath(element);
+      const points = sampleSvgPath(element);
       if (points.length < 3) {
         return null;
       }
@@ -162,7 +160,7 @@ const extractStyleFromElement = (
   return { fillColor, fillAlpha, strokeColor, strokeAlpha, strokeWidth };
 };
 
-const samplePath = (pathElement: SVGPathElement): PuzzlePoint[] => {
+export const sampleSvgPath = (pathElement: SVGPathElement): PuzzlePoint[] => {
   const pathData = pathElement.getAttribute('d');
   if (!pathData) {
     return [];

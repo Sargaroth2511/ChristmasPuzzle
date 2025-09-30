@@ -32,7 +32,7 @@ import {
   STAG_BASE_COLOR
 } from './puzzle.constants';
 import { PieceStyling, PuzzleConfig, PuzzlePoint, SceneData } from './puzzle.types';
-import { createPuzzleConfigFromSvg } from './puzzle-config';
+import { createPuzzleConfigFromSvg, sampleSvgPath } from './puzzle-config';
 
 type PieceRuntime = {
   id: string;
@@ -61,6 +61,19 @@ type PieceRuntime = {
   dragPointer?: Phaser.Math.Vector2;
   dragStartRotation?: number;
   isDragging?: boolean;
+  detailsOverlay?: Phaser.GameObjects.Graphics;
+  detailsMaskGfx?: Phaser.GameObjects.Graphics;
+};
+
+type SvgStrokeStyle = {
+  strokeColor?: number;
+  strokeAlpha?: number;
+  strokeWidth?: number;
+  lineCap?: CanvasLineCap;
+  lineJoin?: CanvasLineJoin;
+  miterLimit?: number;
+  fillColor?: number;
+  fillAlpha?: number;
 };
 
 const calculateSnapTolerance = (shape: Phaser.GameObjects.Polygon, multiplier = 1): number => {
@@ -87,6 +100,8 @@ export class PuzzleScene extends Phaser.Scene {
   private shiverStartTime = 0;
   private glassMode = false;
   private nextDropDepth = 0;
+  private svgDoc?: Document;
+  private svgClassStyleMap?: Map<string, SvgStrokeStyle>;
 
   private resetDragState(piece: PieceRuntime): void {
     piece.isDragging = false;
@@ -100,6 +115,328 @@ export class PuzzleScene extends Phaser.Scene {
       piece.shape.x - piece.origin.x,
       piece.shape.y - piece.origin.y
     );
+  }
+
+  private syncDetailsTransform(piece: PieceRuntime): void {
+    if (!piece.detailsOverlay || !piece.detailsMaskGfx) {
+      return;
+    }
+
+    const scaleX = piece.shape.scaleX ?? 1;
+    const scaleY = piece.shape.scaleY ?? 1;
+    piece.detailsOverlay.setPosition(piece.shape.x, piece.shape.y);
+    piece.detailsOverlay.rotation = piece.shape.rotation;
+    piece.detailsOverlay.setScale(scaleX, scaleY);
+    piece.detailsOverlay.setDepth(piece.shape.depth + 0.1);
+
+    piece.detailsMaskGfx.setPosition(piece.shape.x, piece.shape.y);
+    piece.detailsMaskGfx.rotation = piece.shape.rotation;
+    piece.detailsMaskGfx.setScale(scaleX, scaleY);
+  }
+
+  private addDetailsForPiece(piece: PieceRuntime, doc: Document): void {
+    const pieceIdMatch = piece.id.match(/^piece_(\d+)/);
+    const pieceNum = pieceIdMatch?.[1];
+    if (!pieceNum) {
+      return;
+    }
+
+    const detailEls = Array.from(doc.querySelectorAll<SVGPathElement>(`[id^="detail_${pieceNum}"]`));
+    if (detailEls.length === 0) {
+      return;
+    }
+
+    if (!this.svgClassStyleMap) {
+      this.svgClassStyleMap = this.buildSvgClassStyleMap(doc);
+    }
+
+    const basePosition = new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
+
+    const overlay = this.add.graphics();
+    overlay.setDepth(piece.shape.depth + 0.1);
+    overlay.setAlpha(this.glassMode ? 0.6 : 1);
+    overlay.setVisible(true);
+    overlay.setPosition(basePosition.x, basePosition.y);
+
+    for (const el of detailEls) {
+      const points = sampleSvgPath(el).map((pt) => this.toCanvasPoint(pt));
+      if (points.length < 2) {
+        continue;
+      }
+      const strokeStyle = this.extractStrokeStyle(el);
+      const strokeColor = strokeStyle.strokeColor ?? piece.strokeColor ?? 0x000000;
+      const strokeAlpha = strokeStyle.strokeAlpha ?? 1;
+      const strokeWidth = this.toCanvasStrokeWidth(strokeStyle.strokeWidth ?? 1);
+      const fillColor = strokeStyle.fillColor;
+      const fillAlpha = strokeStyle.fillAlpha ?? (fillColor !== undefined ? 1 : 0);
+
+      if (strokeStyle.lineCap) {
+        (overlay as any).defaultStrokeLineCap = strokeStyle.lineCap;
+      }
+      if (strokeStyle.lineJoin) {
+        (overlay as any).defaultStrokeLineJoin = strokeStyle.lineJoin;
+      }
+      if (strokeStyle.miterLimit !== undefined) {
+        (overlay as any).defaultStrokeMiterLimit = strokeStyle.miterLimit;
+      }
+
+      const transformedPoints = points.map((point) => new Phaser.Math.Vector2(point.x - basePosition.x, point.y - basePosition.y));
+      const lastPoint = transformedPoints[transformedPoints.length - 1];
+      const firstPoint = transformedPoints[0];
+      const isClosed = Phaser.Math.Distance.Between(firstPoint.x, firstPoint.y, lastPoint.x, lastPoint.y) < 0.001;
+
+      overlay.lineStyle(strokeWidth, strokeColor, strokeAlpha);
+      overlay.beginPath();
+      overlay.moveTo(firstPoint.x, firstPoint.y);
+      for (let i = 1; i < transformedPoints.length; i += 1) {
+        overlay.lineTo(transformedPoints[i].x, transformedPoints[i].y);
+      }
+      if (isClosed) {
+        overlay.closePath();
+      }
+      overlay.strokePath();
+
+      if (fillColor !== undefined && fillAlpha > 0) {
+        overlay.fillStyle(fillColor, fillAlpha);
+        overlay.beginPath();
+        overlay.moveTo(firstPoint.x, firstPoint.y);
+        for (let i = 1; i < transformedPoints.length; i += 1) {
+          overlay.lineTo(transformedPoints[i].x, transformedPoints[i].y);
+        }
+        if (isClosed) {
+          overlay.closePath();
+        }
+        overlay.fillPath();
+      }
+    }
+
+    const maskGfx = this.add.graphics().setVisible(false);
+    maskGfx.fillStyle(0xffffff, 1);
+    maskGfx.setPosition(basePosition.x, basePosition.y);
+    const footprint = piece.footprint;
+    if (footprint.length >= 3) {
+      maskGfx.beginPath();
+      maskGfx.moveTo(footprint[0].x - basePosition.x, footprint[0].y - basePosition.y);
+      for (let i = 1; i < footprint.length; i += 1) {
+        maskGfx.lineTo(footprint[i].x - basePosition.x, footprint[i].y - basePosition.y);
+      }
+      maskGfx.closePath();
+      maskGfx.fillPath();
+    }
+
+    const geometryMask = new Phaser.Display.Masks.GeometryMask(this, maskGfx);
+    overlay.setMask(geometryMask);
+
+    piece.detailsOverlay = overlay;
+    piece.detailsMaskGfx = maskGfx;
+
+    this.syncDetailsTransform(piece);
+
+    piece.shape.once(Phaser.GameObjects.Events.DESTROY, () => {
+      overlay.clearMask(true);
+      geometryMask.destroy();
+      maskGfx.destroy();
+      overlay.destroy();
+    });
+  }
+
+  private buildSvgClassStyleMap(doc: Document): Map<string, SvgStrokeStyle> {
+    const map = new Map<string, SvgStrokeStyle>();
+    const styleElements = Array.from(doc.querySelectorAll('style'));
+    const ruleRegex = /\.([a-zA-Z0-9_-]+)\s*\{([^}]*)\}/g;
+
+    styleElements.forEach((styleEl) => {
+      const css = styleEl.textContent ?? '';
+      let match: RegExpExecArray | null;
+      while ((match = ruleRegex.exec(css)) !== null) {
+        const className = match[1];
+        const declarations = match[2];
+        const strokeMatch = /stroke\s*:\s*([^;]+)/i.exec(declarations);
+        const strokeOpacityMatch = /stroke-opacity\s*:\s*([^;]+)/i.exec(declarations);
+        const strokeWidthMatch = /stroke-width\s*:\s*([^;]+)/i.exec(declarations);
+        const lineCapMatch = /stroke-linecap\s*:\s*([^;]+)/i.exec(declarations);
+        const lineJoinMatch = /stroke-linejoin\s*:\s*([^;]+)/i.exec(declarations);
+        const miterLimitMatch = /stroke-miterlimit\s*:\s*([^;]+)/i.exec(declarations);
+        if (!strokeMatch && !strokeOpacityMatch && !strokeWidthMatch && !lineCapMatch && !lineJoinMatch && !miterLimitMatch) {
+          continue;
+        }
+        const strokeColor = this.parseSvgColorValue(strokeMatch?.[1]);
+        const strokeAlpha = this.parseSvgAlphaValue(strokeOpacityMatch?.[1]);
+        const strokeWidth = this.parseSvgLengthValue(strokeWidthMatch?.[1]);
+        const lineCap = this.parseSvgLineCap(lineCapMatch?.[1]);
+        const lineJoin = this.parseSvgLineJoin(lineJoinMatch?.[1]);
+        const miterLimit = this.parseSvgMiterLimit(miterLimitMatch?.[1]);
+        const fillMatch = /fill\s*:\s*([^;]+)/i.exec(declarations);
+        const fillOpacityMatch = /fill-opacity\s*:\s*([^;]+)/i.exec(declarations);
+        const fillColor = this.parseSvgColorValue(fillMatch?.[1]);
+        const fillAlpha = this.parseSvgAlphaValue(fillOpacityMatch?.[1]);
+        map.set(className, { strokeColor, strokeAlpha, strokeWidth, lineCap, lineJoin, miterLimit, fillColor, fillAlpha });
+      }
+    });
+
+    return map;
+  }
+
+  private extractStrokeStyle(element: SVGPathElement): SvgStrokeStyle {
+    let strokeColor = this.parseSvgColorValue(element.getAttribute('stroke'));
+    let strokeAlpha = this.parseSvgAlphaValue(element.getAttribute('stroke-opacity'));
+    let strokeWidth = this.parseSvgLengthValue(element.getAttribute('stroke-width'));
+    let lineCap = this.parseSvgLineCap(element.getAttribute('stroke-linecap'));
+    let lineJoin = this.parseSvgLineJoin(element.getAttribute('stroke-linejoin'));
+    let miterLimit = this.parseSvgMiterLimit(element.getAttribute('stroke-miterlimit'));
+    let fillColor = this.parseSvgColorValue(element.getAttribute('fill'));
+    let fillAlpha = this.parseSvgAlphaValue(element.getAttribute('fill-opacity'));
+
+    const styleAttr = element.getAttribute('style');
+    if (styleAttr) {
+      const inlineStroke = /stroke\s*:\s*([^;]+)/i.exec(styleAttr);
+      const inlineOpacity = /stroke-opacity\s*:\s*([^;]+)/i.exec(styleAttr);
+      const inlineWidth = /stroke-width\s*:\s*([^;]+)/i.exec(styleAttr);
+      const inlineCap = /stroke-linecap\s*:\s*([^;]+)/i.exec(styleAttr);
+      const inlineJoin = /stroke-linejoin\s*:\s*([^;]+)/i.exec(styleAttr);
+      const inlineMiter = /stroke-miterlimit\s*:\s*([^;]+)/i.exec(styleAttr);
+      const inlineFill = /fill\s*:\s*([^;]+)/i.exec(styleAttr);
+      const inlineFillOpacity = /fill-opacity\s*:\s*([^;]+)/i.exec(styleAttr);
+      strokeColor = this.parseSvgColorValue(inlineStroke?.[1]) ?? strokeColor;
+      strokeAlpha = this.parseSvgAlphaValue(inlineOpacity?.[1]) ?? strokeAlpha;
+      strokeWidth = this.parseSvgLengthValue(inlineWidth?.[1]) ?? strokeWidth;
+      lineCap = this.parseSvgLineCap(inlineCap?.[1]) ?? lineCap;
+      lineJoin = this.parseSvgLineJoin(inlineJoin?.[1]) ?? lineJoin;
+      miterLimit = this.parseSvgMiterLimit(inlineMiter?.[1]) ?? miterLimit;
+      fillColor = this.parseSvgColorValue(inlineFill?.[1]) ?? fillColor;
+      fillAlpha = this.parseSvgAlphaValue(inlineFillOpacity?.[1]) ?? fillAlpha;
+    }
+
+    element.classList.forEach((className) => {
+      const classStyle = this.svgClassStyleMap?.get(className);
+      if (!classStyle) {
+        return;
+      }
+      if (classStyle.strokeColor !== undefined) {
+        strokeColor = classStyle.strokeColor;
+      }
+      if (classStyle.strokeAlpha !== undefined) {
+        strokeAlpha = classStyle.strokeAlpha;
+      }
+      if (classStyle.strokeWidth !== undefined) {
+        strokeWidth = classStyle.strokeWidth;
+      }
+      if (classStyle.lineCap !== undefined) {
+        lineCap = classStyle.lineCap;
+      }
+      if (classStyle.lineJoin !== undefined) {
+        lineJoin = classStyle.lineJoin;
+      }
+      if (classStyle.miterLimit !== undefined) {
+        miterLimit = classStyle.miterLimit;
+      }
+      if (classStyle.fillColor !== undefined) {
+        fillColor = classStyle.fillColor;
+      }
+      if (classStyle.fillAlpha !== undefined) {
+        fillAlpha = classStyle.fillAlpha;
+      }
+    });
+
+    return { strokeColor, strokeAlpha, strokeWidth, lineCap, lineJoin, miterLimit, fillColor, fillAlpha };
+  }
+
+  private parseSvgColorValue(value?: string | null): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.toLowerCase() === 'none') {
+      return undefined;
+    }
+
+    if (/^0x[0-9a-fA-F]+$/.test(trimmed)) {
+      return parseInt(trimmed, 16);
+    }
+
+    if (trimmed.startsWith('#')) {
+      try {
+        return Phaser.Display.Color.HexStringToColor(trimmed).color;
+      } catch {
+        return undefined;
+      }
+    }
+
+    const rgbMatch = trimmed.match(/^rgba?\(([^)]+)\)$/i);
+    if (rgbMatch) {
+      const [r = 0, g = 0, b = 0] = rgbMatch[1]
+        .split(',')
+        .map((component) => Number.parseFloat(component.trim())) as [number, number, number];
+      return Phaser.Display.Color.GetColor(r, g, b);
+    }
+
+    return undefined;
+  }
+
+  private parseSvgAlphaValue(value?: string | null): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const alpha = Number.parseFloat(value.trim());
+    if (!Number.isFinite(alpha)) {
+      return undefined;
+    }
+
+    return Phaser.Math.Clamp(alpha, 0, 1);
+  }
+
+  private parseSvgLengthValue(value?: string | null): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const numeric = Number.parseFloat(value.trim());
+    if (!Number.isFinite(numeric)) {
+      return undefined;
+    }
+
+    return Math.max(numeric, 0);
+  }
+
+  private parseSvgLineCap(value?: string | null): CanvasLineCap | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const trimmed = value.trim().toLowerCase();
+    if (trimmed === 'butt' || trimmed === 'round' || trimmed === 'square') {
+      return trimmed;
+    }
+
+    return undefined;
+  }
+
+  private parseSvgLineJoin(value?: string | null): CanvasLineJoin | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const trimmed = value.trim().toLowerCase();
+    if (trimmed === 'miter' || trimmed === 'round' || trimmed === 'bevel') {
+      return trimmed as CanvasLineJoin;
+    }
+
+    return undefined;
+  }
+
+  private parseSvgMiterLimit(value?: string | null): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const numeric = Number.parseFloat(value.trim());
+    if (!Number.isFinite(numeric)) {
+      return undefined;
+    }
+
+    return Math.max(numeric, 0);
   }
 
   private stylePieceForBurst(piece: PieceRuntime, depth: number): void {
@@ -120,6 +457,17 @@ export class PuzzleScene extends Phaser.Scene {
     piece.restPosition = undefined;
     piece.restRotation = undefined;
     this.resetDragState(piece);
+
+    if (piece.detailsOverlay) {
+      piece.detailsOverlay.setVisible(true);
+      const overlayAlpha = this.glassMode ? 0.45 : 0.75;
+      piece.detailsOverlay.setAlpha(overlayAlpha);
+    }
+    if (piece.detailsMaskGfx) {
+      piece.detailsMaskGfx.setVisible(false);
+    }
+
+    this.syncDetailsTransform(piece);
   }
 
   private stylePieceForPuzzle(piece: PieceRuntime): void {
@@ -138,12 +486,24 @@ export class PuzzleScene extends Phaser.Scene {
     piece.velocity = undefined;
     piece.angularVelocity = undefined;
     this.resetDragState(piece);
+
+    if (piece.detailsOverlay) {
+      piece.detailsOverlay.setVisible(true);
+      const overlayAlpha = this.glassMode ? 0.5 : 0.9;
+      piece.detailsOverlay.setAlpha(overlayAlpha);
+    }
+    if (piece.detailsMaskGfx) {
+      piece.detailsMaskGfx.setVisible(false);
+    }
+
+    this.syncDetailsTransform(piece);
   }
 
   private recordRestingState(piece: PieceRuntime): void {
     piece.restPosition = new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
     piece.restRotation = piece.shape.rotation;
     this.updateScatterTargetFromShape(piece);
+    this.syncDetailsTransform(piece);
   }
 
   constructor() {
@@ -151,7 +511,7 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.text('puzzle-svg', 'assets/pieces/Zeichnung.svg');
+    this.load.text('puzzle-svg', 'assets/pieces/stag_with_all_lines.svg');
     this.load.image('scene-background', 'assets/background/snowy_mauntains_background.png');
   }
 
@@ -166,8 +526,10 @@ export class PuzzleScene extends Phaser.Scene {
     if (!svgText) {
       throw new Error('Puzzle SVG data missing.');
     }
-
-    this.config = createPuzzleConfigFromSvg(svgText);
+    const svgDoc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+    this.svgDoc = svgDoc;
+    this.svgClassStyleMap = this.buildSvgClassStyleMap(svgDoc);
+    this.config = createPuzzleConfigFromSvg(svgDoc);
 
     this.pieces = [];
     this.placedCount = 0;
@@ -186,7 +548,7 @@ export class PuzzleScene extends Phaser.Scene {
       .setOrigin(0.5, 0.5)
       .setVisible(false);
 
-    this.time.delayedCall(INTRO_HOLD_DURATION, () => this.beginIntroShiver());
+    // this.time.delayedCall(INTRO_HOLD_DURATION, () => this.beginIntroShiver());
   }
 
   private addSceneBackground(): void {
@@ -295,6 +657,10 @@ export class PuzzleScene extends Phaser.Scene {
       });
 
       this.pieces.push(runtimePiece);
+
+      if (this.svgDoc) {
+        this.addDetailsForPiece(runtimePiece, this.svgDoc);
+      }
     });
   }
 
@@ -311,6 +677,7 @@ export class PuzzleScene extends Phaser.Scene {
       const rest = piece.restPosition ?? new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
       piece.shape.setPosition(rest.x, rest.y);
       piece.shape.rotation = 0;
+      this.syncDetailsTransform(piece);
       this.shiverTweens.push(this.createPieceShiverTween(piece, rest));
     });
 
@@ -329,7 +696,8 @@ export class PuzzleScene extends Phaser.Scene {
       duration: Phaser.Math.Between(EXPLOSION_SHIVER_INTERVAL.min, EXPLOSION_SHIVER_INTERVAL.max),
       ease: 'Sine.easeInOut',
       repeat: -1,
-      yoyo: true
+      yoyo: true,
+      onUpdate: () => this.syncDetailsTransform(piece)
     });
 
     tween.timeScale = 0.5;
@@ -352,6 +720,7 @@ export class PuzzleScene extends Phaser.Scene {
       const rest = piece.restPosition ?? new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
       piece.shape.setPosition(rest.x, rest.y);
       piece.shape.rotation = 0;
+      this.syncDetailsTransform(piece);
     });
 
     this.beginIntroExplosion();
@@ -390,6 +759,7 @@ export class PuzzleScene extends Phaser.Scene {
     piece.shape.setPosition(start.x, start.y);
     piece.shape.setScale(Phaser.Math.FloatBetween(0.96, 1.04));
     piece.shape.rotation = Phaser.Math.FloatBetween(-0.12, 0.12);
+    this.syncDetailsTransform(piece);
 
     const travelTime = Phaser.Math.FloatBetween(EXPLOSION_TRAVEL_TIME.min, EXPLOSION_TRAVEL_TIME.max);
     const floorWorld = piece.scatterTarget.y + piece.origin.y;
@@ -453,6 +823,7 @@ export class PuzzleScene extends Phaser.Scene {
       piece.shape.setData('pieceIndex', index);
       this.stylePieceForPuzzle(piece);
       this.input.setDraggable(piece.shape);
+      this.syncDetailsTransform(piece);
     });
 
     this.placedCount = 0;
@@ -502,6 +873,7 @@ export class PuzzleScene extends Phaser.Scene {
 
     this.pieces.forEach((piece) => {
       if (!piece.hasLaunched) {
+        this.syncDetailsTransform(piece);
         return;
       }
 
@@ -509,6 +881,7 @@ export class PuzzleScene extends Phaser.Scene {
 
       if (!piece.exploding || !piece.velocity) {
         settledCount += 1;
+        this.syncDetailsTransform(piece);
         return;
       }
 
@@ -517,9 +890,11 @@ export class PuzzleScene extends Phaser.Scene {
 
       piece.shape.x += velocity.x * dt;
       piece.shape.y += velocity.y * dt;
+      this.syncDetailsTransform(piece);
 
       if (piece.angularVelocity) {
         piece.shape.rotation += piece.angularVelocity * dt;
+        this.syncDetailsTransform(piece);
       }
 
       const bounds = piece.shape.getBounds();
@@ -533,6 +908,7 @@ export class PuzzleScene extends Phaser.Scene {
         if (velocity.x < 0) {
           velocity.x = -velocity.x * EXPLOSION_WALL_DAMPING;
         }
+        this.syncDetailsTransform(piece);
       }
 
       if (bounds.right > rightLimit) {
@@ -541,6 +917,7 @@ export class PuzzleScene extends Phaser.Scene {
         if (velocity.x > 0) {
           velocity.x = -velocity.x * EXPLOSION_WALL_DAMPING;
         }
+        this.syncDetailsTransform(piece);
       }
 
       const adjustedBounds = piece.shape.getBounds();
@@ -548,6 +925,7 @@ export class PuzzleScene extends Phaser.Scene {
       if (adjustedBounds.bottom > floorLimit) {
         const overlap = adjustedBounds.bottom - floorLimit;
         piece.shape.y -= overlap;
+        this.syncDetailsTransform(piece);
 
         if (velocity.y > 0) {
           velocity.y = -velocity.y * EXPLOSION_BOUNCE_DAMPING;
@@ -562,6 +940,7 @@ export class PuzzleScene extends Phaser.Scene {
             piece.angularVelocity = undefined;
             piece.shape.setScale(1);
             this.recordRestingState(piece);
+            this.syncDetailsTransform(piece);
             settledCount += 1;
             return;
           }
@@ -581,7 +960,10 @@ export class PuzzleScene extends Phaser.Scene {
         piece.shape.setScale(1);
         this.recordRestingState(piece);
         settledCount += 1;
+        this.syncDetailsTransform(piece);
       }
+
+      this.syncDetailsTransform(piece);
     });
 
     if (launchedCount > 0 && settledCount === launchedCount) {
@@ -619,6 +1001,7 @@ export class PuzzleScene extends Phaser.Scene {
     const delta = piece.shape.rotation - startRotation;
     const rotatedOffset = piece.dragOffset.clone().rotate(delta);
     piece.shape.setPosition(pointerPosition.x + rotatedOffset.x, pointerPosition.y + rotatedOffset.y);
+    this.syncDetailsTransform(piece);
   }
 
   private setupDragHandlers(): void {
@@ -646,6 +1029,7 @@ export class PuzzleScene extends Phaser.Scene {
       this.updateDraggingPieceTransform(piece, pointer);
 
       piece.shape.setDepth(this.nextDropDepth++);
+      this.syncDetailsTransform(piece);
 
       const rotationTweenDuration = Math.max(260, Math.abs(piece.shape.rotation) * 380);
       const rotationTween = Math.abs(piece.shape.rotation) > 0.001
@@ -691,6 +1075,7 @@ export class PuzzleScene extends Phaser.Scene {
 
       if (!piece.dragOffset) {
         piece.shape.setPosition(dragX, dragY);
+        this.syncDetailsTransform(piece);
         return;
       }
 
@@ -714,7 +1099,6 @@ export class PuzzleScene extends Phaser.Scene {
       piece.dragStartRotation = undefined;
 
       const snapped = this.trySnapPiece(piece);
-      console.log('Snap attempt:', snapped);
 
       if (!snapped) {
         piece.shape.input!.cursor = 'grab';
@@ -723,6 +1107,7 @@ export class PuzzleScene extends Phaser.Scene {
         const active = this.getActiveStyle(piece);
         piece.shape.setFillStyle(active.fillColor, active.fillAlpha);
         piece.shape.setStrokeStyle(active.strokeWidth, active.strokeColor, active.strokeAlpha);
+        this.syncDetailsTransform(piece);
       }
 
       this.input.setDefaultCursor('default');
@@ -779,6 +1164,7 @@ export class PuzzleScene extends Phaser.Scene {
     piece.placed = true;
     piece.shape.disableInteractive();
     piece.shape.setDepth(10);
+    this.syncDetailsTransform(piece);
 
     const targetPosition = new Phaser.Math.Vector2(
       piece.target.x + piece.origin.x,
@@ -790,11 +1176,14 @@ export class PuzzleScene extends Phaser.Scene {
       x: targetPosition.x,
       y: targetPosition.y,
       duration: SNAP_ANIMATION_DURATION,
-      ease: Phaser.Math.Easing.Cubic.Out
+      ease: Phaser.Math.Easing.Cubic.Out,
+      onUpdate: () => this.syncDetailsTransform(piece),
+      onComplete: () => this.syncDetailsTransform(piece)
     });
 
     if (!tween) {
       piece.shape.setPosition(targetPosition.x, targetPosition.y);
+      this.syncDetailsTransform(piece);
     }
 
     const activeStyle = this.getActiveStyle(piece);
@@ -966,6 +1355,13 @@ export class PuzzleScene extends Phaser.Scene {
         piece.shape.setFillStyle(active.fillColor, active.fillAlpha);
         piece.shape.setStrokeStyle(active.strokeWidth, active.strokeColor, active.strokeAlpha);
       }
+
+      if (piece.detailsOverlay) {
+        const overlayAlpha = this.glassMode ? 0.5 : 0.9;
+        piece.detailsOverlay.setAlpha(overlayAlpha);
+      }
+
+      this.syncDetailsTransform(piece);
     });
   }
 
