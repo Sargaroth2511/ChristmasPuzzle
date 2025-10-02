@@ -33,6 +33,7 @@ export type PuzzleBounds = {
 
 export type PuzzleConfig = {
   outline: PuzzlePoint[];
+  outlineStyle?: SvgStyleAttributes;
   pieces: PuzzlePiece[];
   bounds: PuzzleBounds;
 };

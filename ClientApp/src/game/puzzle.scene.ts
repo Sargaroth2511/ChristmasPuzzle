@@ -148,6 +148,9 @@ export class PuzzleScene extends Phaser.Scene {
   private debugOverlay?: Phaser.GameObjects.Graphics;
   private debugEnabled = false;
   private guideOverlay?: Phaser.GameObjects.Graphics;
+  private outlineTexture?: Phaser.GameObjects.TileSprite;
+  private outlineMaskShape?: Phaser.GameObjects.Graphics;
+  private outlineGeometryMask?: Phaser.Display.Masks.GeometryMask;
   private explosionActive = false;
   private explosionComplete = false;
   private shiverTweens: Phaser.Tweens.Tween[] = [];
@@ -641,6 +644,7 @@ export class PuzzleScene extends Phaser.Scene {
   preload(): void {
     this.load.text('puzzle-svg', 'assets/pieces/stag_with_all_lines.svg');
     this.load.image('scene-background', 'assets/background/snowy_mauntains_background.png');
+    this.load.image('outline-texture', 'assets/background/greyPaper.png');
   }
 
   init(data: SceneData): void {
@@ -697,32 +701,84 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   private drawGuide(): void {
-    const outlinePoints = this.config!.outline.map((point) => this.toCanvasPoint(point));
+    const config = this.config!;
+    const outlinePoints = config.outline.map((point) => this.toCanvasPoint(point));
+
+    this.outlineTexture?.clearMask(true);
+    this.outlineTexture?.destroy();
+    this.outlineTexture = undefined;
+
+    this.outlineGeometryMask?.destroy();
+    this.outlineGeometryMask = undefined;
+
+    this.outlineMaskShape?.destroy();
+    this.outlineMaskShape = undefined;
+
     this.guideOverlay?.destroy();
-    const guide = this.add.graphics();
+    this.guideOverlay = undefined;
 
-    guide.fillStyle(GUIDE_FILL_STYLE.color, GUIDE_FILL_STYLE.alpha);
-    guide.beginPath();
-    guide.moveTo(outlinePoints[0].x, outlinePoints[0].y);
-    for (let i = 1; i < outlinePoints.length; i++) {
-      guide.lineTo(outlinePoints[i].x, outlinePoints[i].y);
+    const strokeOnly = this.add.graphics();
+    const outlineStyle = config.outlineStyle;
+    const strokeColor = outlineStyle?.strokeColor ?? GUIDE_STROKE_STYLE.color;
+    const strokeAlpha = outlineStyle?.strokeAlpha ?? GUIDE_STROKE_STYLE.alpha;
+    const strokeWidthRaw = outlineStyle?.strokeWidth;
+    const strokeWidth = strokeWidthRaw && strokeWidthRaw > 0 ? this.toCanvasStrokeWidth(strokeWidthRaw) : GUIDE_STROKE_STYLE.width;
+
+    if (strokeAlpha > 0) {
+      strokeOnly.lineStyle(strokeWidth, strokeColor, Phaser.Math.Clamp(strokeAlpha, 0, 1));
+      strokeOnly.beginPath();
+      strokeOnly.moveTo(outlinePoints[0].x, outlinePoints[0].y);
+      for (let i = 1; i < outlinePoints.length; i++) {
+        strokeOnly.lineTo(outlinePoints[i].x, outlinePoints[i].y);
+      }
+      strokeOnly.closePath();
+      strokeOnly.strokePath();
     }
-    guide.closePath();
-    guide.fillPath();
 
-    guide.lineStyle(GUIDE_STROKE_STYLE.width, GUIDE_STROKE_STYLE.color, GUIDE_STROKE_STYLE.alpha);
-    guide.beginPath();
-    guide.moveTo(outlinePoints[0].x, outlinePoints[0].y);
+    strokeOnly.setDepth(-18);
+    strokeOnly.setVisible(true);
+    strokeOnly.name = 'guide-overlay';
+    this.guideOverlay = strokeOnly;
+
+    const maskShape = this.add.graphics();
+    maskShape.fillStyle(0xffffff, 1);
+    maskShape.beginPath();
+    maskShape.moveTo(outlinePoints[0].x, outlinePoints[0].y);
     for (let i = 1; i < outlinePoints.length; i++) {
-      guide.lineTo(outlinePoints[i].x, outlinePoints[i].y);
+      maskShape.lineTo(outlinePoints[i].x, outlinePoints[i].y);
     }
-    guide.closePath();
-    guide.strokePath();
+    maskShape.closePath();
+    maskShape.fillPath();
+    maskShape.setVisible(false);
 
-    guide.setDepth(-20);
-    guide.setVisible(true);
-    guide.name = 'guide-overlay';
-    this.guideOverlay = guide;
+    const geometryMask = new Phaser.Display.Masks.GeometryMask(this, maskShape);
+
+    const textureAlpha = Phaser.Math.Clamp(outlineStyle?.fillAlpha ?? 1, 0, 1);
+
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    outlinePoints.forEach((pt) => {
+      minX = Math.min(minX, pt.x);
+      maxX = Math.max(maxX, pt.x);
+      minY = Math.min(minY, pt.y);
+      maxY = Math.max(maxY, pt.y);
+    });
+    const width = Math.max(maxX - minX, 1);
+    const height = Math.max(maxY - minY, 1);
+    const centerX = minX + width * 0.5;
+    const centerY = minY + height * 0.5;
+
+    const texture = this.add.tileSprite(centerX, centerY, width, height, 'outline-texture');
+    texture.setDepth(-19);
+    texture.setScrollFactor(0);
+    texture.setMask(geometryMask);
+    texture.setAlpha(textureAlpha);
+
+    this.outlineMaskShape = maskShape;
+    this.outlineGeometryMask = geometryMask;
+    this.outlineTexture = texture;
   }
   private initializePiecesAtTarget(): void {
     const config = this.config!;

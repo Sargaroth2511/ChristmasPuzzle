@@ -36,6 +36,7 @@ export const createPuzzleConfigFromSvg = (documentNode: Document): PuzzleConfig 
 
   const outlinePoints = sampleSvgPath(outlineElement);
   const classStyleMap = extractClassStyleMap(documentNode);
+  const outlineStyle = extractStyleFromElement(outlineElement, classStyleMap);
   const pieceElements = Array.from(documentNode.querySelectorAll<SVGPathElement>('[id^="piece_"]'));
 
   if (pieceElements.length === 0) {
@@ -85,7 +86,7 @@ export const createPuzzleConfigFromSvg = (documentNode: Document): PuzzleConfig 
 
   const bounds = computeBounds(outlinePoints, pieces);
 
-  return { outline: outlinePoints, pieces, bounds };
+  return { outline: outlinePoints, outlineStyle, pieces, bounds };
 };
 
 const extractClassStyleMap = (documentNode: Document): Map<string, SvgStyleAttributes> => {

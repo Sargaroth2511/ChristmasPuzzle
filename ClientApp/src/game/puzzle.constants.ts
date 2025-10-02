@@ -13,7 +13,7 @@ export const EXPLOSION_SHIVER_INTERVAL = { min: 220, max: 320 } as const;
 export const EXPLOSION_STAGGER = 5;
 export const EXPLOSION_GRAVITY = 2200;
 export const EXPLOSION_TRAVEL_TIME = { min: 0.72, max: 0.95 } as const;
-export const EXPLOSION_RADIAL_BOOST = { min: 260, max: 800 } as const;
+export const EXPLOSION_RADIAL_BOOST = { min: 860, max: 1600 } as const;
 export const EXPLOSION_SPIN_RANGE = { min: -4.4, max: 4.4 } as const;
 export const EXPLOSION_BOUNCE_DAMPING = 0.36;
 export const EXPLOSION_GROUND_FRICTION = 0.82;
@@ -32,7 +32,7 @@ export const DEFAULT_STROKE_ALPHA = 0.9;
 
 export const SNAP_TOLERANCE_LIMITS = { min: 18, max: 120 } as const;
 
-export const GUIDE_FILL_STYLE = { color: 0xffffff, alpha: 0.06 } as const;
+export const GUIDE_FILL_STYLE = { color: 0xffffff, alpha: 0 } as const;
 export const GUIDE_STROKE_STYLE = { width: 0.2, color: 0x000000, alpha: 0.95 } as const;
 
 export const HOVER_STROKE_DELTA = 0.6;
