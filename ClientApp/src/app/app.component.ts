@@ -23,6 +23,11 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   useGlassStyle = false;
   menuOpen = false;
   showIntroOverlay = true;
+  showInitialContinueButton = false;
+  coinTotal = 0;
+  donationMessageVisible = false;
+  hideRestartButton = false;
+  private completionOverlayTimer?: ReturnType<typeof setTimeout>;
   private gameInitialized = false;
   private readonly mobileBreakpoint = 1035;
   private immersiveActive = false;
@@ -30,6 +35,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   private game?: Phaser.Game;
   private sceneEvents?: Phaser.Events.EventEmitter;
+  private sceneStartHandler?: (scene: Phaser.Scene) => void;
   private readonly handleViewportResize = () => {
     if (!this.game) {
       return;
@@ -55,7 +61,11 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    this.clearCompletionOverlayTimer();
     this.puzzleComplete = false;
+    this.showInitialContinueButton = false;
+    this.hideRestartButton = false;
+    this.donationMessageVisible = false;
     const host = this.gameHost.nativeElement;
     const width = 960;
     const height = 640;
@@ -86,15 +96,49 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
     this.game.scene.add('PuzzleScene', PuzzleScene, false);
 
+    const handleSceneStart = (scene: Phaser.Scene) => {
+      if (!this.game) {
+        return;
+      }
+      if (scene.scene.key === 'PuzzleScene') {
+        this.requestCoinTotal();
+      }
+    };
+    this.game.events.on(Phaser.Scenes.Events.START, handleSceneStart);
+    this.sceneStartHandler = handleSceneStart;
+
+
     emitter.on('puzzle-complete', (payload?: { elapsedSeconds?: number }) => {
-      this.puzzleComplete = true;
+      this.clearCompletionOverlayTimer();
+      this.puzzleComplete = false;
       this.completionTime = payload?.elapsedSeconds;
+      this.hideRestartButton = false;
+      this.donationMessageVisible = false;
+      this.requestCoinTotal();
+      this.completionOverlayTimer = setTimeout(() => {
+        this.puzzleComplete = true;
+        this.cdr.markForCheck();
+      }, 1000);
       this.cdr.markForCheck();
     });
 
     emitter.on('puzzle-reset', () => {
+      this.clearCompletionOverlayTimer();
       this.puzzleComplete = false;
       this.completionTime = undefined;
+      this.showInitialContinueButton = false;
+      this.donationMessageVisible = false;
+      this.hideRestartButton = false;
+      this.cdr.markForCheck();
+    });
+
+    emitter.on('initial-zoom-complete', () => {
+      this.showInitialContinueButton = true;
+      this.cdr.markForCheck();
+    });
+
+    emitter.on('coin-total-changed', (total: number) => {
+      this.coinTotal = total ?? 0;
       this.cdr.markForCheck();
     });
 
@@ -103,6 +147,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.game.scale.refresh();
     this.cdr.markForCheck();
     this.gameInitialized = true;
+    this.requestCoinTotal();
   }
 
   ngOnDestroy(): void {
@@ -110,6 +155,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       this.sceneEvents.removeAllListeners();
       this.sceneEvents = undefined;
     }
+
+    if (this.sceneStartHandler && this.game) {
+      this.game.events.off(Phaser.Scenes.Events.START, this.sceneStartHandler);
+      this.sceneStartHandler = undefined;
+    }
+
+    this.clearCompletionOverlayTimer();
 
     if (this.game) {
       this.game.destroy(true);
@@ -180,9 +232,60 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.completionTime = undefined;
   }
 
-  closeCompletionOverlay(): void {
+  continueToPuzzle(): void {
+    if (!this.gameInitialized) {
+      this.launchGame();
+    }
+
+    this.showInitialContinueButton = false;
+    this.sceneEvents?.emit('initial-go-on');
+    this.cdr.markForCheck();
+  }
+
+  restartPuzzle(): void {
+    this.clearCompletionOverlayTimer();
+    this.donationMessageVisible = false;
+    this.hideRestartButton = false;
     this.puzzleComplete = false;
-    this.completionTime = undefined;
+    this.showInitialContinueButton = false;
+    this.sceneEvents?.emit('puzzle-reset');
+
+    if (!this.game) {
+      this.launchGame();
+      this.cdr.markForCheck();
+      return;
+    }
+
+    const sceneManager = this.game.scene;
+    sceneManager.stop('PuzzleScene');
+    sceneManager.start('InitialScene', {
+      emitter: this.sceneEvents,
+      showDebug: this.showDebug,
+      useGlassStyle: this.useGlassStyle
+    });
+    this.requestCoinTotal();
+    this.cdr.markForCheck();
+  }
+
+  donateCoins(): void {
+    this.hideRestartButton = true;
+    this.donationMessageVisible = true;
+    this.cdr.markForCheck();
+    setTimeout(() => {
+      this.donationMessageVisible = false;
+      this.cdr.markForCheck();
+    }, 2000);
+  }
+
+  private requestCoinTotal(): void {
+    this.sceneEvents?.emit('coin-total-request');
+  }
+
+  private clearCompletionOverlayTimer(): void {
+    if (this.completionOverlayTimer) {
+      clearTimeout(this.completionOverlayTimer);
+      this.completionOverlayTimer = undefined;
+    }
   }
 
   private async exitImmersiveMode(): Promise<void> {

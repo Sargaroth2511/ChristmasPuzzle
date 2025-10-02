@@ -21,3 +21,15 @@
 ## Notes
 - Snapping remains disabled; revisit once geometry and UX are finalized.
 - `samplePath` currently samples at ~4px intervals; adjust if higher fidelity is required.
+
+# Session 01999ef8-880e-7811-bbcc-0a43a647bc22
+
+## Summary
+- Expanded the touch hit-area for each puzzle piece so mobile users can grab pieces more easily without affecting snap accuracy.
+- Reworked the stag outline overlay to render the `greyPaper.png` texture inside the silhouette using a geometry mask while keeping the SVG stroke styling intact.
+- Normalized burst physics so scattered pieces always settle on the global floor (scene height − 40) and never come to rest above the ground or inside the silhouette; added an optional debug floor line.
+- Documented every constant in `puzzle.constants.ts` with inline comments for quick tweaking and included `.ts` sources in `tsconfig.app.json` so the new files participate in builds/linting.
+
+## Notes
+- The outline texture respects the SVG fill alpha; adjust `#outline` fill opacity to control how strong the paper texture appears.
+- Enable `DEBUG_SHOW_FLOOR` in `puzzle.constants.ts` to visualize the burst floor while tuning scatter behaviour.

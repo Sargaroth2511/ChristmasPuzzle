@@ -39,11 +39,20 @@
 
       <div class="complete-overlay" *ngIf="puzzleComplete">
         <div class="complete-card">
-          <h2>Nice work!</h2>
-          <p *ngIf="completionTime as seconds">You solved it in {{ seconds | number: '1.1-1' }} seconds.</p>
-          <p *ngIf="!completionTime">Puzzle completed!</p>
-          <button type="button" (click)="closeCompletionOverlay()">Back to puzzle</button>
+          <h2>Frohe Nachricht!</h2>
+          <p>Du hast {{ coinTotal | number: '1.0-0' }} Münzen gesammelt. Möchtest du sie an oh22 schicken und für einen guten Zweck spenden oder kannst du es noch besser?</p>
+          <div class="complete-actions">
+            <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">Neues Spiel</button>
+            <button type="button" (click)="donateCoins()">Münzen senden</button>
+          </div>
+          <div class="complete-donation" *ngIf="donationMessageVisible">
+            {{ coinTotal | number: '1.0-0' }} Münzen für einen guten Zweck gespendet
+          </div>
         </div>
+      </div>
+
+      <div class="initial-continue" *ngIf="showInitialContinueButton && !puzzleComplete">
+        <button type="button" (click)="continueToPuzzle()">Was ist mit unserem Hirsch?</button>
       </div>
     </div>
 

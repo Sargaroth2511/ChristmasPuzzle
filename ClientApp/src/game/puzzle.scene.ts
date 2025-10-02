@@ -164,6 +164,13 @@ export class PuzzleScene extends Phaser.Scene {
   private reduceMotion = false;
   private dragShadowOffset = new Phaser.Math.Vector2();
   private textResolution = 1;
+  private coinContainer?: Phaser.GameObjects.Container;
+  private coinSprite?: Phaser.GameObjects.Sprite;
+  private coinLabel?: Phaser.GameObjects.Text;
+  private coinTotal = 0;
+  private readonly coinMargin = 28;
+  private readonly coinVerticalGap = 12;
+  private readonly handleExternalCoinRequest = () => this.emitCoinTotal();
 
   private resetDragState(piece: PieceRuntime): void {
     piece.isDragging = false;
@@ -645,6 +652,12 @@ export class PuzzleScene extends Phaser.Scene {
     this.load.text('puzzle-svg', 'assets/pieces/stag_with_all_lines.svg');
     this.load.image('scene-background', 'assets/background/snowy_mauntains_background.png');
     this.load.image('outline-texture', 'assets/background/greyPaper.png');
+    if (!this.textures.exists('hud-coin-spritesheet')) {
+      this.load.spritesheet('hud-coin-spritesheet', 'assets/coins/oh22_coin_spin_256x256_12.png', {
+        frameWidth: 256,
+        frameHeight: 256
+      });
+    }
   }
 
   init(data: SceneData): void {
@@ -665,6 +678,11 @@ export class PuzzleScene extends Phaser.Scene {
     } else {
       this.reduceMotion = false;
     }
+
+    this.emitter?.on('coin-total-request', this.handleExternalCoinRequest);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.emitter?.off('coin-total-request', this.handleExternalCoinRequest);
+    });
   }
 
   create(): void {
@@ -680,6 +698,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.pieces = [];
     this.placedCount = 0;
     this.addSceneBackground();
+    this.createCoinHud();
 
     this.drawGuide();
     this.setupDragHandlers();
@@ -698,6 +717,101 @@ export class PuzzleScene extends Phaser.Scene {
       bg.postFX.clear();
       bg.postFX.addBlur(0, 3.2, 1.4);
     }
+  }
+
+  private createCoinHud(): void {
+    if (!this.coinContainer) {
+      if (!this.anims.exists('coin-spin')) {
+        this.anims.create({
+          key: 'coin-spin',
+          frames: this.anims.generateFrameNumbers('hud-coin-spritesheet', { start: 0, end: 11 }),
+          frameRate: 16,
+          repeat: -1
+        });
+      }
+
+      const coin = this.add.sprite(0, 0, 'hud-coin-spritesheet', 0);
+      coin.setScale(0.36);
+      coin.setScrollFactor(0);
+      coin.setDepth(10_000);
+      coin.play('coin-spin');
+      this.coinSprite = coin;
+
+      const label = this.add.text(0, 0, '0', {
+        fontFamily: 'Montserrat, sans-serif',
+        fontSize: '26px',
+        color: '#ffffff',
+        stroke: '#0b1724',
+        strokeThickness: 4,
+        align: 'center'
+      });
+      label.setOrigin(0.5, 1);
+      label.setScrollFactor(0);
+      label.setDepth(10_001);
+      this.coinLabel = label;
+
+      const container = this.add.container(0, 0, [coin, label]);
+      container.setDepth(10_000);
+      container.setScrollFactor(0);
+      this.coinContainer = container;
+    }
+
+    this.coinTotal = this.registry.get('coin-total') ?? 0;
+    this.updateCoinHudLabel();
+    this.updateCoinHudLayout();
+    this.emitCoinTotal();
+  }
+
+  private updateCoinHudLayout(): void {
+    if (!this.coinContainer || !this.coinSprite || !this.coinLabel) {
+      return;
+    }
+
+    const camera = this.cameras.main;
+    const left = camera.worldView.left + this.coinMargin;
+    const centerY = camera.worldView.centerY;
+
+    this.coinContainer.setPosition(left + this.coinSprite.displayWidth * 0.5, centerY);
+    this.coinSprite.setPosition(0, 0);
+    this.coinLabel.setPosition(0, -this.coinSprite.displayHeight * 0.5 - this.coinVerticalGap);
+  }
+
+  private updateCoinHudLabel(): void {
+    if (!this.coinLabel) {
+      return;
+    }
+
+    this.coinLabel.setText(this.coinTotal.toString());
+  }
+
+  private incrementCoinTotal(amount: number): void {
+    this.coinTotal += amount;
+    this.registry.set('coin-total', this.coinTotal);
+    this.updateCoinHudLabel();
+    this.updateCoinHudLayout();
+    this.emitCoinTotal();
+
+    if (this.coinContainer) {
+      this.coinContainer.setScale(1);
+      this.tweens.add({
+        targets: this.coinContainer,
+        scale: 1.08,
+        duration: 140,
+        ease: 'Sine.easeOut',
+        yoyo: true
+      });
+    }
+  }
+
+  private resetCoinHud(): void {
+    this.coinTotal = 0;
+    this.registry.set('coin-total', this.coinTotal);
+    this.updateCoinHudLabel();
+    this.emitCoinTotal();
+  }
+
+  private emitCoinTotal(): void {
+    this.emitter?.emit('coin-total-changed', this.coinTotal);
   }
 
   private drawGuide(): void {
@@ -1029,6 +1143,8 @@ export class PuzzleScene extends Phaser.Scene {
     this.explosionComplete = true;
     this.explosionActive = false;
 
+    this.resetCoinHud();
+
     const maxDepth = this.pieces.reduce((m, p) => Math.max(m, p.shape.depth), 0);
     this.nextDropDepth = maxDepth + 1;
   }
@@ -1056,6 +1172,8 @@ export class PuzzleScene extends Phaser.Scene {
     if (this.explosionActive && !this.explosionComplete) {
       this.updateExplosion(delta);
     }
+
+    this.updateCoinHudLayout();
   }
 
   private updateExplosion(delta: number): void {
@@ -1396,6 +1514,7 @@ export class PuzzleScene extends Phaser.Scene {
     piece.shape.setFillStyle(activeStyle.fillColor, activeStyle.fillAlpha);
 
     this.placedCount += 1;
+    this.incrementCoinTotal(1);
 
     this.emitter?.emit('puzzle-piece-placed', {
       pieceId: piece.id,

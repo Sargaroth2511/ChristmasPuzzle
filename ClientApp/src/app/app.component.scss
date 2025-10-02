@@ -177,33 +177,101 @@
 .complete-card {
   display: grid;
   gap: 1rem;
-  padding: 2rem;
-  background: rgba(10, 20, 30, 0.88);
+  padding: 2.2rem;
+  background: rgba(10, 20, 30, 0.9);
   border-radius: 18px;
   color: #f7fbff;
-  max-width: min(90vw, 420px);
+  max-width: min(90vw, 520px);
 }
 
 .complete-card h2 {
   margin: 0;
-  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-size: clamp(1.6rem, 5vw, 2.6rem);
 }
 
 .complete-card p {
   margin: 0;
-  font-size: clamp(1rem, 3.5vw, 1.2rem);
-  color: rgba(247, 252, 255, 0.88);
+  font-size: clamp(1.05rem, 3.5vw, 1.2rem);
+  color: rgba(247, 252, 255, 0.9);
 }
 
-.complete-card button {
-  padding: 0.85rem 1.6rem;
+.complete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  justify-content: center;
+}
+
+.complete-actions button {
+  padding: 0.9rem 2.2rem;
   border-radius: 999px;
   border: none;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.complete-actions button:first-child {
   background: #f7fbff;
   color: #132230;
+  box-shadow: 0 12px 28px rgba(247, 251, 255, 0.25);
+}
+
+.complete-actions button:first-child:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(247, 251, 255, 0.35);
+}
+
+.complete-actions button:last-child {
+  background: rgba(20, 32, 49, 0.92);
+  color: #f7fbff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.complete-actions button:last-child:hover {
+  transform: translateY(-2px);
+  background: rgba(35, 53, 79, 0.95);
+}
+
+.complete-donation {
+  text-align: center;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+  color: #f9f8d1;
+  text-transform: uppercase;
+  margin-top: 0.6rem;
+}
+
+.initial-continue {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: clamp(1rem, 3vw, 2rem);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 160;
+}
+
+.initial-continue button {
+  pointer-events: auto;
+  padding: 0.95rem 2.4rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(20, 32, 49, 0.9);
+  color: #f7fbff;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-size: clamp(1rem, 3vw, 1.1rem);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
+  transition: transform 0.2s ease, background 0.2s ease;
   cursor: pointer;
+}
+
+.initial-continue button:hover {
+  transform: translateY(-2px);
+  background: rgba(35, 53, 79, 0.95);
 }
 
 .intro-card h1 {
