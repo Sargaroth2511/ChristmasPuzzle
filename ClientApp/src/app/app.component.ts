@@ -2,6 +2,7 @@ import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, E
 import { CommonModule } from '@angular/common';
 import Phaser from 'phaser';
 
+import { InitialScene } from '../game/initial.scene';
 import { PuzzleScene } from '../game/puzzle.scene';
 
 @Component({
@@ -77,11 +78,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     const emitter = new Phaser.Events.EventEmitter();
     this.sceneEvents = emitter;
 
-    this.game.scene.add('PuzzleScene', PuzzleScene, true, {
+    this.game.scene.add('InitialScene', InitialScene, true, {
       emitter,
       showDebug: this.showDebug,
       useGlassStyle: this.useGlassStyle
     });
+
+    this.game.scene.add('PuzzleScene', PuzzleScene, false);
 
     emitter.on('puzzle-complete', (payload?: { elapsedSeconds?: number }) => {
       this.puzzleComplete = true;
@@ -126,8 +129,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const scene = this.game.scene.getScene('PuzzleScene') as PuzzleScene | undefined;
-    scene?.setDebugVisible(this.showDebug);
+    if (this.game.scene.isActive('PuzzleScene')) {
+      const scene = this.game.scene.getScene('PuzzleScene') as PuzzleScene | undefined;
+      scene?.setDebugVisible(this.showDebug);
+    } else {
+      const initialScene = this.game.scene.getScene('InitialScene') as InitialScene | undefined;
+      initialScene?.updatePreferences({ showDebug: this.showDebug });
+    }
     this.menuOpen = false;
   }
 
@@ -137,8 +145,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const scene = this.game.scene.getScene('PuzzleScene') as PuzzleScene | undefined;
-    scene?.setGlassMode(this.useGlassStyle);
+    if (this.game.scene.isActive('PuzzleScene')) {
+      const scene = this.game.scene.getScene('PuzzleScene') as PuzzleScene | undefined;
+      scene?.setGlassMode(this.useGlassStyle);
+    } else {
+      const initialScene = this.game.scene.getScene('InitialScene') as InitialScene | undefined;
+      initialScene?.updatePreferences({ useGlassStyle: this.useGlassStyle });
+    }
     this.menuOpen = false;
   }
 
