@@ -4,9 +4,50 @@
     <p>Drag the pieces into place to complete the festive puzzle.</p>
   </header>
 
-<section class="board">
-    <div #gameHost class="game-host" aria-label="Puzzle board"></div>
-    <div class="controls">
+  <section class="board">
+    <div class="game-wrapper">
+      <div #gameHost class="game-host" aria-label="Puzzle board"></div>
+
+      <button
+        type="button"
+        class="menu-toggle"
+        (click)="toggleMenu()"
+        aria-label="Toggle puzzle menu"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <nav *ngIf="menuOpen" class="mobile-menu" aria-label="Puzzle options">
+        <button type="button" (click)="toggleDebug()">
+          {{ showDebug ? 'Hide Guides' : 'Show Guides' }}
+        </button>
+        <button type="button" (click)="toggleGlassMode()">
+          {{ useGlassStyle ? 'Opaque Pieces' : 'Glass Pieces' }}
+        </button>
+        <button type="button" (click)="closeMenu()">Close Menu</button>
+      </nav>
+
+      <div class="intro-overlay" *ngIf="showIntroOverlay">
+        <div class="intro-card">
+          <h1>{{ title }}</h1>
+          <p>Drag the pieces into place to complete the festive puzzle.</p>
+          <button type="button" (click)="startPuzzle()">Start Puzzle</button>
+        </div>
+      </div>
+
+      <div class="complete-overlay" *ngIf="puzzleComplete">
+        <div class="complete-card">
+          <h2>Nice work!</h2>
+          <p *ngIf="completionTime as seconds">You solved it in {{ seconds | number: '1.1-1' }} seconds.</p>
+          <p *ngIf="!completionTime">Puzzle completed!</p>
+          <button type="button" (click)="closeCompletionOverlay()">Back to puzzle</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="desktop-controls">
       <button type="button" (click)="toggleDebug()">
         {{ showDebug ? 'Hide' : 'Show' }} Guides
       </button>

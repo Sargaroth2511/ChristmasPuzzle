@@ -20,9 +20,21 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   puzzleComplete = false;
   showDebug = false;
   useGlassStyle = false;
+  menuOpen = false;
+  showIntroOverlay = true;
+  private gameInitialized = false;
+  private readonly mobileBreakpoint = 1035;
+  private immersiveActive = false;
+  completionTime?: number;
 
   private game?: Phaser.Game;
   private sceneEvents?: Phaser.Events.EventEmitter;
+  private readonly handleViewportResize = () => {
+    if (!this.game) {
+      return;
+    }
+    this.game.scale.refresh();
+  };
 
   constructor(private readonly cdr: ChangeDetectorRef) {}
 
@@ -30,13 +42,20 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     if (!this.gameHost) {
       return;
     }
-
-    this.launchGame();
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    if (viewportWidth > this.mobileBreakpoint) {
+      this.showIntroOverlay = false;
+      this.launchGame();
+    }
   }
 
   private launchGame(): void {
+    if (this.game || !this.gameHost) {
+      return;
+    }
+
     this.puzzleComplete = false;
-    const host = this.gameHost!.nativeElement;
+    const host = this.gameHost.nativeElement;
     const width = 960;
     const height = 640;
 
@@ -64,17 +83,23 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       useGlassStyle: this.useGlassStyle
     });
 
-    emitter.on('puzzle-complete', () => {
+    emitter.on('puzzle-complete', (payload?: { elapsedSeconds?: number }) => {
       this.puzzleComplete = true;
+      this.completionTime = payload?.elapsedSeconds;
       this.cdr.markForCheck();
     });
 
     emitter.on('puzzle-reset', () => {
       this.puzzleComplete = false;
+      this.completionTime = undefined;
       this.cdr.markForCheck();
     });
 
+    window.addEventListener('resize', this.handleViewportResize, { passive: true });
+    window.addEventListener('orientationchange', this.handleViewportResize, { passive: true });
+    this.game.scale.refresh();
     this.cdr.markForCheck();
+    this.gameInitialized = true;
   }
 
   ngOnDestroy(): void {
@@ -86,7 +111,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     if (this.game) {
       this.game.destroy(true);
       this.game = undefined;
+      this.gameInitialized = false;
     }
+
+    window.removeEventListener('resize', this.handleViewportResize);
+    window.removeEventListener('orientationchange', this.handleViewportResize);
+
+    this.exitImmersiveMode();
   }
 
   toggleDebug(): void {
@@ -97,6 +128,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
     const scene = this.game.scene.getScene('PuzzleScene') as PuzzleScene | undefined;
     scene?.setDebugVisible(this.showDebug);
+    this.menuOpen = false;
   }
 
   toggleGlassMode(): void {
@@ -107,5 +139,109 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
     const scene = this.game.scene.getScene('PuzzleScene') as PuzzleScene | undefined;
     scene?.setGlassMode(this.useGlassStyle);
+    this.menuOpen = false;
+  }
+
+  toggleMenu(): void {
+    this.menuOpen = !this.menuOpen;
+  }
+
+  closeMenu(): void {
+    this.menuOpen = false;
+  }
+
+  startPuzzle(): void {
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    const isLandscape = viewportWidth > viewportHeight;
+
+    if (isLandscape) {
+      this.enterImmersiveMode();
+      if (!this.gameInitialized) {
+        this.launchGame();
+      }
+      this.showIntroOverlay = false;
+    }
+
+    this.closeMenu();
+    this.completionTime = undefined;
+  }
+
+  closeCompletionOverlay(): void {
+    this.puzzleComplete = false;
+    this.completionTime = undefined;
+  }
+
+  private async exitImmersiveMode(): Promise<void> {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const exitFullscreen =
+      document.exitFullscreen ||
+      (document as any).webkitExitFullscreen ||
+      (document as any).msExitFullscreen ||
+      (document as any).mozCancelFullScreen;
+
+    if (exitFullscreen && document.fullscreenElement) {
+      try {
+        await exitFullscreen.call(document);
+        this.immersiveActive = false;
+      } catch {
+        /* ignore fullscreen errors */
+      }
+    }
+
+    const orientation: any = typeof screen !== 'undefined' ? (screen.orientation || (screen as any).mozOrientation || (screen as any).msOrientation) : undefined;
+    if (orientation && typeof orientation.unlock === 'function') {
+      try {
+        orientation.unlock();
+      } catch {
+        /* ignore orientation unlock errors */
+      }
+    }
+  }
+
+  private async enterImmersiveMode(): Promise<void> {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    const isMobileViewport = viewportWidth <= this.mobileBreakpoint;
+    const isLandscape = viewportWidth > viewportHeight;
+
+    if (!isMobileViewport || !isLandscape || this.immersiveActive) {
+      return;
+    }
+
+    const host = this.gameHost?.nativeElement;
+    if (!host) {
+      return;
+    }
+
+    const requestFullscreen =
+      host.requestFullscreen ||
+      (host as any).webkitRequestFullscreen ||
+      (host as any).msRequestFullscreen ||
+      (host as any).mozRequestFullScreen;
+    if (requestFullscreen) {
+      try {
+        await requestFullscreen.call(host);
+        this.immersiveActive = true;
+      } catch {
+        /* ignore fullscreen errors */
+      }
+    }
+
+    const orientation: any = typeof screen !== 'undefined' ? (screen.orientation || (screen as any).mozOrientation || (screen as any).msOrientation) : undefined;
+    if (orientation && typeof orientation.lock === 'function') {
+      try {
+        await orientation.lock('landscape');
+      } catch {
+        /* ignore orientation errors */
+      }
+    }
   }
 }

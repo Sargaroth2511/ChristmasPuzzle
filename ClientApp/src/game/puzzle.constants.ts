@@ -36,3 +36,19 @@ export const GUIDE_FILL_STYLE = { color: 0xffffff, alpha: 0.06 } as const;
 export const GUIDE_STROKE_STYLE = { width: 0.2, color: 0x000000, alpha: 0.95 } as const;
 
 export const HOVER_STROKE_DELTA = 0.6;
+
+export const PLACEMENT_SHIMMER_DURATION = 1200;
+export const PLACEMENT_SHIMMER_BAND_WIDTH_RATIO = 1.7;
+export const PLACEMENT_SHIMMER_EDGE_ALPHA = 1;
+export const PLACEMENT_SHIMMER_LIGHT_VECTOR = { x: -0.6, y: -0.7, z: 0.4 } as const;
+export const PLACEMENT_SHIMMER_SWEEP_VECTOR = { x: 0.6, y: 0.7 } as const;
+export const PLACEMENT_SHIMMER_STROKE_MULTIPLIER = 4;
+
+export const PUZZLE_SCALE_RATIO = 0.9;
+
+export const DRAG_ACTIVE_SCALE = 1.05;
+export const DRAG_SHADOW_OFFSET = { x: 10, y: 10 } as const;
+export const DRAG_SHADOW_COLOR = 0x0a2014;
+export const DRAG_SHADOW_ALPHA = 0.36;
+export const DRAG_SHADOW_GLASS_COLOR = 0xffffff;
+export const DRAG_SHADOW_GLASS_ALPHA = 0.62;

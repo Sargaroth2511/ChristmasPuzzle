@@ -29,7 +29,20 @@ import {
   SNAP_BASE_FACTOR,
   SNAP_DEBUG_MULTIPLIER,
   SNAP_TOLERANCE_LIMITS,
-  STAG_BASE_COLOR
+  STAG_BASE_COLOR,
+  PLACEMENT_SHIMMER_DURATION,
+  PLACEMENT_SHIMMER_BAND_WIDTH_RATIO,
+  PLACEMENT_SHIMMER_EDGE_ALPHA,
+  PLACEMENT_SHIMMER_LIGHT_VECTOR,
+  PLACEMENT_SHIMMER_SWEEP_VECTOR,
+  PLACEMENT_SHIMMER_STROKE_MULTIPLIER,
+  PUZZLE_SCALE_RATIO,
+  DRAG_ACTIVE_SCALE,
+  DRAG_SHADOW_OFFSET,
+  DRAG_SHADOW_COLOR,
+  DRAG_SHADOW_ALPHA,
+  DRAG_SHADOW_GLASS_COLOR,
+  DRAG_SHADOW_GLASS_ALPHA
 } from './puzzle.constants';
 import { PieceStyling, PuzzleConfig, PuzzlePoint, SceneData } from './puzzle.types';
 import { createPuzzleConfigFromSvg, sampleSvgPath } from './puzzle-config';
@@ -63,6 +76,48 @@ type PieceRuntime = {
   isDragging?: boolean;
   detailsOverlay?: Phaser.GameObjects.Graphics;
   detailsMaskGfx?: Phaser.GameObjects.Graphics;
+  localPoints: Phaser.Math.Vector2[];
+  localCoords: number[];
+  detailPaths: PieceDetailPath[];
+  shimmerData?: PieceShimmerData;
+  shimmerOverlay?: Phaser.GameObjects.Graphics;
+  shimmerTween?: Phaser.Tweens.Tween;
+  shimmerState?: { progress: number };
+  shimmerMask?: Phaser.GameObjects.Graphics;
+  shimmerGeometryMask?: Phaser.Display.Masks.GeometryMask;
+  dragShadow?: Phaser.GameObjects.Polygon;
+  touchHitArea?: Phaser.Geom.Point[];
+};
+
+type PieceDetailPath = {
+  points: Phaser.Math.Vector2[];
+  strokeWidth: number;
+  isClosed: boolean;
+};
+
+type PieceShimmerEdge = {
+  start: Phaser.Math.Vector2;
+  end: Phaser.Math.Vector2;
+  facing: number;
+  projection: number;
+};
+
+type PieceShimmerDetailSegment = {
+  start: Phaser.Math.Vector2;
+  end: Phaser.Math.Vector2;
+  strokeWidth: number;
+  facing: number;
+  projection: number;
+};
+
+type PieceShimmerData = {
+  edges: PieceShimmerEdge[];
+  detailSegments: PieceShimmerDetailSegment[];
+  projectionMin: number;
+  projectionMax: number;
+  bandHalfWidth: number;
+  baseColor: Phaser.Display.Color;
+  glintColor: number;
 };
 
 type SvgStrokeStyle = {
@@ -93,7 +148,6 @@ export class PuzzleScene extends Phaser.Scene {
   private debugOverlay?: Phaser.GameObjects.Graphics;
   private debugEnabled = false;
   private guideOverlay?: Phaser.GameObjects.Graphics;
-  private helpLabel?: Phaser.GameObjects.Text;
   private explosionActive = false;
   private explosionComplete = false;
   private shiverTweens: Phaser.Tweens.Tween[] = [];
@@ -102,12 +156,18 @@ export class PuzzleScene extends Phaser.Scene {
   private nextDropDepth = 0;
   private svgDoc?: Document;
   private svgClassStyleMap?: Map<string, SvgStrokeStyle>;
+  private shimmerSweepDirection = new Phaser.Math.Vector2();
+  private shimmerLightDirection = new Phaser.Math.Vector3();
+  private reduceMotion = false;
+  private dragShadowOffset = new Phaser.Math.Vector2();
+  private textResolution = 1;
 
   private resetDragState(piece: PieceRuntime): void {
     piece.isDragging = false;
     piece.dragOffset = undefined;
     piece.dragPointer = undefined;
     piece.dragStartRotation = undefined;
+    this.clearDragVisuals(piece);
   }
 
   private updateScatterTargetFromShape(piece: PieceRuntime): void {
@@ -118,20 +178,84 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   private syncDetailsTransform(piece: PieceRuntime): void {
-    if (!piece.detailsOverlay || !piece.detailsMaskGfx) {
+    const scaleX = piece.shape.scaleX ?? 1;
+    const scaleY = piece.shape.scaleY ?? 1;
+    if (piece.detailsOverlay && piece.detailsMaskGfx) {
+      piece.detailsOverlay.setPosition(piece.shape.x, piece.shape.y);
+      piece.detailsOverlay.rotation = piece.shape.rotation;
+      piece.detailsOverlay.setScale(scaleX, scaleY);
+      piece.detailsOverlay.setDepth(piece.shape.depth + 0.1);
+
+      piece.detailsMaskGfx.setPosition(piece.shape.x, piece.shape.y);
+      piece.detailsMaskGfx.rotation = piece.shape.rotation;
+      piece.detailsMaskGfx.setScale(scaleX, scaleY);
+    }
+    this.syncDragShadow(piece);
+  }
+
+  private applyDragVisuals(piece: PieceRuntime, active: boolean): void {
+    if (active) {
+      piece.shape.setScale(DRAG_ACTIVE_SCALE);
+      if (!piece.dragShadow) {
+        piece.dragShadow = this.createDragShadow(piece);
+      } else {
+        this.updateDragShadowStyle(piece, piece.dragShadow);
+      }
+      this.syncDetailsTransform(piece);
+      this.syncDragShadow(piece);
       return;
     }
 
-    const scaleX = piece.shape.scaleX ?? 1;
-    const scaleY = piece.shape.scaleY ?? 1;
-    piece.detailsOverlay.setPosition(piece.shape.x, piece.shape.y);
-    piece.detailsOverlay.rotation = piece.shape.rotation;
-    piece.detailsOverlay.setScale(scaleX, scaleY);
-    piece.detailsOverlay.setDepth(piece.shape.depth + 0.1);
+    this.clearDragVisuals(piece);
+  }
 
-    piece.detailsMaskGfx.setPosition(piece.shape.x, piece.shape.y);
-    piece.detailsMaskGfx.rotation = piece.shape.rotation;
-    piece.detailsMaskGfx.setScale(scaleX, scaleY);
+  private createDragShadow(piece: PieceRuntime): Phaser.GameObjects.Polygon {
+    const shadow = this.add.polygon(piece.shape.x, piece.shape.y, piece.localCoords, DRAG_SHADOW_COLOR, DRAG_SHADOW_ALPHA);
+    shadow.setOrigin(piece.shape.originX, piece.shape.originY);
+    shadow.setDepth(piece.shape.depth - 0.4);
+    shadow.setScrollFactor(0);
+    shadow.setRotation(piece.shape.rotation);
+    shadow.setScale(piece.shape.scaleX, piece.shape.scaleY);
+    shadow.setVisible(true);
+    shadow.disableInteractive();
+    this.updateDragShadowStyle(piece, shadow);
+    return shadow;
+  }
+
+  private syncDragShadow(piece: PieceRuntime): void {
+    if (!piece.dragShadow) {
+      return;
+    }
+
+    const offset = this.dragShadowOffset.clone();
+    if (piece.shape.rotation !== 0) {
+      offset.rotate(piece.shape.rotation);
+    }
+
+    piece.dragShadow.setPosition(piece.shape.x + offset.x, piece.shape.y + offset.y);
+    piece.dragShadow.setScale(piece.shape.scaleX ?? 1, piece.shape.scaleY ?? 1);
+    piece.dragShadow.setRotation(piece.shape.rotation);
+    piece.dragShadow.setDepth(piece.shape.depth - 0.4);
+  }
+
+  private clearDragVisuals(piece: PieceRuntime): void {
+    if (piece.dragShadow) {
+      piece.dragShadow.destroy();
+      piece.dragShadow = undefined;
+    }
+    piece.shape.setScale(1);
+    this.syncDetailsTransform(piece);
+  }
+
+  private updateDragShadowStyle(piece: PieceRuntime, shadow: Phaser.GameObjects.Polygon): void {
+    if (!shadow) {
+      return;
+    }
+    if (this.glassMode) {
+      shadow.setFillStyle(DRAG_SHADOW_GLASS_COLOR, DRAG_SHADOW_GLASS_ALPHA);
+    } else {
+      shadow.setFillStyle(DRAG_SHADOW_COLOR, DRAG_SHADOW_ALPHA);
+    }
   }
 
   private addDetailsForPiece(piece: PieceRuntime, doc: Document): void {
@@ -208,6 +332,9 @@ export class PuzzleScene extends Phaser.Scene {
         }
         overlay.fillPath();
       }
+
+      const localDetailPoints = points.map((point) => new Phaser.Math.Vector2(point.x - piece.target.x, point.y - piece.target.y));
+      piece.detailPaths.push({ points: localDetailPoints, strokeWidth, isClosed });
     }
 
     const maskGfx = this.add.graphics().setVisible(false);
@@ -475,7 +602,8 @@ export class PuzzleScene extends Phaser.Scene {
     piece.shape.setFillStyle(fillColor, fillAlpha);
     piece.shape.setStrokeStyle(strokeWidth, strokeColor, strokeAlpha);
     piece.shape.setAlpha(1);
-    piece.shape.setInteractive(new Phaser.Geom.Polygon(piece.hitArea), Phaser.Geom.Polygon.Contains);
+    const hitAreaPoints = piece.touchHitArea ?? piece.hitArea;
+    piece.shape.setInteractive(new Phaser.Geom.Polygon(hitAreaPoints), Phaser.Geom.Polygon.Contains);
     if (piece.shape.input) {
       piece.shape.input.cursor = 'grab';
     }
@@ -519,6 +647,20 @@ export class PuzzleScene extends Phaser.Scene {
     this.emitter = data?.emitter;
     this.debugEnabled = data.showDebug ?? false;
     this.glassMode = data.useGlassStyle ?? false;
+    this.shimmerSweepDirection
+      .set(-Math.abs(PLACEMENT_SHIMMER_SWEEP_VECTOR.x || 1), -Math.abs(PLACEMENT_SHIMMER_SWEEP_VECTOR.y || 1))
+      .normalize();
+    this.shimmerLightDirection
+      .set(PLACEMENT_SHIMMER_LIGHT_VECTOR.x, PLACEMENT_SHIMMER_LIGHT_VECTOR.y, PLACEMENT_SHIMMER_LIGHT_VECTOR.z)
+      .normalize();
+    this.dragShadowOffset
+      .set(DRAG_SHADOW_OFFSET.x, DRAG_SHADOW_OFFSET.y);
+    this.textResolution = this.resolveTextResolution();
+    if (typeof window !== 'undefined' && 'matchMedia' in window) {
+      this.reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } else {
+      this.reduceMotion = false;
+    }
   }
 
   create(): void {
@@ -539,16 +681,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.setupDragHandlers();
     this.initializePiecesAtTarget();
 
-    this.helpLabel = this.add
-      .text(this.scale.width * 0.5, this.scale.height - 28, 'Snap pieces inside the glowing outline', {
-        color: '#b7c7ff',
-        fontSize: '20px',
-        fontFamily: 'Segoe UI, Roboto, sans-serif'
-      })
-      .setOrigin(0.5, 0.5)
-      .setVisible(false);
-
-    // this.time.delayedCall(INTRO_HOLD_DURATION, () => this.beginIntroShiver());
+    this.time.delayedCall(INTRO_HOLD_DURATION, () => this.beginIntroShiver());
   }
 
   private addSceneBackground(): void {
@@ -629,8 +762,13 @@ export class PuzzleScene extends Phaser.Scene {
         strokeWidth,
         strokeSourceWidth: piece.strokeWidth,
         restPosition: new Phaser.Math.Vector2(anchor.x + origin.x, anchor.y + origin.y),
-        restRotation: 0
+        restRotation: 0,
+        localPoints: geometry.localPoints,
+        localCoords: geometry.coords.slice(),
+        detailPaths: []
       };
+
+      runtimePiece.touchHitArea = this.createTouchHitArea(geometry.hitArea, 26);
 
       const initialStyle = this.getActiveStyle(runtimePiece);
       shape.setFillStyle(initialStyle.fillColor, initialStyle.fillAlpha);
@@ -661,6 +799,8 @@ export class PuzzleScene extends Phaser.Scene {
       if (this.svgDoc) {
         this.addDetailsForPiece(runtimePiece, this.svgDoc);
       }
+
+      runtimePiece.shimmerData = this.buildShimmerData(runtimePiece);
     });
   }
 
@@ -812,8 +952,6 @@ export class PuzzleScene extends Phaser.Scene {
 
   private preparePiecesForPuzzle(): void {
     this.stopShiverTweens();
-    this.helpLabel?.setVisible(this.debugEnabled);
-
     this.pieces.forEach((piece, index) => {
       const restPosition = piece.restPosition ?? new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
       piece.shape.setPosition(restPosition.x, restPosition.y);
@@ -821,6 +959,8 @@ export class PuzzleScene extends Phaser.Scene {
       piece.shape.rotation = startRotation;
       this.recordRestingState(piece);
       piece.shape.setData('pieceIndex', index);
+      this.disposeShimmer(piece);
+      this.clearDragVisuals(piece);
       this.stylePieceForPuzzle(piece);
       this.input.setDraggable(piece.shape);
       this.syncDetailsTransform(piece);
@@ -1030,6 +1170,7 @@ export class PuzzleScene extends Phaser.Scene {
 
       piece.shape.setDepth(this.nextDropDepth++);
       this.syncDetailsTransform(piece);
+      this.applyDragVisuals(piece, true);
 
       const rotationTweenDuration = Math.max(260, Math.abs(piece.shape.rotation) * 380);
       const rotationTween = Math.abs(piece.shape.rotation) > 0.001
@@ -1045,10 +1186,11 @@ export class PuzzleScene extends Phaser.Scene {
 
       if (rotationTween) {
         rotationTween.setCallback('onUpdate', () => {
-          if (!piece.isDragging) {
-            return;
+          if (piece.isDragging) {
+            this.updateDraggingPieceTransform(piece);
+          } else {
+            this.syncDetailsTransform(piece);
           }
-          this.updateDraggingPieceTransform(piece);
         });
       } else {
         piece.shape.rotation = 0;
@@ -1097,6 +1239,7 @@ export class PuzzleScene extends Phaser.Scene {
       piece.dragOffset = undefined;
       piece.dragPointer = undefined;
       piece.dragStartRotation = undefined;
+      this.applyDragVisuals(piece, false);
 
       const snapped = this.trySnapPiece(piece);
 
@@ -1161,6 +1304,7 @@ export class PuzzleScene extends Phaser.Scene {
     piece.dragPointer = undefined;
     piece.dragStartRotation = undefined;
 
+    this.clearDragVisuals(piece);
     piece.placed = true;
     piece.shape.disableInteractive();
     piece.shape.setDepth(10);
@@ -1171,6 +1315,11 @@ export class PuzzleScene extends Phaser.Scene {
       piece.target.y + piece.origin.y
     );
 
+    const handleSnapComplete = () => {
+      this.syncDetailsTransform(piece);
+      this.playPlacementShimmer(piece);
+    };
+
     const tween = this.tweens.add({
       targets: piece.shape,
       x: targetPosition.x,
@@ -1178,12 +1327,12 @@ export class PuzzleScene extends Phaser.Scene {
       duration: SNAP_ANIMATION_DURATION,
       ease: Phaser.Math.Easing.Cubic.Out,
       onUpdate: () => this.syncDetailsTransform(piece),
-      onComplete: () => this.syncDetailsTransform(piece)
+      onComplete: handleSnapComplete
     });
 
     if (!tween) {
       piece.shape.setPosition(targetPosition.x, targetPosition.y);
-      this.syncDetailsTransform(piece);
+      handleSnapComplete();
     }
 
     const activeStyle = this.getActiveStyle(piece);
@@ -1200,21 +1349,349 @@ export class PuzzleScene extends Phaser.Scene {
 
     if (this.placedCount === this.pieces.length) {
       const elapsedSeconds = (this.time.now - this.startTime) / 1000;
-      this.showCompletionBanner(elapsedSeconds);
-      this.emitter?.emit('puzzle-complete');
+      this.emitter?.emit('puzzle-complete', { elapsedSeconds });
     }
   }
 
-  private showCompletionBanner(totalSeconds: number): void {
-    const banner = this.add.rectangle(this.scale.width * 0.5, 72, 480, 96, 0x183d2f, 0.82);
-    banner.setStrokeStyle(2, 0x8ddfcb, 0.9);
+  private playPlacementShimmer(piece: PieceRuntime): void {
+    if (!piece.shimmerData || this.reduceMotion) {
+      return;
+    }
 
-    const message = this.add.text(this.scale.width * 0.5, 72, `Puzzle completed in ${totalSeconds.toFixed(1)}s`, {
-      color: '#e3fff5',
-      fontSize: '30px',
-      fontFamily: 'Segoe UI, Roboto, sans-serif'
+    this.disposeShimmer(piece);
+
+    const overlay = this.add.graphics();
+    overlay.setBlendMode(Phaser.BlendModes.ADD);
+    overlay.setDepth(piece.shape.depth + 5);
+    overlay.setScrollFactor(0);
+
+    const maskGfx = this.add.graphics();
+    maskGfx.setScrollFactor(0);
+    maskGfx.fillStyle(0xffffff, 1);
+    maskGfx.beginPath();
+    const localPoints = piece.localPoints;
+    const worldOffsetX = piece.shape.x - piece.origin.x;
+    const worldOffsetY = piece.shape.y - piece.origin.y;
+    if (localPoints.length >= 2) {
+      maskGfx.moveTo(worldOffsetX + localPoints[0].x, worldOffsetY + localPoints[0].y);
+      for (let i = 1; i < localPoints.length; i += 1) {
+        const pt = localPoints[i];
+        maskGfx.lineTo(worldOffsetX + pt.x, worldOffsetY + pt.y);
+      }
+      maskGfx.closePath();
+      maskGfx.fillPath();
+    }
+    const geometryMask = new Phaser.Display.Masks.GeometryMask(this, maskGfx);
+    overlay.setMask(geometryMask);
+
+    const state = { progress: 0 };
+    piece.shimmerOverlay = overlay;
+    piece.shimmerState = state;
+    piece.shimmerMask = maskGfx;
+    piece.shimmerGeometryMask = geometryMask;
+
+    const duration = PLACEMENT_SHIMMER_DURATION;
+    piece.shimmerTween = this.tweens.add({
+      targets: state,
+      progress: 1,
+      delay: 100,
+      duration,
+      ease: (t: number) => this.cubicBezierEase(t, 0.16, 1, 0.3, 1),
+      onUpdate: () => this.updateShimmerOverlay(piece),
+      onComplete: () => {
+        this.updateShimmerOverlay(piece);
+        this.disposeShimmer(piece);
+      }
     });
-    message.setOrigin(0.5, 0.5);
+  }
+
+  private updateShimmerOverlay(piece: PieceRuntime): void {
+    if (!piece.shimmerOverlay || !piece.shimmerData || !piece.shimmerState) {
+      return;
+    }
+
+    const overlay = piece.shimmerOverlay;
+    const data = piece.shimmerData;
+    const progress = Phaser.Math.Clamp(piece.shimmerState.progress, 0, 1);
+
+    overlay.clear();
+    overlay.setDepth(piece.shape.depth + 201);
+
+    const bandStart = data.projectionMax + data.bandHalfWidth;
+    const bandEnd = data.projectionMin - data.bandHalfWidth;
+    const bandCenter = Phaser.Math.Linear(bandStart, bandEnd, progress);
+    const sweepDir = this.shimmerSweepDirection;
+
+    const offsetX = piece.shape.x - piece.origin.x;
+    const offsetY = piece.shape.y - piece.origin.y;
+
+    data.edges.forEach((edge) => {
+      if (edge.facing <= 0) {
+        return;
+      }
+      const projection = edge.projection;
+      const distance = Math.abs(projection - bandCenter);
+      const bandFactor = this.computeBandFactor(distance, data.bandHalfWidth);
+      const intensity = Phaser.Math.Clamp(bandFactor * edge.facing, 0, 1);
+      if (intensity <= 0.001) {
+        return;
+      }
+      const startX = offsetX + edge.start.x;
+      const startY = offsetY + edge.start.y;
+      const endX = offsetX + edge.end.x;
+      const endY = offsetY + edge.end.y;
+      const stroke = this.computeShimmerStrokeColor(data.baseColor, intensity);
+      const baseWidth = Math.max(piece.strokeWidth, 0.6);
+      const glowWidth = Math.max(baseWidth * PLACEMENT_SHIMMER_STROKE_MULTIPLIER, baseWidth + 2);
+      overlay.lineStyle(glowWidth, stroke.color, stroke.alpha);
+      overlay.beginPath();
+      overlay.moveTo(startX, startY);
+      overlay.lineTo(endX, endY);
+      overlay.strokePath();
+    });
+
+    data.detailSegments.forEach((segment) => {
+      const projection = segment.projection;
+      const distance = Math.abs(projection - bandCenter);
+      const bandFactor = this.computeBandFactor(distance, data.bandHalfWidth);
+      const intensity = Phaser.Math.Clamp(bandFactor * segment.facing, 0, 1);
+      if (intensity <= 0.001) {
+        return;
+      }
+      const startX = offsetX + segment.start.x;
+      const startY = offsetY + segment.start.y;
+      const endX = offsetX + segment.end.x;
+      const endY = offsetY + segment.end.y;
+      const stroke = this.computeShimmerStrokeColor(data.baseColor, intensity);
+      const baseWidth = Math.max(segment.strokeWidth || piece.strokeWidth, 0.6);
+      const glowWidth = Math.max(baseWidth * PLACEMENT_SHIMMER_STROKE_MULTIPLIER, baseWidth + 2);
+      overlay.lineStyle(glowWidth, stroke.color, stroke.alpha);
+      overlay.beginPath();
+      overlay.moveTo(startX, startY);
+      overlay.lineTo(endX, endY);
+      overlay.strokePath();
+    });
+  }
+
+  private disposeShimmer(piece: PieceRuntime): void {
+    piece.shimmerTween?.remove();
+    piece.shimmerTween = undefined;
+    piece.shimmerState = undefined;
+    if (piece.shimmerOverlay && piece.shimmerGeometryMask) {
+      piece.shimmerOverlay.clearMask(true);
+    }
+    if (piece.shimmerOverlay) {
+      piece.shimmerOverlay.clear();
+      piece.shimmerOverlay.destroy();
+      piece.shimmerOverlay = undefined;
+    }
+    if (piece.shimmerMask) {
+      piece.shimmerMask.destroy();
+      piece.shimmerMask = undefined;
+    }
+    if (piece.shimmerGeometryMask) {
+      piece.shimmerGeometryMask.destroy();
+      piece.shimmerGeometryMask = undefined;
+    }
+  }
+
+  private buildShimmerData(piece: PieceRuntime): PieceShimmerData | undefined {
+    const points = piece.localPoints;
+    if (!points || points.length < 2) {
+      return undefined;
+    }
+
+    const sweepDir = this.shimmerSweepDirection;
+    const lightDir2D = new Phaser.Math.Vector2(-this.shimmerLightDirection.x, -this.shimmerLightDirection.y).normalize();
+    let minProj = Number.POSITIVE_INFINITY;
+    let maxProj = Number.NEGATIVE_INFINITY;
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    points.forEach((pt) => {
+      const projection = pt.dot(sweepDir);
+      minProj = Math.min(minProj, projection);
+      maxProj = Math.max(maxProj, projection);
+      minX = Math.min(minX, pt.x);
+      maxX = Math.max(maxX, pt.x);
+      minY = Math.min(minY, pt.y);
+      maxY = Math.max(maxY, pt.y);
+    });
+
+    const width = Math.max(maxX - minX, 1e-3);
+    const height = Math.max(maxY - minY, 1e-3);
+    const diagonal = Math.hypot(width, height);
+    const bandHalfWidth = Math.max((diagonal * PLACEMENT_SHIMMER_BAND_WIDTH_RATIO) * 0.5, 6);
+
+    const edges: PieceShimmerEdge[] = [];
+    for (let i = 0; i < points.length; i++) {
+      const current = points[i];
+      const next = points[(i + 1) % points.length];
+      if (!current || !next) {
+        continue;
+      }
+
+      const edgeVector = new Phaser.Math.Vector2(next.x - current.x, next.y - current.y);
+      if (edgeVector.lengthSq() === 0) {
+        continue;
+      }
+      edgeVector.normalize();
+      const edgeNormal = new Phaser.Math.Vector2(-edgeVector.y, edgeVector.x).normalize();
+      const facing = Phaser.Math.Clamp(edgeNormal.dot(lightDir2D), 0, 1);
+      const midProjection = new Phaser.Math.Vector2((current.x + next.x) * 0.5, (current.y + next.y) * 0.5).dot(sweepDir);
+      edges.push({ start: current, end: next, facing, projection: midProjection });
+    }
+
+    const detailSegments: PieceShimmerDetailSegment[] = [];
+    piece.detailPaths.forEach((path) => {
+      const pathPoints = path.points;
+      if (pathPoints.length < 2) {
+        return;
+      }
+
+      const count = path.isClosed ? pathPoints.length : pathPoints.length - 1;
+      for (let i = 0; i < count; i += 1) {
+        const start = pathPoints[i];
+        const end = pathPoints[(i + 1) % pathPoints.length];
+        const segmentVector = new Phaser.Math.Vector2(end.x - start.x, end.y - start.y);
+        if (segmentVector.lengthSq() === 0) {
+          continue;
+        }
+
+        const startProjection = start.dot(sweepDir);
+        const endProjection = end.dot(sweepDir);
+        const midpoint = new Phaser.Math.Vector2((start.x + end.x) * 0.5, (start.y + end.y) * 0.5);
+        const projection = midpoint.dot(sweepDir);
+        minProj = Math.min(minProj, startProjection, endProjection, projection);
+        maxProj = Math.max(maxProj, startProjection, endProjection, projection);
+
+        const direction = segmentVector.clone().normalize();
+        const normal = new Phaser.Math.Vector2(-direction.y, direction.x).normalize();
+        const facing = Phaser.Math.Clamp(Math.abs(normal.dot(lightDir2D)) * 0.9 + 0.1, 0.1, 1);
+
+        detailSegments.push({
+          start: start.clone(),
+          end: end.clone(),
+          strokeWidth: path.strokeWidth,
+          facing,
+          projection
+        });
+      }
+    });
+
+    const baseColor = Phaser.Display.Color.IntegerToColor(piece.strokeColor ?? piece.fillColor ?? STAG_BASE_COLOR);
+    const glintColor = 0xffffff;
+
+    return {
+      edges,
+      detailSegments,
+      projectionMin: minProj,
+      projectionMax: maxProj,
+      bandHalfWidth,
+      baseColor,
+      glintColor
+    };
+  }
+
+  private computeBandFactor(distance: number, halfWidth: number): number {
+    if (halfWidth <= 0) {
+      return 0;
+    }
+    const normalized = Phaser.Math.Clamp(1 - distance / halfWidth, 0, 1);
+    return normalized * normalized * (3 - 2 * normalized);
+  }
+
+  private computeShimmerStrokeColor(_base: Phaser.Display.Color, intensity: number): { color: number; alpha: number } {
+    const clamped = Phaser.Math.Clamp(intensity, 0, 1);
+    const minAlpha = Math.min(PLACEMENT_SHIMMER_EDGE_ALPHA * 0.35, PLACEMENT_SHIMMER_EDGE_ALPHA);
+    const alpha = Phaser.Math.Linear(minAlpha, PLACEMENT_SHIMMER_EDGE_ALPHA, clamped);
+    return { color: 0xffffff, alpha };
+  }
+
+  private resolveTextResolution(): number {
+    if (typeof window !== 'undefined' && window.devicePixelRatio) {
+      return Math.max(2, window.devicePixelRatio);
+    }
+    return 2;
+  }
+
+  private createTouchHitArea(points: Phaser.Geom.Point[], padding: number): Phaser.Geom.Point[] {
+    if (!points || points.length === 0) {
+      return points ?? [];
+    }
+
+    const centroid = new Phaser.Math.Vector2();
+    points.forEach((pt) => centroid.add(new Phaser.Math.Vector2(pt.x, pt.y)));
+    centroid.scale(1 / points.length);
+
+    return points.map((pt) => {
+      const offset = new Phaser.Math.Vector2(pt.x - centroid.x, pt.y - centroid.y);
+      const length = Math.max(offset.length(), 1e-3);
+      const scale = (length + padding) / length;
+      offset.scale(scale);
+      return new Phaser.Geom.Point(centroid.x + offset.x, centroid.y + offset.y);
+    });
+  }
+
+  private cubicBezierEase(t: number, x1: number, y1: number, x2: number, y2: number): number {
+    const clampT = Phaser.Math.Clamp(t, 0, 1);
+
+    const sampleCurveX = (u: number) => {
+      const invU = 1 - u;
+      return (
+        3 * invU * invU * u * x1 +
+        3 * invU * u * u * x2 +
+        u * u * u
+      );
+    };
+
+    const sampleCurveY = (u: number) => {
+      const invU = 1 - u;
+      return (
+        3 * invU * invU * u * y1 +
+        3 * invU * u * u * y2 +
+        u * u * u
+      );
+    };
+
+    const sampleDerivativeX = (u: number) => {
+      return (
+        3 * x1 * (1 - u) * (1 - u) +
+        6 * (x2 - x1) * (1 - u) * u +
+        3 * (1 - x2) * u * u
+      );
+    };
+
+    let u = clampT;
+    for (let i = 0; i < 6; i++) {
+      const x = sampleCurveX(u) - clampT;
+      if (Math.abs(x) < 1e-4) {
+        return sampleCurveY(u);
+      }
+      const d = sampleDerivativeX(u);
+      if (Math.abs(d) < 1e-6) {
+        break;
+      }
+      u -= x / d;
+    }
+
+    let lower = 0;
+    let upper = 1;
+    u = clampT;
+
+    for (let i = 0; i < 12 && upper - lower > 1e-4; i++) {
+      const x = sampleCurveX(u);
+      if (x < clampT) {
+        lower = u;
+      } else {
+        upper = u;
+      }
+      u = (upper + lower) * 0.5;
+    }
+
+    return sampleCurveY(u);
   }
 
   private getUniformScale(): number {
@@ -1225,7 +1702,8 @@ export class PuzzleScene extends Phaser.Scene {
     const bounds = this.config.bounds;
     const spanX = Math.max(bounds.width, 1e-6);
     const spanY = Math.max(bounds.height, 1e-6);
-    return Math.min(this.scale.width / spanX, this.scale.height / spanY);
+    const baseScale = Math.min(this.scale.width / spanX, this.scale.height / spanY);
+    return baseScale * PUZZLE_SCALE_RATIO;
   }
 
   private toCanvasStrokeWidth(strokeWidth?: number): number {
@@ -1245,7 +1723,8 @@ export class PuzzleScene extends Phaser.Scene {
     const bounds = this.config.bounds;
     const spanX = Math.max(bounds.width, 1e-6);
     const spanY = Math.max(bounds.height, 1e-6);
-    const uniformScale = Math.min(this.scale.width / spanX, this.scale.height / spanY);
+    const baseScale = Math.min(this.scale.width / spanX, this.scale.height / spanY);
+    const uniformScale = baseScale * PUZZLE_SCALE_RATIO;
 
     const offsetX = (this.scale.width - spanX * uniformScale) * 0.5;
     const offsetY = (this.scale.height - spanY * uniformScale) * 0.5;
@@ -1259,13 +1738,15 @@ export class PuzzleScene extends Phaser.Scene {
     coords: number[];
     hitArea: Phaser.Geom.Point[];
     target: Phaser.Math.Vector2;
+    localPoints: Phaser.Math.Vector2[];
   } {
     if (points.length === 0) {
-      return { coords: [], hitArea: [], target: anchor.clone() };
+      return { coords: [], hitArea: [], target: anchor.clone(), localPoints: [] };
     }
 
     const coords: number[] = [];
     const hitArea: Phaser.Geom.Point[] = [];
+    const localPoints: Phaser.Math.Vector2[] = [];
 
     const sanitized = [...points];
     if (sanitized.length > 1) {
@@ -1281,9 +1762,10 @@ export class PuzzleScene extends Phaser.Scene {
       const localY = point.y - anchor.y;
       coords.push(localX, localY);
       hitArea.push(new Phaser.Geom.Point(localX, localY));
+      localPoints.push(new Phaser.Math.Vector2(localX, localY));
     });
 
-    return { coords, hitArea, target: anchor.clone() };
+    return { coords, hitArea, target: anchor.clone(), localPoints };
   }
 
   private showDebugOutline(piece: PieceRuntime): void {
@@ -1325,8 +1807,6 @@ export class PuzzleScene extends Phaser.Scene {
   setDebugVisible(show: boolean): void {
     this.debugEnabled = show;
 
-    this.helpLabel?.setVisible(show);
-
     if (!show) {
       this.hideDebugOutline();
     }
@@ -1359,6 +1839,10 @@ export class PuzzleScene extends Phaser.Scene {
       if (piece.detailsOverlay) {
         const overlayAlpha = this.glassMode ? 0.5 : 0.9;
         piece.detailsOverlay.setAlpha(overlayAlpha);
+      }
+
+      if (piece.dragShadow) {
+        this.updateDragShadowStyle(piece, piece.dragShadow);
       }
 
       this.syncDetailsTransform(piece);
