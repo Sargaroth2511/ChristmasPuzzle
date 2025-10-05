@@ -16,11 +16,11 @@ export const EXPLOSION_TRAVEL_TIME = { min: 0.72, max: 0.95 } as const;
 export const EXPLOSION_RADIAL_BOOST = { min: 860, max: 1600 } as const;
 export const EXPLOSION_SPIN_RANGE = { min: -4.4, max: 4.4 } as const;
 export const EXPLOSION_BOUNCE_DAMPING = 0.36;
-export const EXPLOSION_GROUND_FRICTION = 0.82;
+export const EXPLOSION_GROUND_FRICTION = 0.22;
 export const EXPLOSION_SPIN_DAMPING = 0.7;
-export const EXPLOSION_MIN_REST_SPEED = 40;
-export const EXPLOSION_REST_DELAY = 220;
-export const EXPLOSION_WALL_MARGIN = 64;
+export const EXPLOSION_MIN_REST_SPEED = 2;
+export const EXPLOSION_REST_DELAY = 120;
+export const EXPLOSION_WALL_MARGIN = 24;
 export const EXPLOSION_WALL_DAMPING = 0.42;
 
 export const SVG_SAMPLING_MAX_STEP = 0.6;
@@ -52,3 +52,6 @@ export const DRAG_SHADOW_COLOR = 0x0a2014;
 export const DRAG_SHADOW_ALPHA = 0.36;
 export const DRAG_SHADOW_GLASS_COLOR = 0xffffff;
 export const DRAG_SHADOW_GLASS_ALPHA = 0.62;
+
+// Scene layout tuning
+export const SCENE_FLOOR_BOTTOM_MARGIN = -20; // Pixels to keep free between the floor line and the bottom edge.

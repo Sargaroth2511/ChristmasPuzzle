@@ -42,7 +42,8 @@ import {
   DRAG_SHADOW_COLOR,
   DRAG_SHADOW_ALPHA,
   DRAG_SHADOW_GLASS_COLOR,
-  DRAG_SHADOW_GLASS_ALPHA
+  DRAG_SHADOW_GLASS_ALPHA,
+  SCENE_FLOOR_BOTTOM_MARGIN
 } from './puzzle.constants';
 import { PieceStyling, PuzzleConfig, PuzzlePoint, SceneData } from './puzzle.types';
 import { createPuzzleConfigFromSvg, sampleSvgPath } from './puzzle-config';
@@ -1214,7 +1215,10 @@ export class PuzzleScene extends Phaser.Scene {
       const bounds = piece.shape.getBounds();
       const leftLimit = EXPLOSION_WALL_MARGIN;
       const rightLimit = this.scale.width - EXPLOSION_WALL_MARGIN;
-      const floorLimit = Math.min(this.scale.height - 40, piece.scatterTarget.y + piece.origin.y);
+      const floorLimit = Math.min(
+        this.scale.height - SCENE_FLOOR_BOTTOM_MARGIN,
+        piece.scatterTarget.y + piece.origin.y
+      );
 
       if (bounds.left < leftLimit) {
         const overlap = leftLimit - bounds.left;
