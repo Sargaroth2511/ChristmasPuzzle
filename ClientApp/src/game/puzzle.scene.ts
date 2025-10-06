@@ -1116,8 +1116,8 @@ export class PuzzleScene extends Phaser.Scene {
   private generateGroundScatterPosition(existing: Phaser.Math.Vector2[]): Phaser.Math.Vector2 {
     const minX = EXPLOSION_WALL_MARGIN + 12;
     const maxX = this.scale.width - EXPLOSION_WALL_MARGIN - 12;
-    const minY = Math.max(this.scale.height - 140, 120);
-    const maxY = this.scale.height - 54;
+    const minY = Math.max(this.scale.height - 80, 40);
+    const maxY = this.scale.height - 64;
 
     const pickCandidate = () =>
       new Phaser.Math.Vector2(
@@ -1252,6 +1252,32 @@ export class PuzzleScene extends Phaser.Scene {
         piece.shape.x -= overlap;
         if (velocity.x > 0) {
           velocity.x = -velocity.x * EXPLOSION_WALL_DAMPING;
+        }
+        this.syncDetailsTransform(piece);
+      }
+
+      // Center obstacle collision (25% width pillar)
+      const centerStart = this.scale.width * 0.375;
+      const centerEnd = this.scale.width * 0.625;
+      if (bounds.right > centerStart && bounds.left < centerEnd) {
+        if (bounds.centerX < (centerStart + centerEnd) / 2) {
+          // Hit left side of pillar
+          const overlap = bounds.right - centerStart;
+          if (overlap > 0) {
+            piece.shape.x -= overlap;
+            if (velocity.x > 0) {
+              velocity.x = -velocity.x * EXPLOSION_WALL_DAMPING;
+            }
+          }
+        } else {
+          // Hit right side of pillar
+          const overlap = centerEnd - bounds.left;
+          if (overlap > 0) {
+            piece.shape.x += overlap;
+            if (velocity.x < 0) {
+              velocity.x = -velocity.x * EXPLOSION_WALL_DAMPING;
+            }
+          }
         }
         this.syncDetailsTransform(piece);
       }
