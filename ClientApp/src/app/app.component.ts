@@ -18,12 +18,14 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   readonly title = 'Christmas Puzzle';
 
-  puzzleComplete = false;
+  puzzleComplete = true; // Always show for testing
   showDebug = false;
   useGlassStyle = false;
   menuOpen = false;
-  showIntroOverlay = true;
+  showIntroOverlay = false; // Hide intro for testing
   showInitialContinueButton = false;
+  showExplosionModal = false;
+  showInstructions = false;
   coinTotal = 0;
   donationMessageVisible = false;
   hideRestartButton = false;
@@ -137,6 +139,11 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       this.cdr.markForCheck();
     });
 
+    emitter.on('explosion-complete', () => {
+      this.showExplosionModal = true;
+      this.cdr.markForCheck();
+    });
+
     emitter.on('coin-total-changed', (total: number) => {
       this.coinTotal = total ?? 0;
       this.cdr.markForCheck();
@@ -242,12 +249,20 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  closeExplosionModal(): void {
+    this.showExplosionModal = false;
+    this.showInstructions = true;
+    this.cdr.markForCheck();
+  }
+
   restartPuzzle(): void {
     this.clearCompletionOverlayTimer();
     this.donationMessageVisible = false;
     this.hideRestartButton = false;
     this.puzzleComplete = false;
     this.showInitialContinueButton = false;
+    this.showExplosionModal = false;
+    this.showInstructions = false;
     this.sceneEvents?.emit('puzzle-reset');
 
     if (!this.game) {

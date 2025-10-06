@@ -7,4 +7,4 @@ export const INITIAL_ZOOM_TARGET_SCALE = 1.45;
 export const INITIAL_PARALLAX_RANGE = { near: 0.08, far: 0.68 } as const;
 
 // Focus point offsets (pixels) relative to the canvas centre when zooming (tweak to reframe the stag)
-export const INITIAL_CAMERA_FOCUS_OFFSET = { x: -150, y: 0 } as const;
+export const INITIAL_CAMERA_FOCUS_OFFSET = { x: -150, y: 50 } as const;

@@ -186,7 +186,7 @@
 
 .complete-card h2 {
   margin: 0;
-  font-size: clamp(1.6rem, 5vw, 2.6rem);
+  font-size: clamp(1.2rem, 4vw, 2rem);
 }
 
 .complete-card p {
@@ -200,6 +200,7 @@
   flex-wrap: wrap;
   gap: 0.9rem;
   justify-content: center;
+  margin-top: 1.5rem;
 }
 
 .complete-actions button {
@@ -213,14 +214,14 @@
 }
 
 .complete-actions button:first-child {
-  background: #f7fbff;
-  color: #132230;
-  box-shadow: 0 12px 28px rgba(247, 251, 255, 0.25);
+  background: rgba(20, 32, 49, 0.92);
+  color: #f7fbff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .complete-actions button:first-child:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 32px rgba(247, 251, 255, 0.35);
+  transform: translateY(-1px);
+  background: rgba(35, 53, 79, 0.95);
 }
 
 .complete-actions button:last-child {
@@ -230,7 +231,7 @@
 }
 
 .complete-actions button:last-child:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   background: rgba(35, 53, 79, 0.95);
 }
 
@@ -243,34 +244,107 @@
   margin-top: 0.6rem;
 }
 
-.initial-continue {
+.stag-modal {
   position: absolute;
+  top: 0;
   left: 0;
   right: 0;
-  bottom: clamp(1rem, 3vw, 2rem);
+  bottom: 0;
   display: flex;
+  align-items: center;
   justify-content: center;
-  pointer-events: none;
+  background: rgba(0, 0, 0, 0.5);
   z-index: 160;
 }
 
-.initial-continue button {
-  pointer-events: auto;
-  padding: 0.95rem 2.4rem;
-  border-radius: 999px;
-  border: none;
-  background: rgba(20, 32, 49, 0.9);
-  color: #f7fbff;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  font-size: clamp(1rem, 3vw, 1.1rem);
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
-  transition: transform 0.2s ease, background 0.2s ease;
-  cursor: pointer;
+.modal-content {
+  background: rgba(20, 32, 49, 0.92);
+  border-radius: 22px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+  max-width: 90%;
+  width: 400px;
 }
 
-.initial-continue button:hover {
-  transform: translateY(-2px);
+.modal-content h1 {
+  font-family: 'CompanySans', sans-serif;
+  font-size: 1.5rem;
+  color: #f7fbff;
+  margin: 0 0 1.5rem 0;
+  font-weight: 700;
+}
+
+.modal-content button {
+  padding: 0.75rem 2rem;
+  border-radius: 22px;
+  border: none;
+  background: rgba(36, 58, 88, 0.92);
+  color: #f7fbff;
+  font-family: 'CompanySans', sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.modal-content button:hover {
+  background: rgba(35, 53, 79, 0.95);
+}
+
+.explosion-modal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 160;
+}
+
+.explosion-modal .modal-content {
+  background: rgba(20, 32, 49, 0.92);
+  border-radius: 22px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+  max-width: 90%;
+  width: 500px;
+}
+
+.explosion-modal .modal-content h1 {
+  font-family: 'CompanySans', sans-serif;
+  font-size: 1.5rem;
+  color: #f7fbff;
+  margin: 0 0 1rem 0;
+  font-weight: 700;
+}
+
+.explosion-modal .modal-content p {
+  font-family: 'CompanySans', sans-serif;
+  font-size: 1.1rem;
+  color: #f7fbff;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.4;
+}
+
+.explosion-modal .modal-content button {
+  padding: 0.75rem 2rem;
+  border-radius: 22px;
+  border: none;
+  background: rgba(20, 32, 49, 0.92);
+  color: #f7fbff;
+  font-family: 'CompanySans', sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.explosion-modal .modal-content button:hover {
   background: rgba(35, 53, 79, 0.95);
 }
 
@@ -367,4 +441,19 @@
       height: calc(min(100vw, 100svh * 1.5) / 1.5);
     }
   }
+}
+
+.instruction-text {
+  font-family: 'CompanySans', sans-serif;
+  font-size: 1.2rem;
+  color: rgba(247, 252, 255, 0.78);
+  text-align: center;
+  margin: 0;
+  padding: 0.5rem 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.instruction-text.visible {
+  opacity: 1;
 }

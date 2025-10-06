@@ -167,10 +167,11 @@ export class PuzzleScene extends Phaser.Scene {
   private textResolution = 1;
   private coinContainer?: Phaser.GameObjects.Container;
   private coinSprite?: Phaser.GameObjects.Sprite;
+  private coinShadow?: Phaser.GameObjects.Sprite;
   private coinLabel?: Phaser.GameObjects.Text;
   private coinTotal = 0;
   private readonly coinMargin = 28;
-  private readonly coinVerticalGap = 12;
+  private readonly coinVerticalGap = 30;
   private readonly handleExternalCoinRequest = () => this.emitCoinTotal();
 
   private resetDragState(piece: PieceRuntime): void {
@@ -654,7 +655,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.load.image('scene-background', 'assets/background/snowy_mauntains_background.png');
     this.load.image('outline-texture', 'assets/background/greyPaper.png');
     if (!this.textures.exists('hud-coin-spritesheet')) {
-      this.load.spritesheet('hud-coin-spritesheet', 'assets/coins/oh22_coin_spin_256x256_12.png', {
+      this.load.spritesheet('hud-coin-spritesheet', 'assets/coins/oh22_coin_spin_256x256_12_refined.png', {
         frameWidth: 256,
         frameHeight: 256
       });
@@ -740,8 +741,17 @@ export class PuzzleScene extends Phaser.Scene {
       coin.setScale(0.36);
       coin.setScrollFactor(0);
       coin.setDepth(10_000);
-      coin.play('coin-spin');
+      // Don't play animation initially
       this.coinSprite = coin;
+
+      // Create shadow for coin
+      const coinShadow = this.add.sprite(3, 3, 'hud-coin-spritesheet', 0);
+      coinShadow.setScale(0.36);
+      coinShadow.setScrollFactor(0);
+      coinShadow.setDepth(9_999);
+      coinShadow.setTint(0x000000);
+      coinShadow.setAlpha(0.3);
+      this.coinShadow = coinShadow;
 
       const label = this.add.text(0, 0, '0', {
         fontFamily: 'Montserrat, sans-serif',
@@ -749,16 +759,25 @@ export class PuzzleScene extends Phaser.Scene {
         color: '#ffffff',
         stroke: '#0b1724',
         strokeThickness: 4,
-        align: 'center'
+        align: 'center',
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: '#000000',
+          blur: 2,
+          stroke: true,
+          fill: true
+        }
       });
       label.setOrigin(0.5, 1);
       label.setScrollFactor(0);
       label.setDepth(10_001);
       this.coinLabel = label;
 
-      const container = this.add.container(0, 0, [coin, label]);
+      const container = this.add.container(0, 0, [coinShadow, coin, label]);
       container.setDepth(10_000);
       container.setScrollFactor(0);
+      container.setAlpha(1); // Always visible
       this.coinContainer = container;
     }
 
@@ -774,12 +793,13 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     const camera = this.cameras.main;
-    const left = camera.worldView.left + this.coinMargin;
-    const centerY = camera.worldView.centerY;
+    const right = camera.worldView.right - 5; // More into corner
+    const sceneHeight = camera.worldView.height;
+    const top = camera.worldView.top + 5; // Higher position
 
-    this.coinContainer.setPosition(left + this.coinSprite.displayWidth * 0.5, centerY);
+    this.coinContainer.setPosition(right - this.coinSprite.displayWidth * 0.5, top + this.coinSprite.displayHeight * 0.5);
     this.coinSprite.setPosition(0, 0);
-    this.coinLabel.setPosition(0, -this.coinSprite.displayHeight * 0.5 - this.coinVerticalGap);
+    this.coinLabel.setPosition(0, this.coinSprite.displayHeight * 0.5 + this.coinVerticalGap); // Label below coin
   }
 
   private updateCoinHudLabel(): void {
@@ -797,12 +817,32 @@ export class PuzzleScene extends Phaser.Scene {
     this.updateCoinHudLayout();
     this.emitCoinTotal();
 
-    if (this.coinContainer) {
-      this.coinContainer.setScale(1);
+    if (this.coinContainer && this.coinSprite) {
+      // Start spinning for exactly 6.5 spins: fast to slow
+      this.coinSprite.play('coin-spin');
+      this.coinShadow.play('coin-spin');
+      this.coinSprite.anims.timeScale = 3; // Start fast
+      this.coinShadow.anims.timeScale = 3; // Start fast
+
+      this.tweens.add({
+        targets: [this.coinSprite.anims, this.coinShadow.anims],
+        timeScale: 1, // End at normal speed
+        duration: 2400, // Duration for approximately 6.5 spins for smoother ending
+        ease: 'Cubic.easeOut', // Smoother easing
+        onComplete: () => {
+          // Stop spinning and show initial side
+          this.coinSprite.anims.stop();
+          this.coinShadow.anims.stop();
+          this.coinSprite.setFrame(0);
+          this.coinShadow.setFrame(0);
+        }
+      });
+
+      // Brief scale animation for feedback
       this.tweens.add({
         targets: this.coinContainer,
-        scale: 1.08,
-        duration: 140,
+        scale: 1.2,
+        duration: 200,
         ease: 'Sine.easeOut',
         yoyo: true
       });
@@ -1163,6 +1203,8 @@ export class PuzzleScene extends Phaser.Scene {
     this.explosionActive = false;
 
     this.resetCoinHud();
+
+    this.emitter?.emit('explosion-complete');
 
     const maxDepth = this.pieces.reduce((m, p) => Math.max(m, p.shape.depth), 0);
     this.nextDropDepth = maxDepth + 1;
