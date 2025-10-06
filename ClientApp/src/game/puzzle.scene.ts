@@ -43,6 +43,7 @@ import {
   DRAG_SHADOW_ALPHA,
   DRAG_SHADOW_GLASS_COLOR,
   DRAG_SHADOW_GLASS_ALPHA,
+  TOUCH_DRAG_Y_OFFSET,
   SCENE_FLOOR_BOTTOM_MARGIN
 } from './puzzle.constants';
 import { PieceStyling, PuzzleConfig, PuzzlePoint, SceneData } from './puzzle.types';
@@ -173,6 +174,7 @@ export class PuzzleScene extends Phaser.Scene {
   private readonly coinMargin = 28;
   private readonly coinVerticalGap = 30;
   private readonly handleExternalCoinRequest = () => this.emitCoinTotal();
+  private isTouchDragging = false; // Track if current drag is from touch input
 
   private resetDragState(piece: PieceRuntime): void {
     piece.isDragging = false;
@@ -1480,7 +1482,14 @@ export class PuzzleScene extends Phaser.Scene {
     const startRotation = piece.dragStartRotation ?? 0;
     const delta = piece.shape.rotation - startRotation;
     const rotatedOffset = piece.dragOffset.clone().rotate(delta);
-    piece.shape.setPosition(pointerPosition.x + rotatedOffset.x, pointerPosition.y + rotatedOffset.y);
+    
+    // Apply touch offset: move piece upward on touch devices so it's visible above finger
+    const touchOffsetY = this.isTouchDragging ? TOUCH_DRAG_Y_OFFSET : 0;
+    
+    piece.shape.setPosition(
+      pointerPosition.x + rotatedOffset.x, 
+      pointerPosition.y + rotatedOffset.y + touchOffsetY
+    );
     this.syncDetailsTransform(piece);
   }
 
@@ -1495,6 +1504,9 @@ export class PuzzleScene extends Phaser.Scene {
       if (!piece || piece.placed) {
         return;
       }
+
+      // Detect if this is touch input (Phaser uses pointer type or checks if it's not a mouse)
+      this.isTouchDragging = pointer.isDown && !pointer.leftButtonDown() && !pointer.rightButtonDown();
 
       piece.isDragging = true;
       this.input.setDefaultCursor('grabbing');
@@ -1579,6 +1591,7 @@ export class PuzzleScene extends Phaser.Scene {
       piece.dragOffset = undefined;
       piece.dragPointer = undefined;
       piece.dragStartRotation = undefined;
+      this.isTouchDragging = false; // Reset touch flag
       this.applyDragVisuals(piece, false);
 
       const snapped = this.trySnapPiece(piece);
