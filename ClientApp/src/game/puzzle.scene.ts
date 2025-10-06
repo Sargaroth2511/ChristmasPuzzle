@@ -646,6 +646,58 @@ export class PuzzleScene extends Phaser.Scene {
     this.syncDetailsTransform(piece);
   }
 
+  private cleanupScene(): void {
+    // Clean up tweens
+    this.stopShiverTweens();
+    
+    // Clean up pieces and their resources
+    this.pieces.forEach(piece => {
+      this.disposeShimmer(piece);
+      this.clearDragVisuals(piece);
+      if (piece.shape) {
+        piece.shape.destroy();
+      }
+      if (piece.detailsOverlay) {
+        piece.detailsOverlay.destroy();
+      }
+      if (piece.detailsMaskGfx) {
+        piece.detailsMaskGfx.destroy();
+      }
+    });
+    this.pieces = [];
+    
+    // Clean up coin HUD
+    if (this.coinContainer) {
+      this.coinContainer.destroy();
+      this.coinContainer = undefined;
+    }
+    this.coinSprite = undefined;
+    this.coinShadow = undefined;
+    this.coinLabel = undefined;
+    
+    // Clean up overlays
+    if (this.debugOverlay) {
+      this.debugOverlay.destroy();
+      this.debugOverlay = undefined;
+    }
+    if (this.guideOverlay) {
+      this.guideOverlay.destroy();
+      this.guideOverlay = undefined;
+    }
+    if (this.outlineTexture) {
+      this.outlineTexture.destroy();
+      this.outlineTexture = undefined;
+    }
+    if (this.outlineMaskShape) {
+      this.outlineMaskShape.destroy();
+      this.outlineMaskShape = undefined;
+    }
+    if (this.outlineGeometryMask) {
+      this.outlineGeometryMask.destroy();
+      this.outlineGeometryMask = undefined;
+    }
+  }
+
   constructor() {
     super('PuzzleScene');
   }
@@ -663,9 +715,32 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   init(data: SceneData): void {
+    // Reset all state for clean restart
+    this.config = undefined;
     this.emitter = data?.emitter;
+    this.pieces = [];
+    this.placedCount = 0;
+    this.startTime = 0;
+    this.debugOverlay = undefined;
     this.debugEnabled = data.showDebug ?? false;
+    this.guideOverlay = undefined;
+    this.outlineTexture = undefined;
+    this.outlineMaskShape = undefined;
+    this.outlineGeometryMask = undefined;
+    this.explosionActive = false;
+    this.explosionComplete = false;
+    this.shiverTweens = [];
+    this.shiverStartTime = 0;
     this.glassMode = data.useGlassStyle ?? false;
+    this.nextDropDepth = 0;
+    this.svgDoc = undefined;
+    this.svgClassStyleMap = undefined;
+    this.coinContainer = undefined;
+    this.coinSprite = undefined;
+    this.coinShadow = undefined;
+    this.coinLabel = undefined;
+    this.coinTotal = 0;
+    
     this.shimmerSweepDirection
       .set(-Math.abs(PLACEMENT_SHIMMER_SWEEP_VECTOR.x || 1), -Math.abs(PLACEMENT_SHIMMER_SWEEP_VECTOR.y || 1))
       .normalize();
@@ -684,6 +759,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.emitter?.on('coin-total-request', this.handleExternalCoinRequest);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.emitter?.off('coin-total-request', this.handleExternalCoinRequest);
+      this.cleanupScene();
     });
   }
 

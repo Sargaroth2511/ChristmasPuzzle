@@ -273,7 +273,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
     const sceneManager = this.game.scene;
     sceneManager.stop('PuzzleScene');
-    sceneManager.start('InitialScene', {
+    sceneManager.stop('InitialScene');
+    sceneManager.start('PuzzleScene', {
       emitter: this.sceneEvents,
       showDebug: this.showDebug,
       useGlassStyle: this.useGlassStyle
