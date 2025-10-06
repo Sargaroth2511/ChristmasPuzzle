@@ -705,6 +705,11 @@ export class PuzzleScene extends Phaser.Scene {
     this.setupDragHandlers();
     this.initializePiecesAtTarget();
 
+    if (this.reduceMotion) {
+      this.preparePiecesForPuzzle();
+      return;
+    }
+
     this.time.delayedCall(INTRO_HOLD_DURATION, () => this.beginIntroShiver());
   }
 
@@ -939,7 +944,7 @@ export class PuzzleScene extends Phaser.Scene {
         detailPaths: []
       };
 
-      runtimePiece.touchHitArea = this.createTouchHitArea(geometry.hitArea, 26);
+      // runtimePiece.touchHitArea = this.createTouchHitArea(geometry.hitArea, 26);
 
       const initialStyle = this.getActiveStyle(runtimePiece);
       shape.setFillStyle(initialStyle.fillColor, initialStyle.fillAlpha);
@@ -954,6 +959,13 @@ export class PuzzleScene extends Phaser.Scene {
         }
         const hoverStroke = this.getHoverStrokeStyle(runtimePiece);
         shape.setStrokeStyle(hoverStroke.width, hoverStroke.color, hoverStroke.alpha);
+        if (!runtimePiece.isDragging) {
+          shape.input!.cursor = 'grab';
+          this.input.setDefaultCursor('grab');
+          if (this.input.manager?.canvas) {
+            this.input.manager.canvas.style.cursor = 'grab';
+          }
+        }
       });
 
       shape.on('pointerout', () => {
@@ -963,6 +975,12 @@ export class PuzzleScene extends Phaser.Scene {
         const active = this.getActiveStyle(runtimePiece);
         shape.setFillStyle(active.fillColor, active.fillAlpha);
         shape.setStrokeStyle(active.strokeWidth, active.strokeColor, active.strokeAlpha);
+        if (!runtimePiece.isDragging) {
+          this.input.setDefaultCursor('default');
+          if (this.input.manager?.canvas) {
+            this.input.manager.canvas.style.cursor = 'default';
+          }
+        }
       });
 
       this.pieces.push(runtimePiece);
@@ -1420,7 +1438,6 @@ export class PuzzleScene extends Phaser.Scene {
       this.applyDragVisuals(piece, false);
 
       const snapped = this.trySnapPiece(piece);
-
       if (!snapped) {
         piece.shape.input!.cursor = 'grab';
         this.input.manager?.canvas && (this.input.manager.canvas.style.cursor = 'grab');
@@ -1429,30 +1446,38 @@ export class PuzzleScene extends Phaser.Scene {
         piece.shape.setFillStyle(active.fillColor, active.fillAlpha);
         piece.shape.setStrokeStyle(active.strokeWidth, active.strokeColor, active.strokeAlpha);
         this.syncDetailsTransform(piece);
+      } else {
+        this.input.setDefaultCursor('default');
+        if (this.input.manager?.canvas) {
+          this.input.manager.canvas.style.cursor = 'default';
+        }
+        if (this.debugEnabled) {
+          this.hideDebugOutline();
+        }
       }
 
-      this.input.setDefaultCursor('default');
-      if (this.input.manager?.canvas) {
-        this.input.manager.canvas.style.cursor = 'default';
-      }
-      if (this.debugEnabled) {
-        this.hideDebugOutline();
-      }
+      
     });
 
     this.input.on('pointerup', () => {
-      this.input.setDefaultCursor('default');
-      if (this.input.manager?.canvas) {
-        this.input.manager.canvas.style.cursor = 'default';
+      const hit = this.input.hitTestPointer(this.input.activePointer);
+      if (hit.length === 0) {
+        this.input.setDefaultCursor('default');
+        if (this.input.manager?.canvas) {
+          this.input.manager.canvas.style.cursor = 'default';
+        }
       }
       if (this.debugEnabled) {
         this.hideDebugOutline();
       }
     });
     this.input.on('pointerupoutside', () => {
-      this.input.setDefaultCursor('default');
-      if (this.input.manager?.canvas) {
-        this.input.manager.canvas.style.cursor = 'default';
+      const hit = this.input.hitTestPointer(this.input.activePointer);
+      if (hit.length === 0) {
+        this.input.setDefaultCursor('default');
+        if (this.input.manager?.canvas) {
+          this.input.manager.canvas.style.cursor = 'default';
+        }
       }
       if (this.debugEnabled) {
         this.hideDebugOutline();
@@ -1796,23 +1821,6 @@ export class PuzzleScene extends Phaser.Scene {
     return 2;
   }
 
-  private createTouchHitArea(points: Phaser.Geom.Point[], padding: number): Phaser.Geom.Point[] {
-    if (!points || points.length === 0) {
-      return points ?? [];
-    }
-
-    const centroid = new Phaser.Math.Vector2();
-    points.forEach((pt) => centroid.add(new Phaser.Math.Vector2(pt.x, pt.y)));
-    centroid.scale(1 / points.length);
-
-    return points.map((pt) => {
-      const offset = new Phaser.Math.Vector2(pt.x - centroid.x, pt.y - centroid.y);
-      const length = Math.max(offset.length(), 1e-3);
-      const scale = (length + padding) / length;
-      offset.scale(scale);
-      return new Phaser.Geom.Point(centroid.x + offset.x, centroid.y + offset.y);
-    });
-  }
 
   private cubicBezierEase(t: number, x1: number, y1: number, x2: number, y2: number): number {
     const clampT = Phaser.Math.Clamp(t, 0, 1);

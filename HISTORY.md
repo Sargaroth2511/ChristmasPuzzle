@@ -33,3 +33,15 @@
 ## Notes
 - The outline texture respects the SVG fill alpha; adjust `#outline` fill opacity to control how strong the paper texture appears.
 - Enable `DEBUG_SHOW_FLOOR` in `puzzle.constants.ts` to visualize the burst floor while tuning scatter behaviour.
+
+# Session 0199a479-3a94-72e0-a023-59d1f813a54d
+
+## Summary
+- Replaced the Phaser-based “Go on” button with an Angular overlay that appears once the intro zoom finishes, then relaunches the puzzle scene and new HUD logic while delaying the completion overlay by one second.
+- Swapped the completion overlay text to German, reporting the collected coin total with “Neues Spiel”/“Münzen senden” options, hiding the restart button after donation and displaying a short confirmation toast.
+- Moved the spinning OH22 coin HUD into the puzzle scene so it loads via spritesheet, anchors to the left edge, tracks the registry total, increments on piece placement, and stays hidden outside puzzle play.
+- Hardened transitions by reinitialising interactivity when the cinematic ends (including a timed fallback) and routing Angular coin-total requests through the scene.
+
+## Notes
+- Adjust `coinMargin` and `coinVerticalGap` in `PuzzleScene` to reposition the HUD.
+- Emit `coin-total-request` whenever Angular needs a fresh total after scene lifecycle changes.
