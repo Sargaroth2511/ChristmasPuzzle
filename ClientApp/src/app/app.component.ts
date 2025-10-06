@@ -18,7 +18,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   readonly title = 'Christmas Puzzle';
 
-  puzzleComplete = true; // Always show for testing
+  puzzleComplete = false;
   showDebug = false;
   useGlassStyle = false;
   menuOpen = false;

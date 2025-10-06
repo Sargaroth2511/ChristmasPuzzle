@@ -59,7 +59,7 @@ export class InitialScene extends Phaser.Scene {
   create(): void {
     this.addLayeredBackdrop();
     this.registerEmitterBridges();
-    // this.scheduleZoomSequence(); // Commented out to prevent zoom for testing
+    this.scheduleZoomSequence();
   }
 
   private registerEmitterBridges(): void {
