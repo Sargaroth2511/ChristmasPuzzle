@@ -1,16 +1,18 @@
 import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDestroy, ViewChild, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import Phaser from 'phaser';
 
 import { InitialScene } from '../game/initial.scene';
 import { PuzzleScene } from '../game/puzzle.scene';
 import { UserService, UserData, Language, Salutation } from './user.service';
+import { LanguageSwitcherComponent } from './language-switcher.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, HttpClientModule],
+  imports: [CommonModule, HttpClientModule, TranslateModule, LanguageSwitcherComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,8 +61,23 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
   constructor(
     private readonly cdr: ChangeDetectorRef,
-    private readonly userService: UserService
-  ) {}
+    private readonly userService: UserService,
+    private readonly translate: TranslateService
+  ) {
+    // Setup available languages
+    this.translate.addLangs(['de', 'en']);
+    this.translate.setDefaultLang('de');
+    
+    // Subscribe to language changes to update greeting
+    this.translate.onLangChange.subscribe(() => {
+      // Re-set greeting when language changes
+      if (this.userData) {
+        this.setGreetingMessage(true);
+      } else if (this.userGuid) {
+        this.setGreetingMessage(false);
+      }
+    });
+  }
 
   formatTime(seconds?: number): string {
     if (seconds === undefined || seconds === null) {
@@ -93,14 +110,25 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         console.log('✅ User data loaded successfully:', userData);
         this.userData = userData;
         this.userValidated = true;
-        this.setGreetingMessage(true);
+        
+        // Set language based on user preference
+        const userLang = userData.language === Language.English ? 'en' : 'de';
+        
+        // Check if user has manually selected a different language
+        const savedLang = localStorage.getItem('preferredLanguage');
+        const langToUse = savedLang || userLang;
+        
+        this.translate.use(langToUse);
+        console.log(`🌍 Language set to: ${langToUse} (user preference: ${userLang}, saved: ${savedLang})`);
+        
+        // Set greeting AFTER language is changed (will be called by onLangChange subscription)
         this.cdr.markForCheck();
       },
       error: (error) => {
         console.log('ℹ️ User not found, using generic greeting');
         this.userValidated = false;
         this.userData = undefined;
-        // Silently fall back to generic greeting - no error shown to user
+        // Silently fall back to generic greeting
         this.setGreetingMessage(false);
         this.cdr.markForCheck();
       }
@@ -109,15 +137,20 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
   private setGreetingMessage(userFound: boolean): void {
     if (userFound && this.userData) {
-      const salutation = this.userData.salutation === Salutation.Formal ? 'Sie' : 'du';
-      const greeting = this.userData.language === Language.German
-        ? `Hallo ${this.userData.name}! Schön, dass ${salutation} da ${salutation === 'Sie' ? 'sind' : 'bist'}! 🎄`
-        : `Hello ${this.userData.name}! Great to see you! 🎄`;
-      this.greetingMessage = greeting;
-      console.log('✅ Personalized greeting set:', this.greetingMessage);
+      const isFormal = this.userData.salutation === Salutation.Formal;
+      const key = isFormal ? 'greeting.personalFormal' : 'greeting.personalInformal';
+      
+      this.translate.get(key, { name: this.userData.name }).subscribe(translation => {
+        this.greetingMessage = translation;
+        console.log('✅ Personalized greeting set:', this.greetingMessage);
+        this.cdr.markForCheck();
+      });
     } else {
-      this.greetingMessage = 'Willkommen! Viel Spaß beim Puzzle! 🎄';
-      console.log('ℹ️ Generic greeting set:', this.greetingMessage);
+      this.translate.get('greeting.generic').subscribe(translation => {
+        this.greetingMessage = translation;
+        console.log('ℹ️ Generic greeting set:', this.greetingMessage);
+        this.cdr.markForCheck();
+      });
     }
   }
 
@@ -129,7 +162,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     if (!this.userData) {
       return '-';
     }
-    return this.userData.language === Language.German ? 'Deutsch' : 'English';
+    const key = this.userData.language === Language.German ? 'language.german' : 'language.english';
+    return this.translate.instant(key);
   }
 
   getSalutationPronoun(): string {

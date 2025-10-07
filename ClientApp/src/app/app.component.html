@@ -1,20 +1,23 @@
 <main class="shell">
+  <!-- Language Switcher -->
+  <app-language-switcher></app-language-switcher>
+  
   <!-- User Info Box (visible during initial scene, only if user data exists) -->
   <div class="user-info-box" *ngIf="showUserInfo && !puzzleComplete && userData">
     <div class="info-card">
       <h3>{{ getUserDisplayName() }}</h3>
       <div class="user-stats">
-        <p><strong>Sprache:</strong> {{ getLanguageText() }}</p>
-        <p><strong>Beste Zeit:</strong> {{ formatTime(userData.fastestTimeSeconds) }}</p>
-        <p><strong>Max. Teile:</strong> {{ userData.maxPiecesAchieved ?? '-' }}</p>
-        <p><strong>Abgeschlossen:</strong> {{ userData.totalPuzzlesCompleted ?? 0 }}</p>
+        <p><strong>{{ 'userInfo.language' | translate }}</strong> {{ getLanguageText() }}</p>
+        <p><strong>{{ 'userInfo.bestTime' | translate }}</strong> {{ formatTime(userData.fastestTimeSeconds) }}</p>
+        <p><strong>{{ 'userInfo.maxPieces' | translate }}</strong> {{ userData.maxPiecesAchieved ?? '-' }}</p>
+        <p><strong>{{ 'userInfo.completed' | translate }}</strong> {{ userData.totalPuzzlesCompleted ?? 0 }}</p>
       </div>
     </div>
   </div>
 
   <header class="hero">
-    <h1>{{ title }}</h1>
-    <p>Drag the pieces into place to complete the festive puzzle.</p>
+    <h1>{{ 'app.title' | translate }}</h1>
+    <p>{{ 'hero.description' | translate }}</p>
   </header>
 
   <section class="board">
@@ -34,57 +37,53 @@
 
       <nav *ngIf="menuOpen" class="mobile-menu" aria-label="Puzzle options">
         <button type="button" (click)="toggleDebug()">
-          {{ showDebug ? 'Hide Guides' : 'Show Guides' }}
+          {{ showDebug ? ('menu.hideGuides' | translate) : ('menu.showGuides' | translate) }}
         </button>
         <button type="button" (click)="toggleGlassMode()">
-          {{ useGlassStyle ? 'Opaque Pieces' : 'Glass Pieces' }}
+          {{ useGlassStyle ? ('menu.opaquePieces' | translate) : ('menu.glassPieces' | translate) }}
         </button>
-        <button type="button" (click)="closeMenu()">Close Menu</button>
+        <button type="button" (click)="closeMenu()">{{ 'menu.close' | translate }}</button>
       </nav>
 
       <div class="intro-overlay" *ngIf="showIntroOverlay">
         <div class="intro-card">
-          <h1>{{ title }}</h1>
-          <p>Drag the pieces into place to complete the festive puzzle.</p>
-          <button type="button" (click)="startPuzzle()">Start Puzzle</button>
+          <h1>{{ 'app.title' | translate }}</h1>
+          <p>{{ 'hero.description' | translate }}</p>
+          <button type="button" (click)="startPuzzle()">{{ 'buttons.startPuzzle' | translate }}</button>
         </div>
       </div>
 
       <div class="complete-overlay" *ngIf="puzzleComplete">
         <div class="complete-card">
           <div *ngIf="coinTotal === 22">
-            <h2>🎉 Perfekt! Alle 22 Münzen in {{ formatTime(completionTime) }} gesammelt!</h2>
-            <p>Möchtest du deine Münzen an OH22 schicken?<br>
-            Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck. ❤️</p>
-            <p>Oder willst du es noch einmal versuchen und schneller sein? ⏱️🚀</p>
+            <h2 [innerHTML]="'completion.perfect' | translate: { time: formatTime(completionTime) }"></h2>
+            <p [innerHTML]="'completion.perfectDescription' | translate"></p>
+            <p>{{ 'completion.perfectTryAgain' | translate }}</p>
             <div class="complete-actions">
-              <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">Neues Spiel</button>
-              <button type="button" (click)="donateCoins()">Münzen senden</button>
+              <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
+              <button type="button" (click)="donateCoins()">{{ 'buttons.sendCoins' | translate }}</button>
             </div>
           </div>
           <div *ngIf="coinTotal > 0 && coinTotal < 22">
-            <h2>Du hast {{ coinTotal | number: '1.0-0' }} Münzen in {{ formatTime(completionTime) }} gesammelt! 💰</h2>
-            <p>Möchtest du sie an OH22 schicken?<br>
-            Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck. ❤️</p>
-            <p>Oder willst du dein Glück noch einmal versuchen und noch mehr Münzen sammeln? 🧩✨</p>
+            <h2>{{ 'completion.partial' | translate: { coins: (coinTotal | number: '1.0-0'), time: formatTime(completionTime) } }}</h2>
+            <p [innerHTML]="'completion.partialDescription' | translate"></p>
+            <p>{{ 'completion.partialTryAgain' | translate }}</p>
             <div class="complete-actions">
-              <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">Neues Spiel</button>
-              <button type="button" (click)="donateCoins()">Münzen senden</button>
+              <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
+              <button type="button" (click)="donateCoins()">{{ 'buttons.sendCoins' | translate }}</button>
             </div>
           </div>
           <div *ngIf="coinTotal === 0">
-            <h2>😅 Noch keine Münzen gesammelt!</h2>
-            <p>Diesmal hast du 0 Münzen in {{ formatTime(completionTime) }} erreicht – aber kein Grund zur Sorge! 💪</p>
-            <p>Vielleicht klappt's beim nächsten Versuch besser.<br>
-            Sammle Münzen, schick sie an OH22, und wir wandeln deinen höchsten Betrag in Euro um –<br>
-            für einen guten Zweck! ❤️</p>
-            <p>Bereit für eine neue Runde? ��✨</p>
+            <h2>{{ 'completion.noCoins' | translate }}</h2>
+            <p>{{ 'completion.noCoinsFirstPart' | translate: { time: formatTime(completionTime) } }}</p>
+            <p [innerHTML]="'completion.noCoinsSecondPart' | translate"></p>
+            <p>{{ 'completion.noCoinsReady' | translate }}</p>
             <div class="complete-actions">
-              <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">Neues Spiel</button>
+              <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
             </div>
           </div>
           <div class="complete-donation" *ngIf="donationMessageVisible">
-            {{ coinTotal | number: '1.0-0' }} Münzen für einen guten Zweck gespendet
+            <span>{{ 'completion.donationMessage' | translate: { coins: (coinTotal | number: '1.0-0') } }}</span>
           </div>
         </div>
       </div>
@@ -92,28 +91,28 @@
       <div class="stag-modal" *ngIf="showInitialContinueButton && !puzzleComplete">
         <div class="modal-content">
           <p class="greeting-text">{{ greetingMessage }}</p>
-          <h1>... irgend etwas stimmt mit unserem Hirsch nicht!</h1>
-          <button type="button" (click)="continueToPuzzle()">Weiter</button>
+          <h1>{{ 'modals.stagProblem' | translate }}</h1>
+          <button type="button" (click)="continueToPuzzle()">{{ 'buttons.continue' | translate }}</button>
         </div>
       </div>
 
       <div class="explosion-modal" *ngIf="showExplosionModal && !puzzleComplete">
         <div class="modal-content">
-          <h1>Oh nein – unser oh22 Weihnachtshirsch ist zerfallen!</h1>
-          <p>Hilf uns dabei, die 22 verstreuten Teile wieder zusammenzusetzen, damit unser Hirsch alle Weihnachtsgeschenke rechtzeitig verteilen kann.</p>
-          <button type="button" (click)="closeExplosionModal()">Los geht's</button>
+          <h1>{{ 'modals.explosionTitle' | translate }}</h1>
+          <p>{{ 'modals.explosionDescription' | translate }}</p>
+          <button type="button" (click)="closeExplosionModal()">{{ 'buttons.letsGo' | translate }}</button>
         </div>
       </div>
     </div>
 
-        <p class="instruction-text" [class.visible]="showInstructions">Ziehe die Teile mit der Maus an die richtige Stelle.</p>
+        <p class="instruction-text" [class.visible]="showInstructions">{{ 'instructions.drag' | translate }}</p>
 
     <div class="desktop-controls">
       <button type="button" (click)="toggleDebug()">
-        {{ showDebug ? 'Hide' : 'Show' }} Guides
+        {{ showDebug ? ('menu.hideGuides' | translate) : ('menu.showGuides' | translate) }}
       </button>
       <button type="button" (click)="toggleGlassMode()">
-        {{ useGlassStyle ? 'Opaque Pieces' : 'Glass Pieces' }}
+        {{ useGlassStyle ? ('menu.opaquePieces' | translate) : ('menu.glassPieces' | translate) }}
       </button>
     </div>
   </section>
