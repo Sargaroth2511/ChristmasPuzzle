@@ -156,6 +156,11 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
     emitter.on('explosion-complete', () => {
       this.showExplosionModal = true;
+      // Show HUD elements (timer and coins) when modal appears
+      const puzzleScene = this.game?.scene.getScene('PuzzleScene') as any;
+      if (puzzleScene && typeof puzzleScene.showHudElements === 'function') {
+        puzzleScene.showHudElements();
+      }
       this.cdr.markForCheck();
     });
 

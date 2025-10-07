@@ -780,7 +780,6 @@ export class PuzzleScene extends Phaser.Scene {
     this.pieces = [];
     this.placedCount = 0;
     this.addSceneBackground();
-    this.createCoinHud();
 
     this.drawGuide();
     this.setupDragHandlers();
@@ -880,6 +879,24 @@ export class PuzzleScene extends Phaser.Scene {
     this.coinContainer.setPosition(right - this.coinSprite.displayWidth * 0.5, top + this.coinSprite.displayHeight * 0.5);
     this.coinSprite.setPosition(0, 0);
     this.coinLabel.setPosition(0, this.coinSprite.displayHeight * 0.5 + this.coinVerticalGap); // Label below coin
+    
+    this.updateTimerLayout();
+  }
+
+  private updateTimerLayout(): void {
+    if (!this.timerText || !this.coinContainer || !this.coinLabel) {
+      return;
+    }
+
+    const camera = this.cameras.main;
+    const right = camera.worldView.right - 5;
+    const top = camera.worldView.top + 5;
+    
+    // Position timer below the coin label
+    const timerY = top + this.coinSprite!.displayHeight * 0.5 + this.coinVerticalGap + this.coinLabel.displayHeight + 30;
+    const timerX = right - this.coinSprite!.displayWidth * 0.5;
+    
+    this.timerText.setPosition(timerX, timerY);
   }
 
   private updateCoinHudLabel(): void {
@@ -949,24 +966,25 @@ export class PuzzleScene extends Phaser.Scene {
     const topMargin = 40;
 
     this.timerText = this.add.text(centerX, topMargin, '0:00', {
-      fontFamily: 'CompanySans, \"Segoe UI\", Roboto, sans-serif',
-      fontSize: '48px',
-      color: '#f7fcff',
-      fontStyle: 'bold',
-      stroke: '#0a1420',
-      strokeThickness: 6,
+      fontFamily: 'Montserrat, sans-serif',
+      fontSize: '26px',
+      color: '#ffffff',
+      stroke: '#0b1724',
+      strokeThickness: 4,
       shadow: {
         offsetX: 1,
         offsetY: 1,
         color: '#000000',
-        blur: 2,
+        blur: 1,
         stroke: true,
         fill: true
       }
     });
     this.timerText.setOrigin(0.5, 0);
     this.timerText.setScrollFactor(0);
-    this.timerText.setDepth(200);
+    this.timerText.setDepth(10_001);
+    
+    this.updateTimerLayout();
   }
 
   private updateTimerDisplay(): void {
@@ -980,9 +998,15 @@ export class PuzzleScene extends Phaser.Scene {
     this.timerText.setText(`${mins}:${secs.toString().padStart(2, '0')}`);
   }
 
+  showHudElements(): void {
+    // Called when explosion modal is shown - display coin HUD and timer
+    this.createCoinHud();
+    this.createTimerDisplay();
+  }
+
   startTimer(): void {
     this.startTime = this.time.now;
-    this.createTimerDisplay();
+    // Timer already created in showHudElements, just start counting
   }
 
   private drawGuide(): void {
