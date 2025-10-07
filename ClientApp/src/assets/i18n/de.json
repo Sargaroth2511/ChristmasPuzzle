@@ -1,59 +1,59 @@
 {
-  "app": {
-    "title": "Weihnachtspuzzle"
-  },
-  "userInfo": {
-    "language": "Sprache:",
-    "bestTime": "Beste Zeit:",
-    "maxPieces": "Max. Teile:",
-    "completed": "Abgeschlossen:"
-  },
-  "hero": {
-    "description": "Ziehe die Teile an die richtige Stelle, um das festliche Puzzle zu vervollständigen."
-  },
-  "menu": {
-    "hideGuides": "Hilfslinien ausblenden",
-    "showGuides": "Hilfslinien anzeigen",
-    "opaquePieces": "Undurchsichtige Teile",
-    "glassPieces": "Glas-Teile",
-    "close": "Menü schließen"
-  },
-  "buttons": {
-    "startPuzzle": "Puzzle starten",
-    "newGame": "Neues Spiel",
-    "sendCoins": "Münzen senden",
-    "continue": "Weiter",
-    "letsGo": "Los geht's"
-  },
-  "completion": {
-    "perfect": "🎉 Perfekt! Alle 22 Münzen in {{time}} gesammelt!",
-    "perfectDescription": "Möchtest du deine Münzen an OH22 schicken?<br>Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck. ❤️",
-    "perfectTryAgain": "Oder willst du es noch einmal versuchen und schneller sein? ⏱️🚀",
-    "partial": "Du hast {{coins}} Münzen in {{time}} gesammelt! 💰",
-    "partialDescription": "Möchtest du sie an OH22 schicken?<br>Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck. ❤️",
-    "partialTryAgain": "Oder willst du dein Glück noch einmal versuchen und noch mehr Münzen sammeln? 🧩✨",
-    "noCoins": "😅 Noch keine Münzen gesammelt!",
-    "noCoinsFirstPart": "Diesmal hast du 0 Münzen in {{time}} erreicht – aber kein Grund zur Sorge! 💪",
-    "noCoinsSecondPart": "Vielleicht klappt's beim nächsten Versuch besser.<br>Sammle Münzen, schick sie an OH22, und wir wandeln deinen höchsten Betrag in Euro um –<br>für einen guten Zweck! ❤️",
-    "noCoinsReady": "Bereit für eine neue Runde? 🎮✨",
-    "donationMessage": "{{coins}} Münzen für einen guten Zweck gespendet"
-  },
-  "modals": {
-    "stagProblem": "... irgend etwas stimmt mit unserem Hirsch nicht!",
-    "explosionTitle": "Oh nein – unser oh22 Weihnachtshirsch ist zerfallen!",
-    "explosionDescription": "Hilf uns dabei, die 22 verstreuten Teile wieder zusammenzusetzen, damit unser Hirsch alle Weihnachtsgeschenke rechtzeitig verteilen kann."
-  },
-  "instructions": {
-    "drag": "Ziehe die Teile mit der Maus an die richtige Stelle."
-  },
-  "greeting": {
-    "personalFormal": "Hallo {{name}}! Schön, dass Sie da sind! 🎄",
-    "personalInformal": "Hallo {{name}}! Schön, dass du da bist! 🎄",
-    "generic": "Willkommen! Viel Spaß beim Puzzle! 🎄"
-  },
-  "language": {
-    "name": "Deutsch",
-    "german": "Deutsch",
-    "english": "Englisch"
-  }
+    "app": {
+        "title": "Weihnachtspuzzle"
+    },
+    "userInfo": {
+        "language": "Sprache:",
+        "bestTime": "Beste Zeit:",
+        "maxPieces": "Max. Teile:",
+        "completed": "Abgeschlossen:"
+    },
+    "hero": {
+        "description": "Ziehe die Teile an die richtige Stelle, um das festliche Puzzle zu vervollständigen."
+    },
+    "menu": {
+        "hideGuides": "Hilfslinien ausblenden",
+        "showGuides": "Hilfslinien anzeigen",
+        "opaquePieces": "Undurchsichtige Teile",
+        "glassPieces": "Glas-Teile",
+        "close": "Menü schließen"
+    },
+    "buttons": {
+        "startPuzzle": "Puzzle starten",
+        "newGame": "Neues Spiel",
+        "sendCoins": "Münzen senden",
+        "continue": "Weiter",
+        "letsGo": "Los geht's"
+    },
+    "completion": {
+        "perfect": "🎉 Perfekt! Alle 22 Münzen in {{time}} gesammelt!",
+        "perfectDescription": "Möchtest du deine Münzen an OH22 schicken?<br>Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck. ❤️",
+        "perfectTryAgain": "Oder willst du es noch einmal versuchen und schneller sein? ⏱️🚀",
+        "partial": "Du hast {{coins}} Münzen in {{time}} gesammelt! 💰",
+        "partialDescription": "Möchtest du sie an OH22 schicken?<br>Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck. ❤️",
+        "partialTryAgain": "Oder willst du dein Glück noch einmal versuchen und noch mehr Münzen sammeln? 🧩✨",
+        "noCoins": "😅 Noch keine Münzen gesammelt!",
+        "noCoinsFirstPart": "Diesmal hast du 0 Münzen in {{time}} erreicht – aber kein Grund zur Sorge! 💪",
+        "noCoinsSecondPart": "Vielleicht klappt's beim nächsten Versuch besser.<br>Sammle Münzen, schick sie an OH22, und wir wandeln deinen höchsten Betrag in Euro um –<br>für einen guten Zweck! ❤️",
+        "noCoinsReady": "Bereit für eine neue Runde? 🎮✨",
+        "donationMessage": "{{coins}} Münzen für einen guten Zweck gespendet"
+    },
+    "modals": {
+        "stagProblem": "... irgend etwas stimmt mit unserem Hirsch nicht!",
+        "explosionTitle": "Oh nein – unser oh22 Weihnachtshirsch ist zerfallen!",
+        "explosionDescription": "Hilf uns dabei, die 22 verstreuten Teile wieder zusammenzusetzen, damit unser Hirsch alle Weihnachtsgeschenke rechtzeitig verteilen kann."
+    },
+    "instructions": {
+        "drag": "Ziehe die Teile mit der Maus an die richtige Stelle."
+    },
+    "greeting": {
+        "personalFormal": "Hallo {{name}}! Schön, dass Sie da sind! 🎄",
+        "personalInformal": "Hallo {{name}}! Schön, dass du da bist! 🎄",
+        "generic": "Willkommen! Viel Spaß beim Puzzle! 🎄"
+    },
+    "language": {
+        "name": "Deutsch",
+        "german": "Deutsch",
+        "english": "Englisch"
+    }
 }
