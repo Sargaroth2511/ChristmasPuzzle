@@ -53,8 +53,8 @@ export const DRAG_SHADOW_ALPHA = 0.36;
 export const DRAG_SHADOW_GLASS_COLOR = 0xffffff;
 export const DRAG_SHADOW_GLASS_ALPHA = 0.62;
 
-// Touch-specific drag offset (piece appears above finger on mobile)
-export const TOUCH_DRAG_Y_OFFSET = -100; // Negative value moves piece upward above touch point
+// Touch-specific drag offset (piece appears above and to the left of finger on mobile)
+export const TOUCH_DRAG_OFFSET = { x: -50, y: -50 } as const; // Negative values move piece up and left from touch point
 
 // Scene layout tuning
 export const SCENE_FLOOR_BOTTOM_MARGIN = -20; // Pixels to keep free between the floor line and the bottom edge.

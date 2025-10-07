@@ -39,8 +39,18 @@
 
       <div class="complete-overlay" *ngIf="puzzleComplete">
         <div class="complete-card">
-          <div *ngIf="coinTotal > 0">
-            <h2>Du hast {{ coinTotal | number: '1.0-0' }} Münzen gesammelt! 💰</h2>
+          <div *ngIf="coinTotal === 22">
+            <h2>🎉 Perfekt! Alle 22 Münzen in {{ formatTime(completionTime) }} gesammelt!</h2>
+            <p>Möchtest du deine Münzen an OH22 schicken?<br>
+            Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck. ❤️</p>
+            <p>Oder willst du es noch einmal versuchen und schneller sein? ⏱️🚀</p>
+            <div class="complete-actions">
+              <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">Neues Spiel</button>
+              <button type="button" (click)="donateCoins()">Münzen senden</button>
+            </div>
+          </div>
+          <div *ngIf="coinTotal > 0 && coinTotal < 22">
+            <h2>Du hast {{ coinTotal | number: '1.0-0' }} Münzen in {{ formatTime(completionTime) }} gesammelt! 💰</h2>
             <p>Möchtest du sie an OH22 schicken?<br>
             Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck. ❤️</p>
             <p>Oder willst du dein Glück noch einmal versuchen und noch mehr Münzen sammeln? 🧩✨</p>
@@ -51,11 +61,11 @@
           </div>
           <div *ngIf="coinTotal === 0">
             <h2>😅 Noch keine Münzen gesammelt!</h2>
-            <p>Diesmal hast du 0 Münzen erreicht – aber kein Grund zur Sorge! 💪</p>
-            <p>Vielleicht klappt’s beim nächsten Versuch besser.<br>
+            <p>Diesmal hast du 0 Münzen in {{ formatTime(completionTime) }} erreicht – aber kein Grund zur Sorge! 💪</p>
+            <p>Vielleicht klappt's beim nächsten Versuch besser.<br>
             Sammle Münzen, schick sie an OH22, und wir wandeln deinen höchsten Betrag in Euro um –<br>
             für einen guten Zweck! ❤️</p>
-            <p>Bereit für eine neue Runde? 🧩✨</p>
+            <p>Bereit für eine neue Runde? ��✨</p>
             <div class="complete-actions">
               <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">Neues Spiel</button>
             </div>

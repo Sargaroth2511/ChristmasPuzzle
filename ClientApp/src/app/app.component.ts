@@ -22,7 +22,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   showDebug = false;
   useGlassStyle = false;
   menuOpen = false;
-  showIntroOverlay = false; // Hide intro for testing
+  showIntroOverlay = false;
   showInitialContinueButton = false;
   showExplosionModal = false;
   showInstructions = false;
@@ -47,15 +47,23 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   constructor(private readonly cdr: ChangeDetectorRef) {}
 
+  formatTime(seconds?: number): string {
+    if (seconds === undefined || seconds === null) {
+      return '0:00';
+    }
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
   ngAfterViewInit(): void {
     if (!this.gameHost) {
       return;
     }
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-    if (viewportWidth > this.mobileBreakpoint) {
-      this.showIntroOverlay = false;
-      this.launchGame();
-    }
+    // Launch game immediately on all device sizes - use the same flow
+    this.showIntroOverlay = false;
+    this.launchGame();
+    this.cdr.markForCheck();
   }
 
   private launchGame(): void {
@@ -117,6 +125,13 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       this.hideRestartButton = false;
       this.donationMessageVisible = false;
       this.requestCoinTotal();
+      
+      // Exit immersive mode on mobile so completion overlay is visible
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+      if (viewportWidth <= this.mobileBreakpoint) {
+        this.exitImmersiveMode();
+      }
+      
       this.completionOverlayTimer = setTimeout(() => {
         this.puzzleComplete = true;
         this.cdr.markForCheck();
@@ -227,16 +242,21 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
     const isLandscape = viewportWidth > viewportHeight;
 
-    if (isLandscape) {
+    // Always hide the intro overlay and launch the game
+    this.showIntroOverlay = false;
+    
+    if (!this.gameInitialized) {
+      this.launchGame();
+    }
+    
+    // Try to enter immersive mode on landscape mobile devices
+    if (isLandscape && viewportWidth <= this.mobileBreakpoint) {
       this.enterImmersiveMode();
-      if (!this.gameInitialized) {
-        this.launchGame();
-      }
-      this.showIntroOverlay = false;
     }
 
     this.closeMenu();
     this.completionTime = undefined;
+    this.cdr.markForCheck();
   }
 
   continueToPuzzle(): void {
@@ -252,6 +272,21 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   closeExplosionModal(): void {
     this.showExplosionModal = false;
     this.showInstructions = true;
+    
+    // Start the timer in the puzzle scene
+    if (this.game) {
+      const scene = this.game.scene.getScene('PuzzleScene') as any;
+      if (scene && typeof scene.startTimer === 'function') {
+        scene.startTimer();
+      }
+    }
+    
+    // Enter immersive mode on small devices when starting the puzzle
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    if (viewportWidth <= this.mobileBreakpoint) {
+      this.enterImmersiveMode();
+    }
+    
     this.cdr.markForCheck();
   }
 

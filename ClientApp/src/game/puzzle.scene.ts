@@ -43,7 +43,7 @@ import {
   DRAG_SHADOW_ALPHA,
   DRAG_SHADOW_GLASS_COLOR,
   DRAG_SHADOW_GLASS_ALPHA,
-  TOUCH_DRAG_Y_OFFSET,
+  TOUCH_DRAG_OFFSET,
   SCENE_FLOOR_BOTTOM_MARGIN
 } from './puzzle.constants';
 import { PieceStyling, PuzzleConfig, PuzzlePoint, SceneData } from './puzzle.types';
@@ -175,12 +175,14 @@ export class PuzzleScene extends Phaser.Scene {
   private readonly coinVerticalGap = 30;
   private readonly handleExternalCoinRequest = () => this.emitCoinTotal();
   private isTouchDragging = false; // Track if current drag is from touch input
+  private timerText?: Phaser.GameObjects.Text;
 
   private resetDragState(piece: PieceRuntime): void {
     piece.isDragging = false;
     piece.dragOffset = undefined;
     piece.dragPointer = undefined;
     piece.dragStartRotation = undefined;
+    this.isTouchDragging = false;
     this.clearDragVisuals(piece);
   }
 
@@ -839,10 +841,10 @@ export class PuzzleScene extends Phaser.Scene {
         strokeThickness: 4,
         align: 'center',
         shadow: {
-          offsetX: 2,
-          offsetY: 2,
+          offsetX: 1,
+          offsetY: 1,
           color: '#000000',
-          blur: 2,
+          blur: 1,
           stroke: true,
           fill: true
         }
@@ -936,6 +938,51 @@ export class PuzzleScene extends Phaser.Scene {
 
   private emitCoinTotal(): void {
     this.emitter?.emit('coin-total-changed', this.coinTotal);
+  }
+
+  private createTimerDisplay(): void {
+    if (this.timerText) {
+      this.timerText.destroy();
+    }
+
+    const centerX = this.scale.width * 0.5;
+    const topMargin = 40;
+
+    this.timerText = this.add.text(centerX, topMargin, '0:00', {
+      fontFamily: 'CompanySans, \"Segoe UI\", Roboto, sans-serif',
+      fontSize: '48px',
+      color: '#f7fcff',
+      fontStyle: 'bold',
+      stroke: '#0a1420',
+      strokeThickness: 6,
+      shadow: {
+        offsetX: 1,
+        offsetY: 1,
+        color: '#000000',
+        blur: 2,
+        stroke: true,
+        fill: true
+      }
+    });
+    this.timerText.setOrigin(0.5, 0);
+    this.timerText.setScrollFactor(0);
+    this.timerText.setDepth(200);
+  }
+
+  private updateTimerDisplay(): void {
+    if (!this.timerText || this.startTime === 0 || this.placedCount === this.pieces.length) {
+      return;
+    }
+
+    const elapsedSeconds = (this.time.now - this.startTime) / 1000;
+    const mins = Math.floor(elapsedSeconds / 60);
+    const secs = Math.floor(elapsedSeconds % 60);
+    this.timerText.setText(`${mins}:${secs.toString().padStart(2, '0')}`);
+  }
+
+  startTimer(): void {
+    this.startTime = this.time.now;
+    this.createTimerDisplay();
   }
 
   private drawGuide(): void {
@@ -1274,7 +1321,7 @@ export class PuzzleScene extends Phaser.Scene {
     });
 
     this.placedCount = 0;
-    this.startTime = this.time.now;
+    this.startTime = 0; // Will be set when user clicks 'Los geht's'
     this.refreshSnapToleranceForAll();
     this.emitter?.emit('puzzle-reset');
     this.explosionComplete = true;
@@ -1313,6 +1360,7 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     this.updateCoinHudLayout();
+    this.updateTimerDisplay();
   }
 
   private updateExplosion(delta: number): void {
@@ -1483,11 +1531,12 @@ export class PuzzleScene extends Phaser.Scene {
     const delta = piece.shape.rotation - startRotation;
     const rotatedOffset = piece.dragOffset.clone().rotate(delta);
     
-    // Apply touch offset: move piece upward on touch devices so it's visible above finger
-    const touchOffsetY = this.isTouchDragging ? TOUCH_DRAG_Y_OFFSET : 0;
+    // Apply touch offset: move piece up and left on touch devices so it's visible above/beside finger
+    const touchOffsetX = this.isTouchDragging ? TOUCH_DRAG_OFFSET.x : 0;
+    const touchOffsetY = this.isTouchDragging ? TOUCH_DRAG_OFFSET.y : 0;
     
     piece.shape.setPosition(
-      pointerPosition.x + rotatedOffset.x, 
+      pointerPosition.x + rotatedOffset.x + touchOffsetX, 
       pointerPosition.y + rotatedOffset.y + touchOffsetY
     );
     this.syncDetailsTransform(piece);
@@ -1505,8 +1554,10 @@ export class PuzzleScene extends Phaser.Scene {
         return;
       }
 
-      // Detect if this is touch input (Phaser uses pointer type or checks if it's not a mouse)
-      this.isTouchDragging = pointer.isDown && !pointer.leftButtonDown() && !pointer.rightButtonDown();
+      // Detect if this is touch input: touch pointers don't have mouse button properties
+      // pointer.event is the native DOM event which has 'touches' for touch events
+      const nativeEvent = pointer.event as any;
+      this.isTouchDragging = nativeEvent && (nativeEvent.touches !== undefined || nativeEvent.type === 'touchstart');
 
       piece.isDragging = true;
       this.input.setDefaultCursor('grabbing');
