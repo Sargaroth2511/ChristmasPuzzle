@@ -1,0 +1,102 @@
+### User Individualization API Tests
+### Test the new user endpoints for the Christmas Puzzle
+### Now with GUID support, language preference (German/English), and salutation (du/Sie)
+
+@baseUrl = http://localhost:5000
+@uid1 = 07367ea3-b46a-48db-91eb-b377f113eae5
+@uid2 = 7644866a-ac6d-42d0-9100-4ec45877610b
+@uid3 = dc2fbe5c-8c3a-4a74-82db-961a11c61fc2
+@newUid = 030f82f5-75ab-44f4-a9dd-ad47bb4924e3
+
+###
+# Get existing German user with formal salutation (Sie)
+GET {{baseUrl}}/api/users/{{uid1}}
+
+###
+# Get existing German user with informal salutation (du)
+GET {{baseUrl}}/api/users/{{uid2}}
+
+###
+# Get existing English user
+GET {{baseUrl}}/api/users/{{uid3}}
+
+###
+# Create new German user with formal salutation (Sie)
+# Language: 0=German, 1=English
+# Salutation: 0=Informal (du), 1=Formal (Sie)
+GET {{baseUrl}}/api/users/{{newUid}}?name=Herr Müller&language=0&salutation=1
+
+###
+# Create new English user with informal address
+GET {{baseUrl}}/api/users/1d327071-42e1-406b-bbcc-6b8a1d491f1f?name=Jane Smith&language=1&salutation=0
+
+###
+# Create new German user with informal salutation (du) - defaults
+GET {{baseUrl}}/api/users/c0770a9e-685a-4a58-83fd-d44bf093632f?name=Anna Weber
+
+###
+# Update user stats after placing some pieces (not completed)
+POST {{baseUrl}}/api/users/{{uid1}}/stats
+Content-Type: application/json
+
+{
+  "piecesAchieved": 5,
+  "completionTimeSeconds": null,
+  "puzzleCompleted": false
+}
+
+###
+# Update user stats after puzzle completion
+POST {{baseUrl}}/api/users/{{uid1}}/stats
+Content-Type: application/json
+
+{
+  "piecesAchieved": 12,
+  "completionTimeSeconds": 45.5,
+  "puzzleCompleted": true
+}
+
+###
+# Update with better time (should update fastest time)
+POST {{baseUrl}}/api/users/{{uid1}}/stats
+Content-Type: application/json
+
+{
+  "piecesAchieved": 12,
+  "completionTimeSeconds": 38.2,
+  "puzzleCompleted": true
+}
+
+###
+# Update English user stats
+POST {{baseUrl}}/api/users/{{uid3}}/stats
+Content-Type: application/json
+
+{
+  "piecesAchieved": 12,
+  "completionTimeSeconds": 42.1,
+  "puzzleCompleted": true
+}
+
+###
+# Test error handling - invalid GUID format
+GET {{baseUrl}}/api/users/not-a-valid-guid
+
+###
+# Test error handling - empty GUID
+GET {{baseUrl}}/api/users/00000000-0000-0000-0000-000000000000
+
+###
+# Test error handling - negative pieces
+POST {{baseUrl}}/api/users/{{uid1}}/stats
+Content-Type: application/json
+
+{
+  "piecesAchieved": -5,
+  "completionTimeSeconds": 45.5,
+  "puzzleCompleted": true
+}
+
+###
+# Test health endpoint
+GET {{baseUrl}}/api/health

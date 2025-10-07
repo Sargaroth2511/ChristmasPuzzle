@@ -1,4 +1,20 @@
 <main class="shell">
+  <!-- User Info Box (visible during initial scene) -->
+  <div class="user-info-box" *ngIf="showUserInfo && !puzzleComplete">
+    <div class="info-card">
+      <h3>{{ getUserDisplayName() }}</h3>
+      <div class="user-stats" *ngIf="userData">
+        <p><strong>Sprache:</strong> {{ getLanguageText() }}</p>
+        <p><strong>Beste Zeit:</strong> {{ formatTime(userData.fastestTimeSeconds) }}</p>
+        <p><strong>Max. Teile:</strong> {{ userData.maxPiecesAchieved ?? '-' }}</p>
+        <p><strong>Abgeschlossen:</strong> {{ userData.totalPuzzlesCompleted ?? 0 }}</p>
+      </div>
+      <div class="default-message" *ngIf="!userData">
+        <p>Viel Spaß beim Puzzle! 🎄</p>
+      </div>
+    </div>
+  </div>
+
   <header class="hero">
     <h1>{{ title }}</h1>
     <p>Drag the pieces into place to complete the festive puzzle.</p>

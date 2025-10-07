@@ -1,0 +1,14 @@
+{
+  "Users": [
+    {
+      "Uid": "dc2fb55c-853a-4574-85db-961a51c615aa",
+      "Name": "Puzzler",
+      "Language": 0,
+      "Salutation": 0,
+      "MaxPiecesAchieved": null,
+      "FastestTimeSeconds": null,
+      "TotalPuzzlesCompleted": null,
+      "LastAccessedUtc": null
+    }
+  ]
+}

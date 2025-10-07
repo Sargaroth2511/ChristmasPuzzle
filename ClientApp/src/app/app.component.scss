@@ -15,6 +15,111 @@
   }
 }
 
+.user-info-box {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 9000;
+  animation: slideInLeft 0.4s ease-out;
+}
+
+.info-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  min-width: 280px;
+  max-width: 350px;
+
+  h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    text-align: center;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 0.75rem;
+  }
+
+  .user-stats {
+    margin-top: 1rem;
+
+    p {
+      margin: 0.5rem 0;
+      font-size: 0.95rem;
+      display: flex;
+      justify-content: space-between;
+
+      strong {
+        font-weight: 600;
+        opacity: 0.9;
+      }
+    }
+  }
+
+  .default-message {
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+
+    p {
+      margin: 0;
+    }
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.user-error {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10000;
+  width: min(90%, 500px);
+}
+
+.error-card {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+  text-align: center;
+
+  h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.8rem;
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.1rem;
+    line-height: 1.6;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 .hero {
   text-align: center;
   display: flex;

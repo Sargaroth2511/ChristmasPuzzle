@@ -1,19 +1,22 @@
-import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, OnDestroy, ViewChild, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClientModule } from '@angular/common/http';
 import Phaser from 'phaser';
 
 import { InitialScene } from '../game/initial.scene';
 import { PuzzleScene } from '../game/puzzle.scene';
+import { UserService, UserData, Language, Salutation } from './user.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, HttpClientModule],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [UserService]
 })
-export class AppComponent implements AfterViewInit, OnDestroy {
+export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   @ViewChild('gameHost', { static: true }) private readonly gameHost?: ElementRef<HTMLDivElement>;
 
   readonly title = 'Christmas Puzzle';
@@ -24,6 +27,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   menuOpen = false;
   showIntroOverlay = false;
   showInitialContinueButton = false;
+  showUserInfo = true; // Show user info during initial scene
   showExplosionModal = false;
   showInstructions = false;
   coinTotal = 0;
@@ -35,6 +39,12 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   private immersiveActive = false;
   completionTime?: number;
 
+  // User validation and personalization
+  userValidated = false;
+  userGuid?: string;
+  userData?: UserData;
+  userErrorMessage?: string;
+
   private game?: Phaser.Game;
   private sceneEvents?: Phaser.Events.EventEmitter;
   private sceneStartHandler?: (scene: Phaser.Scene) => void;
@@ -45,7 +55,10 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     this.game.scale.refresh();
   };
 
-  constructor(private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly cdr: ChangeDetectorRef,
+    private readonly userService: UserService
+  ) {}
 
   formatTime(seconds?: number): string {
     if (seconds === undefined || seconds === null) {
@@ -54,6 +67,46 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  ngOnInit(): void {
+    // Parse GUID from URL query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const uid = urlParams.get('uid');
+
+    if (uid) {
+      this.userGuid = uid;
+      this.validateUser(uid);
+    }
+    // If no UID, user can still play but won't have stats saved
+  }
+
+  private validateUser(uid: string): void {
+    this.userService.getUserByGuid(uid).subscribe({
+      next: (userData) => {
+        this.userData = userData;
+        this.userValidated = true;
+        console.log('User data loaded:', userData);
+        this.cdr.markForCheck();
+      },
+      error: (error) => {
+        this.userValidated = false;
+        // Show info message but allow game to continue
+        console.warn('User validation failed:', error.message);
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  getUserDisplayName(): string {
+    return this.userData?.name ?? 'Puzzler';
+  }
+
+  getLanguageText(): string {
+    if (!this.userData) {
+      return '-';
+    }
+    return this.userData.language === Language.German ? 'Deutsch' : 'English';
   }
 
   ngAfterViewInit(): void {
@@ -125,6 +178,11 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       this.hideRestartButton = false;
       this.donationMessageVisible = false;
       this.requestCoinTotal();
+      
+      // Update user stats if validated
+      if (this.userValidated && this.userGuid && payload?.elapsedSeconds !== undefined) {
+        this.updateUserStats(payload.elapsedSeconds);
+      }
       
       // Exit immersive mode on mobile so completion overlay is visible
       const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
@@ -269,6 +327,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       this.launchGame();
     }
 
+    this.showUserInfo = false; // Hide user info box
     this.showInitialContinueButton = false;
     this.sceneEvents?.emit('initial-go-on');
     this.cdr.markForCheck();
@@ -335,6 +394,31 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   private requestCoinTotal(): void {
     this.sceneEvents?.emit('coin-total-request');
+  }
+
+  private updateUserStats(completionTimeSeconds: number): void {
+    if (!this.userGuid) {
+      return;
+    }
+
+    // Get the number of pieces from the puzzle config (assuming 12 pieces for now)
+    // TODO: Get actual piece count from the game
+    const piecesAchieved = 12;
+
+    this.userService.updateUserStats(this.userGuid, {
+      piecesAchieved,
+      completionTimeSeconds,
+      puzzleCompleted: true
+    }).subscribe({
+      next: (updatedData) => {
+        this.userData = updatedData;
+        console.log('User stats updated successfully:', updatedData);
+        this.cdr.markForCheck();
+      },
+      error: (error) => {
+        console.error('Failed to update user stats:', error);
+      }
+    });
   }
 
   private clearCompletionOverlayTimer(): void {

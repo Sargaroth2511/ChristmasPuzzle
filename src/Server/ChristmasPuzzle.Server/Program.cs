@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.FileProviders;
+using ChristmasPuzzle.Server.Features.Users;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,9 @@ if (Directory.Exists(wwwrootPath))
 {
     builder.Environment.WebRootPath = wwwrootPath;
 }
+
+// Register user data service
+builder.Services.AddSingleton<IUserDataService, UserDataService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
