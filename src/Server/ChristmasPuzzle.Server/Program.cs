@@ -68,7 +68,11 @@ if (app.Environment.IsDevelopment())
     // OpenAPI/Swagger only in .NET 9+
 }
 
-app.UseHttpsRedirection();
+// Only redirect to HTTPS in development - IIS handles this in production
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 var spaDistPath = ResolveSpaDistPath(app);
 if (spaDistPath is not null)

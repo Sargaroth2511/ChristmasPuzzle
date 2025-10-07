@@ -28,7 +28,12 @@ public class UserDataService : IUserDataService
     {
         _logger = logger;
         // Store user data in App_Data folder
-        var appDataPath = Path.Combine(environment.ContentRootPath, "App_Data");
+        // In production (IIS), look relative to the executable location, not content root
+        var exeLocation = System.Reflection.Assembly.GetExecutingAssembly().Location;
+        var exeDirectory = Path.GetDirectoryName(exeLocation) ?? environment.ContentRootPath;
+        var appDataPath = Path.Combine(exeDirectory, "App_Data");
+        
+        _logger.LogInformation("Looking for App_Data at: {AppDataPath}", appDataPath);
         
         // Ensure App_Data directory exists
         if (!Directory.Exists(appDataPath))

@@ -110,28 +110,8 @@ cat > "$OUTPUT_PATH/web.config" << 'EOF'
         <mimeMap fileExtension=".svg" mimeType="image/svg+xml" />
       </staticContent>
       
-      <rewrite>
-        <rules>
-          <rule name="API" stopProcessing="true">
-            <match url="^api/.*" />
-            <conditions logicalGrouping="MatchAll" trackAllCaptures="false" />
-            <action type="None" />
-          </rule>
-          <rule name="StaticFiles" stopProcessing="true">
-            <match url="^(.*\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|json|map))$" />
-            <conditions logicalGrouping="MatchAll" trackAllCaptures="false" />
-            <action type="None" />
-          </rule>
-          <rule name="Angular Routes" stopProcessing="true">
-            <match url=".*" />
-            <conditions logicalGrouping="MatchAll" trackAllCaptures="false">
-              <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
-              <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
-            </conditions>
-            <action type="Rewrite" url="/myapp/wwwroot/index.html" />
-          </rule>
-        </rules>
-      </rewrite>
+      <!-- No URL rewrite rules needed - ASP.NET Core handles all routing -->
+      <!-- The MapFallbackToFile in Program.cs serves index.html for Angular routes -->
       
       <httpProtocol>
         <customHeaders>
