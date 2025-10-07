@@ -1,16 +1,13 @@
 <main class="shell">
-  <!-- User Info Box (visible during initial scene) -->
-  <div class="user-info-box" *ngIf="showUserInfo && !puzzleComplete">
+  <!-- User Info Box (visible during initial scene, only if user data exists) -->
+  <div class="user-info-box" *ngIf="showUserInfo && !puzzleComplete && userData">
     <div class="info-card">
       <h3>{{ getUserDisplayName() }}</h3>
-      <div class="user-stats" *ngIf="userData">
+      <div class="user-stats">
         <p><strong>Sprache:</strong> {{ getLanguageText() }}</p>
         <p><strong>Beste Zeit:</strong> {{ formatTime(userData.fastestTimeSeconds) }}</p>
         <p><strong>Max. Teile:</strong> {{ userData.maxPiecesAchieved ?? '-' }}</p>
         <p><strong>Abgeschlossen:</strong> {{ userData.totalPuzzlesCompleted ?? 0 }}</p>
-      </div>
-      <div class="default-message" *ngIf="!userData">
-        <p>Viel Spaß beim Puzzle! 🎄</p>
       </div>
     </div>
   </div>
@@ -94,6 +91,7 @@
 
       <div class="stag-modal" *ngIf="showInitialContinueButton && !puzzleComplete">
         <div class="modal-content">
+          <p class="greeting-text">{{ greetingMessage }}</p>
           <h1>... irgend etwas stimmt mit unserem Hirsch nicht!</h1>
           <button type="button" (click)="continueToPuzzle()">Weiter</button>
         </div>

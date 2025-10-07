@@ -24,21 +24,23 @@
 }
 
 .info-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: rgba(20, 32, 49, 0.92);
+  color: #f7fbff;
   padding: 1.5rem 2rem;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  border-radius: 18px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
   min-width: 280px;
   max-width: 350px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 
   h3 {
     margin: 0 0 1rem 0;
     font-size: 1.6rem;
     font-weight: 700;
     text-align: center;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
     padding-bottom: 0.75rem;
+    color: #f7fbff;
   }
 
   .user-stats {
@@ -49,10 +51,12 @@
       font-size: 0.95rem;
       display: flex;
       justify-content: space-between;
+      color: rgba(247, 252, 255, 0.9);
 
       strong {
         font-weight: 600;
-        opacity: 0.9;
+        opacity: 0.95;
+        color: rgba(255, 215, 0, 0.9);
       }
     }
   }
@@ -372,6 +376,15 @@
   width: 400px;
 }
 
+.greeting-text {
+  font-family: 'CompanySans', sans-serif;
+  font-size: 1.2rem;
+  color: #ffd700;
+  margin: 0 0 1.5rem 0;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
 .modal-content h1 {
   font-family: 'CompanySans', sans-serif;
   font-size: 1.5rem;
@@ -395,6 +408,32 @@
 
 .modal-content button:hover {
   background: rgba(35, 53, 79, 0.95);
+}
+
+.greeting-modal {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  
+  h1 {
+    color: #fff;
+    font-size: 1.8rem;
+  }
+  
+  p {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 1.1rem;
+    margin: 0.5rem 0 1.5rem 0;
+  }
+  
+  button {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: #fff !important;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.3) !important;
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+  }
 }
 
 .explosion-modal {

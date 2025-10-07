@@ -29,6 +29,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   showInitialContinueButton = false;
   showUserInfo = true; // Show user info during initial scene
   showExplosionModal = false;
+  showGreetingModal = false;
+  greetingMessage = 'Willkommen! Viel Spaß beim Puzzle! 🎄';
   showInstructions = false;
   coinTotal = 0;
   donationMessageVisible = false;
@@ -77,25 +79,46 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     if (uid) {
       this.userGuid = uid;
       this.validateUser(uid);
+    } else {
+      // Set default greeting for users without UID
+      this.setGreetingMessage(false);
     }
     // If no UID, user can still play but won't have stats saved
   }
 
   private validateUser(uid: string): void {
+    console.log('Validating user with UID:', uid);
     this.userService.getUserByGuid(uid).subscribe({
       next: (userData) => {
+        console.log('✅ User data loaded successfully:', userData);
         this.userData = userData;
         this.userValidated = true;
-        console.log('User data loaded:', userData);
+        this.setGreetingMessage(true);
         this.cdr.markForCheck();
       },
       error: (error) => {
+        console.log('ℹ️ User not found, using generic greeting');
         this.userValidated = false;
-        // Show info message but allow game to continue
-        console.warn('User validation failed:', error.message);
+        this.userData = undefined;
+        // Silently fall back to generic greeting - no error shown to user
+        this.setGreetingMessage(false);
         this.cdr.markForCheck();
       }
     });
+  }
+
+  private setGreetingMessage(userFound: boolean): void {
+    if (userFound && this.userData) {
+      const salutation = this.userData.salutation === Salutation.Formal ? 'Sie' : 'du';
+      const greeting = this.userData.language === Language.German
+        ? `Hallo ${this.userData.name}! Schön, dass ${salutation} da ${salutation === 'Sie' ? 'sind' : 'bist'}! 🎄`
+        : `Hello ${this.userData.name}! Great to see you! 🎄`;
+      this.greetingMessage = greeting;
+      console.log('✅ Personalized greeting set:', this.greetingMessage);
+    } else {
+      this.greetingMessage = 'Willkommen! Viel Spaß beim Puzzle! 🎄';
+      console.log('ℹ️ Generic greeting set:', this.greetingMessage);
+    }
   }
 
   getUserDisplayName(): string {
@@ -107,6 +130,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       return '-';
     }
     return this.userData.language === Language.German ? 'Deutsch' : 'English';
+  }
+
+  getSalutationPronoun(): string {
+    return this.userData?.salutation === Salutation.Formal ? 'Sie' : 'du';
+  }
+
+  getSalutationVerb(): string {
+    return this.userData?.salutation === Salutation.Formal ? 'sind' : 'bist';
   }
 
   ngAfterViewInit(): void {
@@ -127,6 +158,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.clearCompletionOverlayTimer();
     this.puzzleComplete = false;
     this.showInitialContinueButton = false;
+    this.showGreetingModal = false;
     this.hideRestartButton = false;
     this.donationMessageVisible = false;
     const host = this.gameHost.nativeElement;
@@ -179,10 +211,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       this.donationMessageVisible = false;
       this.requestCoinTotal();
       
-      // Update user stats if validated
-      if (this.userValidated && this.userGuid && payload?.elapsedSeconds !== undefined) {
-        this.updateUserStats(payload.elapsedSeconds);
-      }
+      // Note: Stats are now only updated when user clicks "Münzen senden"
+      // This gives users control over when to submit their results
       
       // Exit immersive mode on mobile so completion overlay is visible
       const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
@@ -202,12 +232,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       this.puzzleComplete = false;
       this.completionTime = undefined;
       this.showInitialContinueButton = false;
+      this.showGreetingModal = false;
       this.donationMessageVisible = false;
       this.hideRestartButton = false;
       this.cdr.markForCheck();
     });
 
     emitter.on('initial-zoom-complete', () => {
+      console.log('🎬 Initial zoom complete - showing stag modal with greeting');
       this.showInitialContinueButton = true;
       this.cdr.markForCheck();
     });
@@ -323,13 +355,15 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   }
 
   continueToPuzzle(): void {
-    if (!this.gameInitialized) {
-      this.launchGame();
+    if (!this.sceneEvents) {
+      console.warn('⚠️ sceneEvents not available');
+      return;
     }
 
-    this.showUserInfo = false; // Hide user info box
+    // Start the puzzle
+    console.log('🎮 Starting puzzle from stag modal');
     this.showInitialContinueButton = false;
-    this.sceneEvents?.emit('initial-go-on');
+    this.sceneEvents.emit('initial-go-on');
     this.cdr.markForCheck();
   }
 
@@ -383,42 +417,58 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   }
 
   donateCoins(): void {
-    this.hideRestartButton = true;
-    this.donationMessageVisible = true;
-    this.cdr.markForCheck();
-    setTimeout(() => {
-      this.donationMessageVisible = false;
+    // If user is not validated, just show the message
+    if (!this.userValidated || !this.userGuid || !this.completionTime) {
+      this.hideRestartButton = true;
+      this.donationMessageVisible = true;
       this.cdr.markForCheck();
-    }, 2000);
-  }
-
-  private requestCoinTotal(): void {
-    this.sceneEvents?.emit('coin-total-request');
-  }
-
-  private updateUserStats(completionTimeSeconds: number): void {
-    if (!this.userGuid) {
+      setTimeout(() => {
+        this.donationMessageVisible = false;
+        this.cdr.markForCheck();
+      }, 2000);
       return;
     }
 
-    // Get the number of pieces from the puzzle config (assuming 12 pieces for now)
-    // TODO: Get actual piece count from the game
-    const piecesAchieved = 12;
-
+    // Send the game results to the backend
+    console.log('💰 Sending coins to backend:', this.coinTotal, 'Time:', this.completionTime);
+    
     this.userService.updateUserStats(this.userGuid, {
-      piecesAchieved,
-      completionTimeSeconds,
+      piecesAchieved: this.coinTotal,
+      completionTimeSeconds: this.completionTime,
       puzzleCompleted: true
     }).subscribe({
       next: (updatedData) => {
         this.userData = updatedData;
-        console.log('User stats updated successfully:', updatedData);
+        console.log('✅ Game results sent successfully:', updatedData);
+        
+        // Show donation message
+        this.hideRestartButton = true;
+        this.donationMessageVisible = true;
         this.cdr.markForCheck();
+        
+        setTimeout(() => {
+          this.donationMessageVisible = false;
+          this.cdr.markForCheck();
+        }, 2000);
       },
       error: (error) => {
-        console.error('Failed to update user stats:', error);
+        console.error('❌ Failed to send game results:', error);
+        
+        // Still show the message even if the API call failed
+        this.hideRestartButton = true;
+        this.donationMessageVisible = true;
+        this.cdr.markForCheck();
+        
+        setTimeout(() => {
+          this.donationMessageVisible = false;
+          this.cdr.markForCheck();
+        }, 2000);
       }
     });
+  }
+
+  private requestCoinTotal(): void {
+    this.sceneEvents?.emit('coin-total-request');
   }
 
   private clearCompletionOverlayTimer(): void {
