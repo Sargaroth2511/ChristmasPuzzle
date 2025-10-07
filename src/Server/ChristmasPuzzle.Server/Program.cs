@@ -1,26 +1,58 @@
+using System;
+using System.IO;
 using System.Linq;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure WebRootPath to look in the correct location
+// In production (IIS), the executable is in myapp/ but content root is parent folder
+// So we need to look for wwwroot in the same folder as the executable
+var exeLocation = System.Reflection.Assembly.GetExecutingAssembly().Location;
+var exeDirectory = Path.GetDirectoryName(exeLocation);
+var wwwrootPath = Path.Combine(exeDirectory ?? string.Empty, "wwwroot");
+
+if (Directory.Exists(wwwrootPath))
+{
+    builder.Environment.WebRootPath = wwwrootPath;
+}
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddOpenApi();
+// OpenAPI/Swagger only in .NET 9+, not needed for basic API
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ClientOrigin", policy =>
     {
-        policy.WithOrigins(
-                "http://127.0.0.1:4300",
-                "http://localhost:4300",
-                "https://127.0.0.1:4300",
-                "https://localhost:4300",
-                "http://127.0.0.1:4200",
-                "http://localhost:4200",
-                "https://127.0.0.1:4200",
-                "https://localhost:4200")
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        if (builder.Environment.IsDevelopment())
+        {
+            // Development: allow local Angular dev server
+            policy.WithOrigins(
+                    "http://127.0.0.1:4300",
+                    "http://localhost:4300",
+                    "https://127.0.0.1:4300",
+                    "https://localhost:4300",
+                    "http://127.0.0.1:4200",
+                    "http://localhost:4200",
+                    "https://127.0.0.1:4200",
+                    "https://localhost:4200")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+        else
+        {
+            // Production: Since Angular and API are served from same origin,
+            // we can allow same origin or be more permissive for now
+            policy.AllowAnyOrigin()
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
     });
 });
 
@@ -29,7 +61,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    app.MapOpenApi();
+    // OpenAPI/Swagger only in .NET 9+
 }
 
 app.UseHttpsRedirection();

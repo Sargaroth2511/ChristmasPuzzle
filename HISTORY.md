@@ -1,6 +1,33 @@
 # Session 01999418-c8fd-7dd2-8dd0-a6fa6608946f
 
 ## Summary
+- Implemented complete IIS deployment pipeline with automated build/publish scripts for Windows (PowerShell) and Linux/Mac (Bash).
+- Created `web.config` with URL rewrite rules for Angular SPA routing, API route protection, and security headers.
+- Added production configuration (`appsettings.Production.json`) and updated CORS policy for environment-specific origins.
+- Fixed mobile game loading issues: removed intro overlay blocking, unified flow across all devices, added touch drag offset for better UX.
+- Implemented timer display showing elapsed time in MM:SS format, positioned below coin counter with matching styling.
+- Timer and coin HUD now appear when explosion modal shows, timer starts counting only when user clicks "Los geht's".
+- Repositioned burger menu to upper left to avoid overlapping coin counter, reduced shadow blur for cleaner text rendering.
+- Created comprehensive deployment documentation (DEPLOYMENT.md, DEPLOYMENT-QUICK.md, DEPLOYMENT-SUMMARY.md).
+- Enhanced mobile experience: added kiosk mode (fullscreen + landscape lock) that exits on puzzle completion.
+
+## Technical Changes
+- **Build Pipeline**: Automated Angular build → copy to wwwroot → .NET publish in single command
+- **IIS Configuration**: ASP.NET Core Module v2, InProcess hosting, stdout logging enabled
+- **Game Flow**: InitialScene → explosion animation → modal with "Los geht's" → PuzzleScene with HUD
+- **Touch Detection**: Native event checking via `nativeEvent.touches`, offset pieces 50px up/left of finger
+- **Timer Implementation**: Created in `showHudElements()`, starts in `startTimer()`, updates in game loop
+- **Styling Consistency**: Timer and coin label both use Montserrat 26px with matching shadows and colors
+
+## Notes
+- Publish scripts tested and verified to create complete deployment package
+- IIS requires ASP.NET Core 9.0 Hosting Bundle and URL Rewrite Module
+- Application pool must use "No Managed Code" for .NET Core
+- For virtual application deployment, update Angular base href to `/subdirectory/`
+
+# Session 01999418-c8fd-7dd2-8dd0-a6fa6608946f (Previous)
+
+## Summary
 - Parsed `ClientApp/src/assets/pieces/Zeichnung.svg` at runtime to generate puzzle geometry, replacing the placeholder star.
 - Normalized the SVG coordinates to fit the Phaser board uniformly and clamped scatter positions to keep pieces within view.
 - Removed snapping so pieces stay draggable for debugging while retaining hover highlights.
