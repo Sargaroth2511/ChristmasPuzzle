@@ -1,4 +1,4 @@
-export const STAG_BASE_COLOR = 0xffffff;
+export const STAG_BASE_COLOR = 0xafb2b6;
 export const PIECE_STROKE_WIDTH = 2.5;
 export const PIECE_HOVER_STROKE_WIDTH = 3.5;
 export const PIECE_HOVER_STROKE_RATIO = PIECE_HOVER_STROKE_WIDTH / PIECE_STROKE_WIDTH;
@@ -57,4 +57,4 @@ export const DRAG_SHADOW_GLASS_ALPHA = 0.62;
 export const TOUCH_DRAG_OFFSET = { x: -50, y: -50 } as const; // Negative values move piece up and left from touch point
 
 // Scene layout tuning
-export const SCENE_FLOOR_BOTTOM_MARGIN = -20; // Pixels to keep free between the floor line and the bottom edge.
+export const SCENE_FLOOR_BOTTOM_MARGIN = 20; // Pixels to keep free between the floor line and the bottom edge.

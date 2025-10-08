@@ -19,14 +19,16 @@ public class UsersController : ControllerBase
     /// Get user data by UID. Creates a new user if UID doesn't exist.
     /// </summary>
     /// <param name="uid">Unique user identifier (GUID)</param>
-    /// <param name="name">Optional user name (used only when creating new user)</param>
+    /// <param name="firstName">Optional user first name (used only when creating new user)</param>
+    /// <param name="lastName">Optional user last name (used only when creating new user)</param>
     /// <param name="language">Optional language preference: 0=German (default), 1=English</param>
     /// <param name="salutation">Optional salutation: 0=Informal/du (default), 1=Formal/Sie</param>
     /// <returns>User data including stats and personalization</returns>
     [HttpGet("{uid:guid}")]
     public async Task<ActionResult<UserData>> GetUser(
         Guid uid, 
-        [FromQuery] string? name = null,
+        [FromQuery] string? firstName = null,
+        [FromQuery] string? lastName = null,
         [FromQuery] Language? language = null,
         [FromQuery] Salutation? salutation = null)
     {
@@ -37,7 +39,7 @@ public class UsersController : ControllerBase
                 return BadRequest(new { error = "UID must be a valid GUID" });
             }
 
-            var userData = await _userDataService.GetUserDataAsync(uid, name, language, salutation);
+            var userData = await _userDataService.GetUserDataAsync(uid, firstName, lastName, language, salutation);
             return Ok(userData);
         }
         catch (Exception ex)

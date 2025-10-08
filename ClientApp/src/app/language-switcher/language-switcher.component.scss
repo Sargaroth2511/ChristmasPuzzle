@@ -1,0 +1,72 @@
+.language-switcher {
+  display: flex;
+  gap: 10px;
+  background: rgba(143, 147, 153, 0.00);
+  padding: 10px 12px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.lang-btn {
+  border: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.flag-icon {
+  width: 32px;
+  height: 22px;
+  display: block;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+/* Inactive flag - darker and less visible */
+.lang-btn:not(.active) .flag-icon {
+  opacity: 0.4;
+  filter: brightness(0.6) saturate(0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Hover on inactive flag */
+.lang-btn:not(.active):hover .flag-icon {
+  opacity: 0.7;
+  filter: brightness(0.8) saturate(0.7);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transform: scale(1.05);
+}
+
+/* Active flag - glowing effect */
+.lang-btn.active .flag-icon {
+  opacity: 1;
+  filter: brightness(1.1) saturate(1.2);
+  box-shadow: 
+    0 0 12px rgba(255, 255, 255, 0.7),
+    0 0 24px rgba(255, 255, 255, 0.5),
+    0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Hover on active flag */
+.lang-btn.active:hover .flag-icon {
+  transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+  .language-switcher {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .flag-icon {
+    width: 28px;
+    height: 19px;
+  }
+}

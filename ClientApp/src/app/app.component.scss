@@ -4,7 +4,7 @@
   gap: clamp(1.5rem, 4vw, 2.25rem);
   padding: clamp(1.25rem, 4vw, 2.5rem);
   margin: 0 auto;
-  width: min(100%, 1080px);
+  width: min(100%, 1000px);
   min-height: 100vh;
   box-sizing: border-box;
 }
@@ -12,6 +12,26 @@
 @supports (height: 100svh) {
   .shell {
     min-height: 100svh;
+  }
+}
+
+.oh22-logo {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  
+  img {
+    height: 60px;
+    width: auto;
+    display: block;
+    opacity: 0.9;
+    transition: opacity 0.3s ease;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  }
+
+  img:hover {
+    opacity: 1;
   }
 }
 
@@ -24,11 +44,11 @@
 }
 
 .info-card {
-  background: rgba(20, 32, 49, 0.92);
+  background: rgba(143, 147, 153, 0.92);
   color: #f7fbff;
   padding: 1.5rem 2rem;
   border-radius: 18px;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+  // box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
   min-width: 280px;
   max-width: 350px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -51,12 +71,11 @@
       font-size: 0.95rem;
       display: flex;
       justify-content: space-between;
-      color: rgba(247, 252, 255, 0.9);
+      color: #ffffff;
 
       strong {
         font-weight: 600;
-        opacity: 0.95;
-        color: rgba(255, 215, 0, 0.9);
+        color: #ffffff;
       }
     }
   }
@@ -148,7 +167,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: clamp(1rem, 3vw, 1.75rem);
+  gap: clamp(1rem, 3vw, 1.00rem);
   padding: 0;
   width: 100%;
 }
@@ -222,17 +241,17 @@
     padding: 0.65rem 1.3rem;
     border-radius: 999px;
     border: none;
-    background: rgba(12, 27, 42, 0.85);
-    color: #f7fcff;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    font-family: 'CompanySans', 'Segoe UI', Roboto, sans-serif;
+    background: rgba(233, 233, 235);
+    color: #000000;
+    font-family: var(--font-lausanne);
+    font-weight: 300;
+    font-size: 1rem;
     cursor: pointer;
     transition: background 0.2s ease;
   }
 
   button:hover {
-    background: rgba(12, 27, 42, 0.95);
+    background: rgba(199, 201, 204);
   }
 }
 
@@ -243,6 +262,17 @@
   gap: 0.75rem;
   flex-wrap: wrap;
   width: min(100%, 540px);
+}
+
+.desktop-language-switcher {
+  // Visible only on desktop
+  display: block;
+  margin-left: auto; // Push to the left
+}
+
+.mobile-language-switcher {
+  // Hidden on desktop, shown in mobile menu
+  display: none;
 }
 
 .intro-overlay {
@@ -269,238 +299,19 @@
   max-width: min(90vw, 420px);
 }
 
-.complete-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
-  z-index: 145;
-  text-align: center;
-  padding: 2rem;
-  box-sizing: border-box;
-}
-
-.complete-card {
-  display: grid;
-  gap: 1rem;
-  padding: 2.2rem;
-  background: rgba(10, 20, 30, 0.9);
-  border-radius: 18px;
-  color: #f7fbff;
-  max-width: min(90vw, 520px);
-}
-
-.complete-card h2 {
-  margin: 0;
-  font-size: clamp(1.2rem, 4vw, 2rem);
-}
-
-.complete-card p {
-  margin: 0;
-  font-size: clamp(1.05rem, 3.5vw, 1.2rem);
-  color: rgba(247, 252, 255, 0.9);
-}
-
-.complete-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.9rem;
-  justify-content: center;
-  margin-top: 1.5rem;
-}
-
-.complete-actions button {
-  padding: 0.9rem 2.2rem;
-  border-radius: 999px;
-  border: none;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-}
-
-.complete-actions button:first-child {
-  background: rgba(20, 32, 49, 0.92);
-  color: #f7fbff;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
-}
-
-.complete-actions button:first-child:hover {
-  transform: translateY(-1px);
-  background: rgba(35, 53, 79, 0.95);
-}
-
-.complete-actions button:last-child {
-  background: rgba(20, 32, 49, 0.92);
-  color: #f7fbff;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
-}
-
-.complete-actions button:last-child:hover {
-  transform: translateY(-1px);
-  background: rgba(35, 53, 79, 0.95);
-}
-
-.complete-donation {
-  text-align: center;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #f9f8d1;
-  text-transform: uppercase;
-  margin-top: 0.6rem;
-}
-
-.stag-modal {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 160;
-}
-
-.modal-content {
-  background: rgba(20, 32, 49, 0.92);
-  border-radius: 22px;
-  padding: 2rem;
-  text-align: center;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
-  max-width: 90%;
-  width: 400px;
-}
-
-.greeting-text {
-  font-family: 'CompanySans', sans-serif;
-  font-size: 1.2rem;
-  color: #ffd700;
-  margin: 0 0 1.5rem 0;
-  font-weight: 600;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.modal-content h1 {
-  font-family: 'CompanySans', sans-serif;
-  font-size: 1.5rem;
-  color: #f7fbff;
-  margin: 0 0 1.5rem 0;
-  font-weight: 700;
-}
-
-.modal-content button {
-  padding: 0.75rem 2rem;
-  border-radius: 22px;
-  border: none;
-  background: rgba(36, 58, 88, 0.92);
-  color: #f7fbff;
-  font-family: 'CompanySans', sans-serif;
-  font-weight: 700;
-  font-size: 1.1rem;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.modal-content button:hover {
-  background: rgba(35, 53, 79, 0.95);
-}
-
-.greeting-modal {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-  
-  h1 {
-    color: #fff;
-    font-size: 1.8rem;
-  }
-  
-  p {
-    color: rgba(255, 255, 255, 0.95);
-    font-size: 1.1rem;
-    margin: 0.5rem 0 1.5rem 0;
-  }
-  
-  button {
-    background: rgba(255, 255, 255, 0.2) !important;
-    color: #fff !important;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    
-    &:hover {
-      background: rgba(255, 255, 255, 0.3) !important;
-      border-color: rgba(255, 255, 255, 0.5);
-    }
-  }
-}
-
-.explosion-modal {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 160;
-}
-
-.explosion-modal .modal-content {
-  background: rgba(20, 32, 49, 0.92);
-  border-radius: 22px;
-  padding: 2rem;
-  text-align: center;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
-  max-width: 90%;
-  width: 500px;
-}
-
-.explosion-modal .modal-content h1 {
-  font-family: 'CompanySans', sans-serif;
-  font-size: 1.5rem;
-  color: #f7fbff;
-  margin: 0 0 1rem 0;
-  font-weight: 700;
-}
-
-.explosion-modal .modal-content p {
-  font-family: 'CompanySans', sans-serif;
-  font-size: 1.1rem;
-  color: #f7fbff;
-  margin: 0 0 1.5rem 0;
-  line-height: 1.4;
-}
-
-.explosion-modal .modal-content button {
-  padding: 0.75rem 2rem;
-  border-radius: 22px;
-  border: none;
-  background: rgba(20, 32, 49, 0.92);
-  color: #f7fbff;
-  font-family: 'CompanySans', sans-serif;
-  font-weight: 700;
-  font-size: 1.1rem;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.explosion-modal .modal-content button:hover {
-  background: rgba(35, 53, 79, 0.95);
-}
-
 .intro-card h1 {
   margin: 0;
-  font-size: clamp(1.8rem, 6vw, 2.6rem);
+  font-size: clamp(2rem, 6.5vw, 2.8rem);
+  font-family: var(--font-company);
+  font-weight: 700;
 }
 
 .intro-card p {
   margin: 0;
-  font-size: clamp(1rem, 4vw, 1.2rem);
+  font-size: clamp(0.95rem, 4vw, 1.1rem);
   color: rgba(247, 252, 255, 0.82);
+  font-family: var(--font-lausanne);
+  font-weight: 300;
 }
 
 .intro-card button {
@@ -509,7 +320,8 @@
   border: none;
   background: #f7fbff;
   color: #132230;
-  font-weight: 700;
+  font-family: var(--font-lausanne);
+  font-weight: 300;
   font-size: 1rem;
   letter-spacing: 0.06em;
   cursor: pointer;
@@ -520,6 +332,15 @@
     width: 100%;
     padding: 0;
     gap: 0;
+  }
+
+  .oh22-logo {
+    top: 10px;
+    right: 10px;
+    
+    img {
+      height: 40px;
+    }
   }
 
   .hero {
@@ -563,6 +384,16 @@
     display: none;
   }
 
+  .desktop-language-switcher {
+    display: none; // Hide on mobile
+  }
+
+  .mobile-language-switcher {
+    display: flex; // Show in mobile menu
+    justify-content: center;
+    padding: 0.5rem 0;
+  }
+
   .intro-overlay {
     display: flex;
   }
@@ -588,8 +419,9 @@
 }
 
 .instruction-text {
-  font-family: 'CompanySans', sans-serif;
-  font-size: 1.2rem;
+  font-family: var(--font-lausanne);
+  font-weight: 300;
+  font-size: 1rem;
   color: rgba(247, 252, 255, 0.78);
   text-align: center;
   margin: 0;

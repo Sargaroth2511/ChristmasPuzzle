@@ -36,9 +36,14 @@ public class UserData
     public Guid Uid { get; set; } = Guid.NewGuid();
 
     /// <summary>
-    /// User's display name for personalized greeting
+    /// User's first name for personalized greeting
     /// </summary>
-    public string Name { get; set; } = "Puzzler";
+    public string FirstName { get; set; } = "Puzzle";
+
+    /// <summary>
+    /// User's last name for personalized greeting
+    /// </summary>
+    public string LastName { get; set; } = "Player";
 
     /// <summary>
     /// Language preference (German or English)

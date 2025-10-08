@@ -1,0 +1,5 @@
+<div class="modal-overlay" *ngIf="isVisible" (click)="onOverlayClick($event)">
+  <div class="modal-card" [class.modal-wide]="wide">
+    <ng-content></ng-content>
+  </div>
+</div>

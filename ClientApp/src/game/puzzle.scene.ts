@@ -1079,15 +1079,17 @@ export class PuzzleScene extends Phaser.Scene {
     const centerX = minX + width * 0.5;
     const centerY = minY + height * 0.5;
 
-    const texture = this.add.tileSprite(centerX, centerY, width, height, 'outline-texture');
-    texture.setDepth(-19);
-    texture.setScrollFactor(0);
-    texture.setMask(geometryMask);
-    texture.setAlpha(textureAlpha);
+    // Create a filled graphics object with solid color instead of texture
+    const fillGraphics = this.add.graphics();
+    fillGraphics.fillStyle(STAG_BASE_COLOR, textureAlpha);
+    fillGraphics.fillRect(minX, minY, width, height);
+    fillGraphics.setDepth(-19);
+    fillGraphics.setScrollFactor(0);
+    fillGraphics.setMask(geometryMask);
 
     this.outlineMaskShape = maskShape;
     this.outlineGeometryMask = geometryMask;
-    this.outlineTexture = texture;
+    this.outlineTexture = fillGraphics as any;
   }
   private initializePiecesAtTarget(): void {
     const config = this.config!;
@@ -1305,8 +1307,8 @@ export class PuzzleScene extends Phaser.Scene {
   private generateGroundScatterPosition(existing: Phaser.Math.Vector2[]): Phaser.Math.Vector2 {
     const minX = EXPLOSION_WALL_MARGIN + 12;
     const maxX = this.scale.width - EXPLOSION_WALL_MARGIN - 12;
-    const minY = Math.max(this.scale.height - 80, 40);
-    const maxY = this.scale.height - 64;
+    const minY = Math.max(this.scale.height - 120, 40);
+    const maxY = this.scale.height - 80;
 
     const pickCandidate = () =>
       new Phaser.Math.Vector2(

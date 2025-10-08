@@ -15,7 +15,8 @@ export enum Salutation {
 
 export interface UserData {
   uid: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   language: Language;
   salutation: Salutation;
   maxPiecesAchieved: number | null;

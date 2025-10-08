@@ -7,12 +7,13 @@ import Phaser from 'phaser';
 import { InitialScene } from '../game/initial.scene';
 import { PuzzleScene } from '../game/puzzle.scene';
 import { UserService, UserData, Language, Salutation } from './user.service';
-import { LanguageSwitcherComponent } from './language-switcher.component';
+import { LanguageSwitcherComponent } from './language-switcher/language-switcher.component';
+import { ModalComponent } from './shared/modal.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, TranslateModule, LanguageSwitcherComponent],
+  imports: [CommonModule, HttpClientModule, TranslateModule, LanguageSwitcherComponent, ModalComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,7 +33,9 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   showUserInfo = true; // Show user info during initial scene
   showExplosionModal = false;
   showGreetingModal = false;
-  greetingMessage = 'Willkommen! Viel Spaß beim Puzzle! 🎄';
+  greetingMessage = 'Willkommen! Viel Spaß beim Puzzle!';
+  greetingNamePart = '';
+  greetingMessagePart = '';
   showInstructions = false;
   coinTotal = 0;
   donationMessageVisible = false;
@@ -138,16 +141,42 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   private setGreetingMessage(userFound: boolean): void {
     if (userFound && this.userData) {
       const isFormal = this.userData.salutation === Salutation.Formal;
-      const key = isFormal ? 'greeting.personalFormal' : 'greeting.personalInformal';
+      const fullName = `${this.userData.firstName} ${this.userData.lastName}`;
       
-      this.translate.get(key, { name: this.userData.name }).subscribe(translation => {
+      // Get name part (Lausanne font - light)
+      this.translate.get('greeting.namePart', { name: fullName }).subscribe(namePart => {
+        this.greetingNamePart = namePart;
+        this.cdr.markForCheck();
+      });
+      
+      // Get message part (CompanySans font - bold)
+      const messageKey = isFormal ? 'greeting.messageFormal' : 'greeting.messageInformal';
+      this.translate.get(messageKey).subscribe(messagePart => {
+        this.greetingMessagePart = messagePart;
+        this.cdr.markForCheck();
+      });
+      
+      // Keep full message for backwards compatibility
+      const key = isFormal ? 'greeting.personalFormal' : 'greeting.personalInformal';
+      this.translate.get(key, { name: fullName }).subscribe(translation => {
         this.greetingMessage = translation;
         console.log('✅ Personalized greeting set:', this.greetingMessage);
         this.cdr.markForCheck();
       });
     } else {
-      this.translate.get('greeting.generic').subscribe(translation => {
-        this.greetingMessage = translation;
+      // Generic greeting for non-validated users
+      this.translate.get('greeting.generic').subscribe(fullGreeting => {
+        // Split "Willkommen! Viel Spaß beim Puzzle!" into two parts
+        const parts = fullGreeting.split('!');
+        if (parts.length >= 2) {
+          this.greetingNamePart = parts[0] + '!';
+          this.greetingMessagePart = parts.slice(1).join('!').trim();
+        } else {
+          this.greetingNamePart = fullGreeting;
+          this.greetingMessagePart = '';
+        }
+        
+        this.greetingMessage = fullGreeting;
         console.log('ℹ️ Generic greeting set:', this.greetingMessage);
         this.cdr.markForCheck();
       });
@@ -155,7 +184,10 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   }
 
   getUserDisplayName(): string {
-    return this.userData?.name ?? 'Puzzler';
+    if (!this.userData) {
+      return 'Puzzler';
+    }
+    return `${this.userData.firstName} ${this.userData.lastName}`;
   }
 
   getLanguageText(): string {

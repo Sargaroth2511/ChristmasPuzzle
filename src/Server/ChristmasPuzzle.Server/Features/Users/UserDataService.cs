@@ -10,7 +10,7 @@ public interface IUserDataService
     /// <summary>
     /// Get user data by unique identifier, creating a new user if not found
     /// </summary>
-    Task<UserData> GetUserDataAsync(Guid uid, string? name = null, Language? language = null, Salutation? salutation = null);
+    Task<UserData> GetUserDataAsync(Guid uid, string? firstName = null, string? lastName = null, Language? language = null, Salutation? salutation = null);
 
     /// <summary>
     /// Update user statistics based on game progress
@@ -54,7 +54,7 @@ public class UserDataService : IUserDataService
         }
     }
 
-    public async Task<UserData> GetUserDataAsync(Guid uid, string? name = null, Language? language = null, Salutation? salutation = null)
+    public async Task<UserData> GetUserDataAsync(Guid uid, string? firstName = null, string? lastName = null, Language? language = null, Salutation? salutation = null)
     {
         await _fileLock.WaitAsync();
         try
@@ -70,8 +70,8 @@ public class UserDataService : IUserDataService
                 throw new InvalidOperationException($"User with UID {uid} not found");
             }
             
-            _logger.LogInformation("Found user: {Name}, Language: {Language}, Salutation: {Salutation}", 
-                user.Name, user.Language, user.Salutation);
+            _logger.LogInformation("Found user: {FirstName} {LastName}, Language: {Language}, Salutation: {Salutation}", 
+                user.FirstName, user.LastName, user.Language, user.Salutation);
 
             return user;
         }

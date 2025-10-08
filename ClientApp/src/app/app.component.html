@@ -1,7 +1,9 @@
 <main class="shell">
-  <!-- Language Switcher -->
-  <app-language-switcher></app-language-switcher>
-  
+  <!-- OH22 Logo - Top Right Corner -->
+  <div class="oh22-logo">
+    <img src="assets/logos/oh22_Logo_weiss_CMYK.png" alt="OH22 Logo">
+  </div>
+
   <!-- User Info Box (visible during initial scene, only if user data exists) -->
   <div class="user-info-box" *ngIf="showUserInfo && !puzzleComplete && userData">
     <div class="info-card">
@@ -42,6 +44,10 @@
         <button type="button" (click)="toggleGlassMode()">
           {{ useGlassStyle ? ('menu.opaquePieces' | translate) : ('menu.glassPieces' | translate) }}
         </button>
+        <!-- Language switcher in mobile menu -->
+        <div class="mobile-language-switcher">
+          <app-language-switcher></app-language-switcher>
+        </div>
         <button type="button" (click)="closeMenu()">{{ 'menu.close' | translate }}</button>
       </nav>
 
@@ -53,61 +59,64 @@
         </div>
       </div>
 
-      <div class="complete-overlay" *ngIf="puzzleComplete">
-        <div class="complete-card">
-          <div *ngIf="coinTotal === 22">
-            <h2 [innerHTML]="'completion.perfect' | translate: { time: formatTime(completionTime) }"></h2>
-            <p [innerHTML]="'completion.perfectDescription' | translate"></p>
-            <p>{{ 'completion.perfectTryAgain' | translate }}</p>
-            <div class="complete-actions">
-              <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
-              <button type="button" (click)="donateCoins()">{{ 'buttons.sendCoins' | translate }}</button>
-            </div>
-          </div>
-          <div *ngIf="coinTotal > 0 && coinTotal < 22">
-            <h2>{{ 'completion.partial' | translate: { coins: (coinTotal | number: '1.0-0'), time: formatTime(completionTime) } }}</h2>
-            <p [innerHTML]="'completion.partialDescription' | translate"></p>
-            <p>{{ 'completion.partialTryAgain' | translate }}</p>
-            <div class="complete-actions">
-              <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
-              <button type="button" (click)="donateCoins()">{{ 'buttons.sendCoins' | translate }}</button>
-            </div>
-          </div>
-          <div *ngIf="coinTotal === 0">
-            <h2>{{ 'completion.noCoins' | translate }}</h2>
-            <p>{{ 'completion.noCoinsFirstPart' | translate: { time: formatTime(completionTime) } }}</p>
-            <p [innerHTML]="'completion.noCoinsSecondPart' | translate"></p>
-            <p>{{ 'completion.noCoinsReady' | translate }}</p>
-            <div class="complete-actions">
-              <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
-            </div>
-          </div>
-          <div class="complete-donation" *ngIf="donationMessageVisible">
-            <span>{{ 'completion.donationMessage' | translate: { coins: (coinTotal | number: '1.0-0') } }}</span>
+      <!-- Completion Modal -->
+      <app-modal [isVisible]="puzzleComplete" [wide]="true">
+        <div *ngIf="coinTotal === 22">
+          <h1 [innerHTML]="'completion.perfect' | translate: { time: formatTime(completionTime) }"></h1>
+          <p [innerHTML]="'completion.perfectDescription' | translate"></p>
+          <p>{{ 'completion.perfectTryAgain' | translate }}</p>
+          <div class="modal-actions">
+            <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
+            <button type="button" (click)="donateCoins()">{{ 'buttons.sendCoins' | translate }}</button>
           </div>
         </div>
-      </div>
+        <div *ngIf="coinTotal > 0 && coinTotal < 22">
+          <h1>{{ 'completion.partial' | translate: { coins: (coinTotal | number: '1.0-0'), time: formatTime(completionTime) } }}</h1>
+          <p [innerHTML]="'completion.partialDescription' | translate"></p>
+          <p>{{ 'completion.partialTryAgain' | translate }}</p>
+          <div class="modal-actions">
+            <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
+            <button type="button" (click)="donateCoins()">{{ 'buttons.sendCoins' | translate }}</button>
+          </div>
+        </div>
+        <div *ngIf="coinTotal === 0">
+          <h1>{{ 'completion.noCoins' | translate }}</h1>
+          <p>{{ 'completion.noCoinsFirstPart' | translate: { time: formatTime(completionTime) } }}</p>
+          <p [innerHTML]="'completion.noCoinsSecondPart' | translate"></p>
+          <p>{{ 'completion.noCoinsReady' | translate }}</p>
+          <div class="modal-actions">
+            <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
+          </div>
+        </div>
+        <div class="donation-message" *ngIf="donationMessageVisible">
+          <span>{{ 'completion.donationMessage' | translate: { coins: (coinTotal | number: '1.0-0') } }}</span>
+        </div>
+      </app-modal>
 
-      <div class="stag-modal" *ngIf="showInitialContinueButton && !puzzleComplete">
-        <div class="modal-content">
-          <p class="greeting-text">{{ greetingMessage }}</p>
-          <h1>{{ 'modals.stagProblem' | translate }}</h1>
-          <button type="button" (click)="continueToPuzzle()">{{ 'buttons.continue' | translate }}</button>
-        </div>
-      </div>
+      <!-- Stag Modal -->
+      <app-modal [isVisible]="showInitialContinueButton && !puzzleComplete" [wide]="true">
+        <h1>{{ greetingNamePart }} {{ greetingMessagePart }}</h1>
+        <p>{{ 'modals.stagProblem' | translate }}</p>
+        <button type="button" (click)="continueToPuzzle()">{{ 'buttons.continue' | translate }}</button>
+      </app-modal>
 
-      <div class="explosion-modal" *ngIf="showExplosionModal && !puzzleComplete">
-        <div class="modal-content">
-          <h1>{{ 'modals.explosionTitle' | translate }}</h1>
-          <p>{{ 'modals.explosionDescription' | translate }}</p>
-          <button type="button" (click)="closeExplosionModal()">{{ 'buttons.letsGo' | translate }}</button>
-        </div>
-      </div>
+      <!-- Explosion Modal -->
+      <app-modal [isVisible]="showExplosionModal && !puzzleComplete" [wide]="true">
+        <h1>{{ 'modals.explosionTitle' | translate }}</h1>
+        <p>{{ 'modals.explosionDescription' | translate }}</p>
+        <button type="button" (click)="closeExplosionModal()">{{ 'buttons.letsGo' | translate }}</button>
+      </app-modal>
+      
     </div>
-
+   <div class="desktop-language-switcher">
+        <app-language-switcher></app-language-switcher>
+      </div>
         <p class="instruction-text" [class.visible]="showInstructions">{{ 'instructions.drag' | translate }}</p>
 
     <div class="desktop-controls">
+      <!-- Language switcher on desktop - left side -->
+   
+      
       <button type="button" (click)="toggleDebug()">
         {{ showDebug ? ('menu.hideGuides' | translate) : ('menu.showGuides' | translate) }}
       </button>

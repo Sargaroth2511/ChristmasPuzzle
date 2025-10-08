@@ -1,0 +1,18 @@
+<div class="language-switcher">
+  <button 
+    type="button" 
+    class="lang-btn" 
+    [class.active]="currentLang === 'de'"
+    (click)="switchLanguage('de')"
+    title="Deutsch">
+    <img src="assets/flags/de.svg" alt="Deutsch" class="flag-icon">
+  </button>
+  <button 
+    type="button" 
+    class="lang-btn" 
+    [class.active]="currentLang === 'en'"
+    (click)="switchLanguage('en')"
+    title="English">
+    <img src="assets/flags/en.svg" alt="English" class="flag-icon">
+  </button>
+</div>
