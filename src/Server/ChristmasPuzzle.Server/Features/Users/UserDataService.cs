@@ -43,15 +43,107 @@ public class UserDataService : IUserDataService
 
         _dataFilePath = Path.Combine(appDataPath, "users.json");
 
-        // Initialize file if it doesn't exist
-        if (!File.Exists(_dataFilePath))
+        // Initialize or merge with seed data
+        InitializeDataFile(exeDirectory);
+    }
+
+    /// <summary>
+    /// Initialize data file by merging seed profiles with existing game progress
+    /// </summary>
+    private void InitializeDataFile(string exeDirectory)
+    {
+        // Read seed data (profile info only)
+        var seedFilePath = Path.Combine(exeDirectory, "seed-users.json");
+        UsersDataStore? seedData = null;
+        
+        if (File.Exists(seedFilePath))
         {
-            var initialData = new UsersDataStore { Users = new List<UserData>() };
-            File.WriteAllText(_dataFilePath, JsonSerializer.Serialize(initialData, new JsonSerializerOptions
+            try
             {
-                WriteIndented = true
-            }));
+                var seedJson = File.ReadAllText(seedFilePath);
+                seedData = JsonSerializer.Deserialize<UsersDataStore>(seedJson);
+                _logger.LogInformation("Loaded {Count} seed users from {Path}", seedData?.Users.Count ?? 0, seedFilePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reading seed users file");
+            }
         }
+        else
+        {
+            _logger.LogWarning("Seed users file not found at: {Path}", seedFilePath);
+        }
+
+        // Read existing user data (game progress)
+        UsersDataStore? existingData = null;
+        
+        if (File.Exists(_dataFilePath))
+        {
+            try
+            {
+                var existingJson = File.ReadAllText(_dataFilePath);
+                existingData = JsonSerializer.Deserialize<UsersDataStore>(existingJson);
+                _logger.LogInformation("Loaded {Count} existing users from {Path}", existingData?.Users.Count ?? 0, _dataFilePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reading existing users file");
+            }
+        }
+
+        // Merge: Update profiles from seed while preserving game progress
+        var mergedUsers = new List<UserData>();
+
+        if (seedData?.Users != null)
+        {
+            foreach (var seedUser in seedData.Users)
+            {
+                // Find existing user by Uid
+                var existingUser = existingData?.Users.FirstOrDefault(u => u.Uid == seedUser.Uid);
+
+                if (existingUser != null)
+                {
+                    // Update profile info from seed, keep game progress from existing
+                    existingUser.FirstName = seedUser.FirstName;
+                    existingUser.LastName = seedUser.LastName;
+                    existingUser.Language = seedUser.Language;
+                    existingUser.Salutation = seedUser.Salutation;
+                    mergedUsers.Add(existingUser);
+                    _logger.LogInformation("Updated profile for user {Uid}: {FirstName} {LastName}", 
+                        existingUser.Uid, existingUser.FirstName, existingUser.LastName);
+                }
+                else
+                {
+                    // New user from seed - add with no game progress
+                    mergedUsers.Add(seedUser);
+                    _logger.LogInformation("Added new user from seed: {Uid} - {FirstName} {LastName}", 
+                        seedUser.Uid, seedUser.FirstName, seedUser.LastName);
+                }
+            }
+        }
+
+        // Preserve users that exist in data file but not in seed
+        if (existingData?.Users != null)
+        {
+            foreach (var existingUser in existingData.Users)
+            {
+                if (seedData?.Users == null || !seedData.Users.Any(s => s.Uid == existingUser.Uid))
+                {
+                    mergedUsers.Add(existingUser);
+                    _logger.LogInformation("Preserved existing user not in seed: {Uid} - {FirstName} {LastName}", 
+                        existingUser.Uid, existingUser.FirstName, existingUser.LastName);
+                }
+            }
+        }
+
+        // Write merged data
+        var mergedStore = new UsersDataStore { Users = mergedUsers };
+        File.WriteAllText(_dataFilePath, JsonSerializer.Serialize(mergedStore, new JsonSerializerOptions
+        {
+            WriteIndented = true
+        }));
+        
+        _logger.LogInformation("Initialized users.json with {Count} total users", mergedUsers.Count);
     }
 
     public async Task<UserData> GetUserDataAsync(Guid uid, string? firstName = null, string? lastName = null, Language? language = null, Salutation? salutation = null)

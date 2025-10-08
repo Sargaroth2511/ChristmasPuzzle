@@ -82,6 +82,15 @@ mkdir -p "$OUTPUT_PATH/logs"
 echo -e "\033[0;33m  Moving all files to myapp/ (self-contained needs all DLLs with .exe)...\033[0m"
 mv "$TEMP_PUBLISH/"* "$OUTPUT_PATH/myapp/" 2>/dev/null || true
 
+# IMPORTANT: Remove App_Data from deployment (user data must persist!)
+if [ -d "$OUTPUT_PATH/myapp/App_Data" ]; then
+    echo -e "\033[0;33m  Removing App_Data from deployment (preserves user data on server)...\033[0m"
+    rm -rf "$OUTPUT_PATH/myapp/App_Data"
+fi
+
+echo -e "\033[0;32m  ✓ App_Data excluded - user game progress will be preserved on server\033[0m"
+echo -e "\033[0;32m  ✓ seed-users.json included - profiles will merge with existing data\033[0m"
+
 # Create optimized web.config
 echo -e "\033[0;33m  Creating web.config...\033[0m"
 cat > "$OUTPUT_PATH/web.config" << 'EOF'
@@ -128,8 +137,6 @@ EOF
 
 # Create README for deployment
 cat > "$OUTPUT_PATH/README-DEPLOYMENT.txt" << 'EOF'
-# Create README for deployment
-cat > "$OUTPUT_PATH/README-DEPLOYMENT.txt" << 'EOF'
 OPTIMIZED DEPLOYMENT STRUCTURE - THE SMART WAY!
 ===============================================
 
@@ -142,11 +149,14 @@ publish-optimized/
 │   ├── ChristmasPuzzle.Server.exe  ← Your app entry point
 │   ├── ChristmasPuzzle.Server.dll  ← Your compiled code
 │   ├── appsettings.json            ← Your configuration
-│   └── wwwroot/                    ← Your Angular app (~12MB)
-│       ├── index.html
-│       ├── main.js                 ← Your Angular code
-│       ├── vendor.js               ← Angular/Phaser libraries
-│       └── assets/                 ← Your images
+│   ├── seed-users.json             ← User profile seed data
+│   ├── wwwroot/                    ← Your Angular app (~12MB)
+│   │   ├── index.html
+│   │   ├── main.js                 ← Your Angular code
+│   │   ├── vendor.js               ← Angular/Phaser libraries
+│   │   └── assets/                 ← Your images
+│   └── App_Data/                   ← NOT IN DEPLOYMENT (created at runtime!)
+│       └── users.json              ← User game data (NEVER overwrite!)
 │
 ├── Microsoft.*.dll         ← .NET RUNTIME at root (~150 files)
 ├── System.*.dll            ← .NET RUNTIME at root (~80 files)
@@ -168,7 +178,7 @@ INITIAL DEPLOYMENT:
 1. Copy EVERYTHING to server (all files and folders)
    Total: ~140MB
 2. Configure IIS to point to this folder
-3. Done!
+3. Done! App will auto-create App_Data on first run
 
 FUTURE UPDATES (THE MAGIC!):
 ----------------------------
@@ -176,8 +186,22 @@ When you change YOUR code (Angular or .NET backend):
 
 1. Build new version: ./publish-optimized.sh
 2. Copy ONLY myapp/ folder to server (~13MB)
-3. Restart IIS site
-4. Done!
+   ⚠️  IMPORTANT: Do NOT copy/overwrite App_Data folder!
+   ⚠️  The deployment script already excludes it for safety
+3. seed-users.json will update user profiles but KEEP game stats
+4. Restart IIS site
+5. Done!
+
+USER DATA PROTECTION & SEED MERGE:
+---------------------------------
+✓ App_Data/ folder is EXCLUDED from deployment builds
+✓ seed-users.json contains profile data only (FirstName, LastName, Language, Salutation)
+✓ On startup, app automatically merges:
+  - Profile updates from seed-users.json
+  - Game progress from existing App_Data/users.json
+✓ User achievements are PRESERVED (MaxPiecesAchieved, FastestTimeSeconds, etc.)
+✓ New users from seed file are added automatically
+✓ Users can be updated/renamed via seed-users.json without losing scores
 
 Runtime DLLs stay on server unchanged!
 
@@ -186,6 +210,7 @@ WHAT TO UPDATE WHEN:
 Change Angular code         → Copy myapp/ folder only
 Change .NET backend         → Copy myapp/ folder only
 Change configuration        → Copy myapp/ folder only
+Update user profiles        → Edit seed-users.json, then copy myapp/ folder
 Upgrade .NET version        → Copy ALL files (rare!)
 
 SIZE COMPARISON:
@@ -202,10 +227,7 @@ The .exe is in myapp/ but .NET automatically searches:
 
 This is standard .NET behavior and works perfectly!
 EOF
-EOF
 
-# Create update script for future deployments
-cat > "$OUTPUT_PATH/update-app-only.txt" << 'EOF'
 # Create update script for future deployments
 cat > "$OUTPUT_PATH/update-app-only.txt" << 'EOF'
 QUICK UPDATE INSTRUCTIONS
@@ -221,6 +243,9 @@ When you make code changes and want to update the server:
 
 3. Copy ONLY the myapp/ folder:
    Copy-Item -Path ".\publish-optimized\myapp\*" -Destination "I:\INETPUP\xmas.oh22.net\public_html\myapp\" -Recurse -Force
+   
+   ⚠️  NEVER copy App_Data! It's already excluded from build.
+   ⚠️  seed-users.json will auto-merge with existing user data.
 
 4. Start site:
    Start-WebSite -Name "ChristmasPuzzle"
@@ -228,7 +253,7 @@ When you make code changes and want to update the server:
 That's it! Only ~13MB uploaded instead of 140MB!
 
 The runtime DLLs at the root stay unchanged.
-EOF
+User game progress in App_Data is preserved.
 EOF
 
 # Clean up temp folder
