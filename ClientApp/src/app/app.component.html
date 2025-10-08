@@ -19,7 +19,7 @@
 
   <header class="hero">
     <h1>{{ 'app.title' | translate }}</h1>
-    <p>{{ 'hero.description' | translate }}</p>
+    <p [class.visible]="showInstructions">{{ 'instructions.drag' | translate }}</p>
   </header>
 
   <section class="board">
@@ -61,41 +61,23 @@
 
       <!-- Completion Modal -->
       <app-modal [isVisible]="puzzleComplete" [wide]="true">
-        <div *ngIf="coinTotal === 22">
-          <h1 [innerHTML]="'completion.perfect' | translate: { time: formatTime(completionTime) }"></h1>
-          <p [innerHTML]="'completion.perfectDescription' | translate"></p>
-          <p>{{ 'completion.perfectTryAgain' | translate }}</p>
-          <div class="modal-actions">
-            <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
-            <button type="button" (click)="donateCoins()">{{ 'buttons.sendCoins' | translate }}</button>
-          </div>
-        </div>
-        <div *ngIf="coinTotal > 0 && coinTotal < 22">
-          <h1>{{ 'completion.partial' | translate: { coins: (coinTotal | number: '1.0-0'), time: formatTime(completionTime) } }}</h1>
-          <p [innerHTML]="'completion.partialDescription' | translate"></p>
-          <p>{{ 'completion.partialTryAgain' | translate }}</p>
-          <div class="modal-actions">
-            <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
-            <button type="button" (click)="donateCoins()">{{ 'buttons.sendCoins' | translate }}</button>
-          </div>
-        </div>
-        <div *ngIf="coinTotal === 0">
-          <h1>{{ 'completion.noCoins' | translate }}</h1>
-          <p>{{ 'completion.noCoinsFirstPart' | translate: { time: formatTime(completionTime) } }}</p>
-          <p [innerHTML]="'completion.noCoinsSecondPart' | translate"></p>
-          <p>{{ 'completion.noCoinsReady' | translate }}</p>
-          <div class="modal-actions">
-            <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
-          </div>
+        <h1 [innerHTML]="'completion.perfect' | translate: { time: formatTime(completionTime) }"></h1>
+        <p [innerHTML]="'completion.perfectDescription' | translate"></p>
+        <div class="modal-actions">
+          <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
+          <button type="button" (click)="donateCoins()">{{ 'buttons.submitTime' | translate }}</button>
         </div>
         <div class="donation-message" *ngIf="donationMessageVisible">
-          <span>{{ 'completion.donationMessage' | translate: { coins: (coinTotal | number: '1.0-0') } }}</span>
+          <span>{{ 'completion.donationMessage' | translate }}</span>
         </div>
       </app-modal>
 
       <!-- Stag Modal -->
       <app-modal [isVisible]="showInitialContinueButton && !puzzleComplete" [wide]="true">
-        <h1>{{ greetingNamePart }} {{ greetingMessagePart }}</h1>
+        <h1>
+          {{ greetingNamePart }}<br>
+          {{ greetingMessagePart }}
+        </h1>
         <p>{{ 'modals.stagProblem' | translate }}</p>
         <button type="button" (click)="continueToPuzzle()">{{ 'buttons.continue' | translate }}</button>
       </app-modal>
@@ -108,21 +90,21 @@
       </app-modal>
       
     </div>
-   <div class="desktop-language-switcher">
+    
+    <div class="desktop-controls-wrapper">
+      
+      <div class="desktop-controls">
+        <button type="button" (click)="toggleDebug()">
+          {{ showDebug ? ('menu.hideGuides' | translate) : ('menu.showGuides' | translate) }}
+        </button>
+        <button type="button" (click)="toggleGlassMode()">
+          {{ useGlassStyle ? ('menu.opaquePieces' | translate) : ('menu.glassPieces' | translate) }}
+        </button>
+      </div>
+      <div class="desktop-language-switcher">
         <app-language-switcher></app-language-switcher>
       </div>
-        <p class="instruction-text" [class.visible]="showInstructions">{{ 'instructions.drag' | translate }}</p>
-
-    <div class="desktop-controls">
-      <!-- Language switcher on desktop - left side -->
-   
-      
-      <button type="button" (click)="toggleDebug()">
-        {{ showDebug ? ('menu.hideGuides' | translate) : ('menu.showGuides' | translate) }}
-      </button>
-      <button type="button" (click)="toggleGlassMode()">
-        {{ useGlassStyle ? ('menu.opaquePieces' | translate) : ('menu.glassPieces' | translate) }}
-      </button>
     </div>
+    
   </section>
 </main>

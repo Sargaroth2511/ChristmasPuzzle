@@ -1,6 +1,6 @@
 {
     "app": {
-        "title": "Weihnachtspuzzle"
+        "title": "Hilf unserem oh22 Weihnachtshirsch!"
     },
     "userInfo": {
         "language": "Sprache:",
@@ -22,25 +22,18 @@
         "startPuzzle": "Puzzle starten",
         "newGame": "Neues Spiel",
         "sendCoins": "Münzen senden",
+        "submitTime": "Zeit einreichen",
         "continue": "Weiter",
         "letsGo": "Los geht's"
     },
     "completion": {
-        "perfect": "Perfekt! Alle 22 Münzen in {{time}} gesammelt!",
-        "perfectDescription": "Möchtest du deine Münzen an OH22 schicken?<br>Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck.",
-        "perfectTryAgain": "Oder willst du es noch einmal versuchen und schneller sein?",
-        "partial": "Du hast {{coins}} Münzen in {{time}} gesammelt!",
-        "partialDescription": "Möchtest du sie an OH22 schicken?<br>Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck.",
-        "partialTryAgain": "Oder willst du dein Glück noch einmal versuchen und noch mehr Münzen sammeln?",
-        "noCoins": "Noch keine Münzen gesammelt!",
-        "noCoinsFirstPart": "Diesmal hast du 0 Münzen in {{time}} erreicht – aber kein Grund zur Sorge!",
-        "noCoinsSecondPart": "Vielleicht klappt's beim nächsten Versuch besser.<br>Sammle Münzen, schick sie an OH22, und wir wandeln deinen höchsten Betrag in Euro um –<br>für einen guten Zweck!",
-        "noCoinsReady": "Bereit für eine neue Runde?",
-        "donationMessage": "{{coins}} Münzen für einen guten Zweck gespendet"
+        "perfect": "Perfekt! Du hast alle 22 Teile in {{time}} zusammengesetzt!",
+        "perfectDescription": "Damit hast Du nicht nur unseren Hirsch gerettet und sondern gleichzeitig eine gute Tat vollbracht – Denn wir wandeln das Ganze in echte Münzen um und spenden den Betrag an eine Hilfsorganisation.<br>Möchtest Du Deine Zeit einreichen, oder schaffst Du es vielleicht noch schneller?",
+        "donationMessage": "Zeit erfolgreich eingereicht!"
     },
     "modals": {
-        "stagProblem": "... irgend etwas stimmt mit unserem Hirsch nicht!",
-        "explosionTitle": "Oh nein – unser oh22 Weihnachtshirsch ist zerfallen!",
+        "stagProblem": "Oh nein – irgendetwas stimmt mit unserem oh22 Weihnachtshirsch nicht…",
+        "explosionTitle": "Unser oh22 Weihnachtshirsch ist zerfallen!",
         "explosionDescription": "Hilf uns dabei, die 22 verstreuten Teile wieder zusammenzusetzen, damit unser Hirsch alle Weihnachtsgeschenke rechtzeitig verteilen kann."
     },
     "instructions": {
@@ -50,9 +43,9 @@
         "personalFormal": "Hallo {{name}}! Schön, dass Sie da sind!",
         "personalInformal": "Hallo {{name}}! Schön, dass du da bist!",
         "generic": "Willkommen! Viel Spaß beim Puzzle!",
-        "namePart": "Hallo {{name}}! ",
-        "messageFormal": "Schön, dass Sie da sind!",
-        "messageInformal": "Schön, dass du da bist!",
+        "namePart": "Hallo {{name}},",
+        "messageFormal": "schön, dass Sie da sind!",
+        "messageInformal": "schön, dass Du da bist!",
         "messageGeneric": "Viel Spaß beim Puzzle!"
     },
     "language": {

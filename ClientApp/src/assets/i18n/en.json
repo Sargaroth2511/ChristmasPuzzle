@@ -1,6 +1,6 @@
 {
     "app": {
-        "title": "Christmas Puzzle"
+        "title": "Help our oh22 Christmas stag!"
     },
     "userInfo": {
         "language": "Language:",
@@ -22,25 +22,18 @@
         "startPuzzle": "Start Puzzle",
         "newGame": "New Game",
         "sendCoins": "Send Coins",
+        "submitTime": "Submit Time",
         "continue": "Continue",
         "letsGo": "Let's go"
     },
     "completion": {
-        "perfect": "Perfect! Collected all 22 coins in {{time}}!",
-        "perfectDescription": "Would you like to send your coins to OH22?<br>We'll convert your highest submitted amount to Euros and donate it to a good cause.",
-        "perfectTryAgain": "Or do you want to try again and be even faster?",
-        "partial": "You collected {{coins}} coins in {{time}}!",
-        "partialDescription": "Would you like to send them to OH22?<br>We'll convert your highest submitted amount to Euros and donate it to a good cause.",
-        "partialTryAgain": "Or do you want to try your luck again and collect even more coins?",
-        "noCoins": "No coins collected yet!",
-        "noCoinsFirstPart": "This time you scored 0 coins in {{time}} – but no reason to worry!",
-        "noCoinsSecondPart": "Maybe it'll work better next time.<br>Collect coins, send them to OH22, and we'll convert your highest amount to Euros –<br>for a good cause!",
-        "noCoinsReady": "Ready for a new round?",
-        "donationMessage": "{{coins}} coins donated for a good cause"
+        "perfect": "Perfect! You put all 22 pieces together in {{time}}!",
+        "perfectDescription": "You didn't just save our stag, but also did a good deed – We'll convert this into real coins and donate the amount to a charity organization.<br>Would you like to submit your time, or do you think you can do it even faster?",
+        "donationMessage": "Time successfully submitted!"
     },
     "modals": {
-        "stagProblem": "... something's wrong with our stag!",
-        "explosionTitle": "Oh no – our oh22 Christmas stag has fallen apart!",
+        "stagProblem": "Oh no – something's wrong with our oh22 Christmas stag…",
+        "explosionTitle": "Our oh22 Christmas stag has fallen apart!",
         "explosionDescription": "Help us put the 22 scattered pieces back together so our stag can deliver all the Christmas presents on time."
     },
     "instructions": {
@@ -50,9 +43,9 @@
         "personalFormal": "Hello {{name}}! Great to see you!",
         "personalInformal": "Hello {{name}}! Great to see you!",
         "generic": "Welcome! Enjoy the puzzle!",
-        "namePart": "Hello {{name}}!",
-        "messageFormal": "Great to see you!",
-        "messageInformal": "Great to see you!",
+        "namePart": "Hello {{name}},",
+        "messageFormal": "great to see you!",
+        "messageInformal": "great to see you!",
         "messageGeneric": "Enjoy the puzzle!"
     },
     "language": {
