@@ -6,7 +6,17 @@ import Phaser from 'phaser';
 
 import { InitialScene } from '../game/initial.scene';
 import { PuzzleScene } from '../game/puzzle.scene';
-import { UserService, UserData, Language, Salutation } from './user.service';
+import { UserService, UserData, Language, Salutation, RecordPieceSnapRequest, StartGameSessionResponse, CompleteGameSessionResponse } from './user.service';
+
+type PuzzlePiecePlacedPayload = {
+  pieceId: string;
+  placedCount: number;
+  totalPieces: number;
+  anchorX: number;
+  anchorY: number;
+  distance: number;
+  tolerance: number;
+};
 import { LanguageSwitcherComponent } from './language-switcher/language-switcher.component';
 import { ModalComponent } from './shared/modal.component';
 
@@ -30,15 +40,12 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   menuOpen = false;
   showIntroOverlay = false;
   showInitialContinueButton = false;
-  showUserInfo = true; // Show user info during initial scene
+  showUserInfo = false; // Only show user info after puzzle start
   showExplosionModal = false;
   showGreetingModal = false;
-  greetingMessage = 'Willkommen! Viel Spaß beim Puzzle!';
-  greetingNamePart = '';
-  greetingMessagePart = '';
+  greetingHeadline = '';
   showInstructions = false;
   coinTotal = 0;
-  donationMessageVisible = false;
   hideRestartButton = false;
   private completionOverlayTimer?: ReturnType<typeof setTimeout>;
   private gameInitialized = false;
@@ -51,6 +58,18 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   userGuid?: string;
   userData?: UserData;
   userErrorMessage?: string;
+
+  activeSessionId?: string;
+  sessionPuzzleVersion?: string;
+  sessionStartInFlight = false;
+  sessionPiecesAcknowledged = 0;
+  sessionErrorMessage?: string;
+
+  showThankYouModal = false;
+  thankYouErrorMessage?: string;
+
+  private pendingSnapQueue: RecordPieceSnapRequest[] = [];
+  private processingSnap = false;
 
   private game?: Phaser.Game;
   private sceneEvents?: Phaser.Events.EventEmitter;
@@ -70,6 +89,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     // Setup available languages
     this.translate.addLangs(['de', 'en']);
     this.translate.setDefaultLang('de');
+    this.greetingHeadline = this.translate.instant('greeting.generic');
     
     // Subscribe to language changes to update greeting
     this.translate.onLangChange.subscribe(() => {
@@ -142,42 +162,16 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     if (userFound && this.userData) {
       const isFormal = this.userData.salutation === Salutation.Formal;
       const fullName = `${this.userData.firstName} ${this.userData.lastName}`;
-      
-      // Get name part (Lausanne font - light)
-      this.translate.get('greeting.namePart', { name: fullName }).subscribe(namePart => {
-        this.greetingNamePart = namePart;
-        this.cdr.markForCheck();
-      });
-      
-      // Get message part (CompanySans font - bold)
-      const messageKey = isFormal ? 'greeting.messageFormal' : 'greeting.messageInformal';
-      this.translate.get(messageKey).subscribe(messagePart => {
-        this.greetingMessagePart = messagePart;
-        this.cdr.markForCheck();
-      });
-      
-      // Keep full message for backwards compatibility
       const key = isFormal ? 'greeting.personalFormal' : 'greeting.personalInformal';
       this.translate.get(key, { name: fullName }).subscribe(translation => {
-        this.greetingMessage = translation;
-        console.log('✅ Personalized greeting set:', this.greetingMessage);
+        this.greetingHeadline = translation;
+        console.log('✅ Personalized greeting set:', this.greetingHeadline);
         this.cdr.markForCheck();
       });
     } else {
-      // Generic greeting for non-validated users
       this.translate.get('greeting.generic').subscribe(fullGreeting => {
-        // Split "Willkommen! Viel Spaß beim Puzzle!" into two parts
-        const parts = fullGreeting.split('!');
-        if (parts.length >= 2) {
-          this.greetingNamePart = parts[0] + '!';
-          this.greetingMessagePart = parts.slice(1).join('!').trim();
-        } else {
-          this.greetingNamePart = fullGreeting;
-          this.greetingMessagePart = '';
-        }
-        
-        this.greetingMessage = fullGreeting;
-        console.log('ℹ️ Generic greeting set:', this.greetingMessage);
+        this.greetingHeadline = fullGreeting;
+        console.log('ℹ️ Generic greeting set:', this.greetingHeadline);
         this.cdr.markForCheck();
       });
     }
@@ -226,7 +220,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.showInitialContinueButton = false;
     this.showGreetingModal = false;
     this.hideRestartButton = false;
-    this.donationMessageVisible = false;
+    this.showThankYouModal = false;
+    this.thankYouErrorMessage = undefined;
     const host = this.gameHost.nativeElement;
     const width = 960;
     const height = 640;
@@ -262,6 +257,10 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         return;
       }
       if (scene.scene.key === 'PuzzleScene') {
+        if (!this.showUserInfo) {
+          this.showUserInfo = true;
+          this.cdr.markForCheck();
+        }
         this.requestCoinTotal();
       }
     };
@@ -274,7 +273,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       this.puzzleComplete = false;
       this.completionTime = payload?.elapsedSeconds;
       this.hideRestartButton = false;
-      this.donationMessageVisible = false;
       this.requestCoinTotal();
       
       // Note: Stats are now only updated when user clicks "Münzen senden"
@@ -299,8 +297,13 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       this.completionTime = undefined;
       this.showInitialContinueButton = false;
       this.showGreetingModal = false;
-      this.donationMessageVisible = false;
       this.hideRestartButton = false;
+      this.showThankYouModal = false;
+      this.thankYouErrorMessage = undefined;
+      this.resetSessionProgress();
+      this.activeSessionId = undefined;
+      this.sessionPuzzleVersion = undefined;
+      this.sessionErrorMessage = undefined;
       this.cdr.markForCheck();
     });
 
@@ -318,6 +321,10 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         puzzleScene.showHudElements();
       }
       this.cdr.markForCheck();
+    });
+
+    emitter.on('puzzle-piece-placed', (payload: PuzzlePiecePlacedPayload) => {
+      this.handlePiecePlaced(payload);
     });
 
     emitter.on('coin-total-changed', (total: number) => {
@@ -436,6 +443,13 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   closeExplosionModal(): void {
     this.showExplosionModal = false;
     this.showInstructions = true;
+    this.showUserInfo = true;
+
+    if (this.userValidated && this.userGuid) {
+      this.beginBackendSession();
+    } else {
+      this.resetSessionProgress();
+    }
     
     // Start the timer in the puzzle scene
     if (this.game) {
@@ -450,19 +464,26 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     if (viewportWidth <= this.mobileBreakpoint) {
       this.enterImmersiveMode();
     }
-    
+
     this.cdr.markForCheck();
   }
 
   restartPuzzle(): void {
     this.clearCompletionOverlayTimer();
-    this.donationMessageVisible = false;
     this.hideRestartButton = false;
     this.puzzleComplete = false;
     this.showInitialContinueButton = false;
     this.showExplosionModal = false;
     this.showInstructions = false;
+    this.showUserInfo = false;
+    this.showThankYouModal = false;
+    this.thankYouErrorMessage = undefined;
     this.sceneEvents?.emit('puzzle-reset');
+
+    this.resetSessionProgress();
+    this.sessionErrorMessage = undefined;
+    this.activeSessionId = undefined;
+    this.sessionPuzzleVersion = undefined;
 
     if (!this.game) {
       this.launchGame();
@@ -483,52 +504,195 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   }
 
   donateCoins(): void {
-    // If user is not validated, just show the message
+    this.hideRestartButton = true;
+
     if (!this.userValidated || !this.userGuid || !this.completionTime) {
-      this.hideRestartButton = true;
-      this.donationMessageVisible = true;
-      this.cdr.markForCheck();
-      setTimeout(() => {
-        this.donationMessageVisible = false;
-        this.cdr.markForCheck();
-      }, 2000);
+      this.sessionErrorMessage = undefined;
+      const message = this.translate.instant('completion.thankYouNotStored');
+      this.openThankYouModal(message);
       return;
     }
 
-    // Send the game results to the backend
-    console.log('💰 Sending coins to backend:', this.coinTotal, 'Time:', this.completionTime);
-    
-    this.userService.updateUserStats(this.userGuid, {
-      piecesAchieved: this.coinTotal,
-      completionTimeSeconds: this.completionTime,
-      puzzleCompleted: true
-    }).subscribe({
-      next: (updatedData) => {
-        this.userData = updatedData;
-        console.log('✅ Game results sent successfully:', updatedData);
-        
-        // Show donation message
-        this.hideRestartButton = true;
-        this.donationMessageVisible = true;
-        this.cdr.markForCheck();
-        
-        setTimeout(() => {
-          this.donationMessageVisible = false;
-          this.cdr.markForCheck();
-        }, 2000);
+    if (!this.activeSessionId) {
+      console.warn('⚠️ No active session to complete.');
+      const message = this.translate.instant('completion.thankYouNoSession');
+      this.sessionErrorMessage = message;
+      this.openThankYouModal(message);
+      return;
+    }
+
+    if (this.pendingSnapQueue.length > 0 || this.processingSnap) {
+      console.warn('⏳ Waiting for backend validation to finish before completing the session.');
+      this.flushPendingSnaps();
+      const message = this.translate.instant('completion.thankYouSyncing');
+      this.sessionErrorMessage = message;
+      this.openThankYouModal(message);
+      return;
+    }
+
+    console.log('💰 Completing validated session:', this.activeSessionId, 'coins:', this.coinTotal, 'Time:', this.completionTime);
+
+    this.userService.completeGameSession(this.userGuid, this.activeSessionId).subscribe({
+      next: (response: CompleteGameSessionResponse) => {
+        if (response.userData) {
+          this.userData = response.userData;
+        }
+
+        this.sessionErrorMessage = undefined;
+        this.resetSessionProgress();
+        this.activeSessionId = undefined;
+        this.sessionPuzzleVersion = undefined;
+
+        this.openThankYouModal();
       },
       error: (error) => {
-        console.error('❌ Failed to send game results:', error);
-        
-        // Still show the message even if the API call failed
-        this.hideRestartButton = true;
-        this.donationMessageVisible = true;
-        this.cdr.markForCheck();
-        
-        setTimeout(() => {
-          this.donationMessageVisible = false;
+        console.error('❌ Failed to complete game session:', error);
+        const message = this.translate.instant('completion.thankYouError');
+        this.sessionErrorMessage = message;
+        this.openThankYouModal(message);
+      }
+    });
+  }
+
+  private openThankYouModal(message?: string): void {
+    this.thankYouErrorMessage = message;
+    this.showThankYouModal = true;
+    this.cdr.markForCheck();
+  }
+
+  closeThankYouModal(): void {
+    this.showThankYouModal = false;
+    this.thankYouErrorMessage = undefined;
+    this.cdr.markForCheck();
+  }
+
+  startNextRound(): void {
+    this.closeThankYouModal();
+    this.restartPuzzle();
+  }
+
+  get showGreetingHeader(): boolean {
+    return !this.showInstructions;
+  }
+
+  private handlePiecePlaced(payload: PuzzlePiecePlacedPayload): void {
+    if (!payload || !payload.pieceId) {
+      return;
+    }
+
+    if (!this.userValidated || !this.userGuid) {
+      return;
+    }
+
+    if (!this.activeSessionId && !this.sessionStartInFlight) {
+      this.beginBackendSession();
+    }
+
+    const request: RecordPieceSnapRequest = {
+      pieceId: payload.pieceId,
+      anchorX: payload.anchorX,
+      anchorY: payload.anchorY,
+      clientDistance: payload.distance,
+      clientTolerance: payload.tolerance
+    };
+
+    this.pendingSnapQueue.push(request);
+    this.flushPendingSnaps();
+  }
+
+  private beginBackendSession(forceRestart = false): void {
+    if (!this.userValidated || !this.userGuid) {
+      return;
+    }
+
+    if (this.sessionStartInFlight) {
+      return;
+    }
+
+    if (forceRestart) {
+      this.resetSessionProgress();
+      this.activeSessionId = undefined;
+      this.sessionPuzzleVersion = undefined;
+    }
+
+    this.sessionStartInFlight = true;
+    const requestPayload = forceRestart ? { forceRestart: true } : undefined;
+    this.userService.startGameSession(this.userGuid, requestPayload).subscribe({
+      next: (response: StartGameSessionResponse) => {
+        this.sessionStartInFlight = false;
+
+        if (response.success && response.sessionId) {
+          this.activeSessionId = response.sessionId;
+          this.sessionPuzzleVersion = response.puzzleVersion;
+          this.sessionErrorMessage = undefined;
+          this.sessionPiecesAcknowledged = 0;
+          this.flushPendingSnaps();
           this.cdr.markForCheck();
-        }, 2000);
+          return;
+        }
+
+        if (!response.success && response.activeSessionId) {
+          if (!forceRestart) {
+            this.beginBackendSession(true);
+            return;
+          }
+          this.activeSessionId = response.activeSessionId;
+          this.sessionPuzzleVersion = response.puzzleVersion;
+          this.sessionErrorMessage = response.message ?? 'Eine andere Spielsitzung ist noch aktiv.';
+          this.cdr.markForCheck();
+          return;
+        }
+
+        if (!response.success) {
+          this.sessionErrorMessage = response.message ?? 'Spielsitzung konnte nicht gestartet werden.';
+        }
+        this.cdr.markForCheck();
+      },
+      error: (error) => {
+        this.sessionStartInFlight = false;
+        this.sessionErrorMessage = error?.message ?? 'Fehler beim Starten der Spielsitzung.';
+        console.error('❌ Failed to start game session:', error);
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  private resetSessionProgress(): void {
+    this.pendingSnapQueue = [];
+    this.processingSnap = false;
+    this.sessionPiecesAcknowledged = 0;
+  }
+
+  private flushPendingSnaps(): void {
+    if (!this.userGuid || !this.activeSessionId) {
+      return;
+    }
+
+    if (this.processingSnap) {
+      return;
+    }
+
+    const next = this.pendingSnapQueue.shift();
+    if (!next) {
+      return;
+    }
+
+    this.processingSnap = true;
+    this.userService.recordPieceSnap(this.userGuid, this.activeSessionId, next).subscribe({
+      next: (response) => {
+        if (response && (response.status === 'Accepted' || response.status === 'Duplicate')) {
+          this.sessionPiecesAcknowledged = response.placedPieces;
+        }
+        this.processingSnap = false;
+        this.flushPendingSnaps();
+        this.cdr.markForCheck();
+      },
+      error: (error) => {
+        console.error('❌ Failed to record piece snap:', error);
+        this.sessionErrorMessage = error?.message ?? 'Fehler bei der Validierung des Puzzleteils.';
+        this.processingSnap = false;
+        this.flushPendingSnaps();
+        this.cdr.markForCheck();
       }
     });
   }

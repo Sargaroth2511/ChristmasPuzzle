@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.FileProviders;
 using ChristmasPuzzle.Server.Features.Users;
+using ChristmasPuzzle.Server.Features.GameSessions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,8 +25,10 @@ if (Directory.Exists(wwwrootPath))
     builder.Environment.WebRootPath = wwwrootPath;
 }
 
-// Register user data service
+// Register services
 builder.Services.AddSingleton<IUserDataService, UserDataService>();
+builder.Services.AddSingleton<IPuzzleDefinitionProvider, SvgPuzzleDefinitionProvider>();
+builder.Services.AddSingleton<IGameSessionService, GameSessionService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

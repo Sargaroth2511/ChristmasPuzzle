@@ -21,18 +21,25 @@
     "buttons": {
         "startPuzzle": "Start Puzzle",
         "newGame": "New Game",
-        "sendCoins": "Send Coins",
         "submitTime": "Submit Time",
         "continue": "Continue",
-        "letsGo": "Let's go"
+        "letsGo": "Let's go",
+        "close": "Close",
+        "nextRound": "Next Round"
     },
     "completion": {
         "perfect": "Perfect! You put all 22 pieces together in {{time}}!",
         "perfectDescription": "You didn't just save our stag, but also did a good deed – We'll convert this into real coins and donate the amount to a charity organization.<br>Would you like to submit your time, or do you think you can do it even faster?",
-        "donationMessage": "Time successfully submitted!"
+        "thankYouTitle": "Thank you for puzzling with us!",
+        "thankYouBody": "Your time is now safely logged and helps us turn the Christmas puzzle into a real donation. Feel free to enjoy the finished scene or dive into another round right away.",
+        "thankYouNotStored": "We couldn't store this time, but we're still thrilled you helped our stag. Grab your personal link next time so we can celebrate your record.",
+        "thankYouNoSession": "We couldn't find an active session to submit. Please refresh the page and try again in a moment.",
+        "thankYouSyncing": "We're still syncing your piece placements. Give us another second and submit again soon.",
+        "thankYouError": "Something went wrong while saving your time. Please try again later."
     },
     "modals": {
-        "stagProblem": "Oh no – something's wrong with our oh22 Christmas stag…",
+        "stagTitle": "Oh no!",
+        "stagProblem": "Something's wrong with our oh22 Christmas stag…",
         "explosionTitle": "Our oh22 Christmas stag has fallen apart!",
         "explosionDescription": "Help us put the 22 scattered pieces back together so our stag can deliver all the Christmas presents on time."
     },

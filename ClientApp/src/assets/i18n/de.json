@@ -21,18 +21,25 @@
     "buttons": {
         "startPuzzle": "Puzzle starten",
         "newGame": "Neues Spiel",
-        "sendCoins": "Münzen senden",
         "submitTime": "Zeit einreichen",
         "continue": "Weiter",
-        "letsGo": "Los geht's"
+        "letsGo": "Los geht's",
+        "close": "Schließen",
+        "nextRound": "Nächste Runde"
     },
     "completion": {
         "perfect": "Perfekt! Du hast alle 22 Teile in {{time}} zusammengesetzt!",
         "perfectDescription": "Damit hast Du nicht nur unseren Hirsch gerettet und sondern gleichzeitig eine gute Tat vollbracht – Denn wir wandeln das Ganze in echte Münzen um und spenden den Betrag an eine Hilfsorganisation.<br>Möchtest Du Deine Zeit einreichen, oder schaffst Du es vielleicht noch schneller?",
-        "donationMessage": "Zeit erfolgreich eingereicht!"
+        "thankYouTitle": "Danke, dass Du mitgepuzzelt hast!",
+        "thankYouBody": "Deine Zeit ist jetzt sicher gespeichert und bringt unseren Spendentopf zum Wachsen. Bleib gern noch einen Moment beim fertigen Bild oder starte direkt in die nächste Runde.",
+        "thankYouNotStored": "Wir konnten diese Zeit nicht speichern, freuen uns aber trotzdem, dass Du dabei warst. Mit einem persönlichen Link klappt es beim nächsten Lauf ganz sicher.",
+        "thankYouNoSession": "Wir haben keine aktive Sitzung zum Übermitteln gefunden. Bitte lade die Seite neu und versuch es gleich noch einmal.",
+        "thankYouSyncing": "Wir gleichen noch Deine gelegten Teile ab. Warte einen kleinen Moment und reiche die Zeit anschließend erneut ein.",
+        "thankYouError": "Beim Speichern Deiner Zeit ist etwas schiefgelaufen. Bitte versuch es später noch einmal."
     },
     "modals": {
-        "stagProblem": "Oh nein – irgendetwas stimmt mit unserem oh22 Weihnachtshirsch nicht…",
+        "stagTitle": "Oh nein!",
+        "stagProblem": "Irgendetwas stimmt mit unserem oh22 Weihnachtshirsch nicht…",
         "explosionTitle": "Unser oh22 Weihnachtshirsch ist zerfallen!",
         "explosionDescription": "Hilf uns dabei, die 22 verstreuten Teile wieder zusammenzusetzen, damit unser Hirsch alle Weihnachtsgeschenke rechtzeitig verteilen kann."
     },
