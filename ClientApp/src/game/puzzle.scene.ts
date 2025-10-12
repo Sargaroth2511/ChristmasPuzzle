@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import decomp from 'poly-decomp';
 
 import {
   DEFAULT_FILL_ALPHA,
@@ -155,6 +156,7 @@ export class PuzzleScene extends Phaser.Scene {
   private outlineGeometryMask?: Phaser.Display.Masks.GeometryMask;
   private explosionActive = false;
   private explosionComplete = false;
+  private useMatterPhysics = false; // Track if Matter.js physics is enabled
   private shiverTweens: Phaser.Tweens.Tween[] = [];
   private shiverStartTime = 0;
   private glassMode = false;
@@ -768,6 +770,12 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Register poly-decomp with Matter.js for accurate polygon collision
+    if (typeof window !== 'undefined') {
+      (window as any).decomp = decomp;
+      console.log('✅ poly-decomp registered with Matter.js');
+    }
+    
     const svgText = this.cache.text.get('puzzle-svg');
     if (!svgText) {
       throw new Error('Puzzle SVG data missing.');
@@ -780,6 +788,79 @@ export class PuzzleScene extends Phaser.Scene {
     this.pieces = [];
     this.placedCount = 0;
     this.addSceneBackground();
+
+    // Set up Matter.js world boundaries
+    if (this.matter && this.matter.world) {
+      const wallThickness = 200;
+      const worldWidth = this.scale.width;
+      const worldHeight = this.scale.height;
+      const wallHeight = worldHeight * 3;
+      
+      // Floor - aligned with visual floor
+      const floorY = worldHeight - SCENE_FLOOR_BOTTOM_MARGIN;
+      
+      this.matter.add.rectangle(
+        worldWidth / 2,
+        floorY + wallThickness / 2,
+        worldWidth + wallThickness * 2,
+        wallThickness,
+        { isStatic: true, friction: 0.8, restitution: 0.2, label: 'floor' }
+      );
+      
+      // Ceiling
+      this.matter.add.rectangle(
+        worldWidth / 2,
+        -wallThickness / 2,
+        worldWidth + wallThickness * 2,
+        wallThickness,
+        { isStatic: true, friction: 0.8, restitution: 0.2, label: 'ceiling' }
+      );
+      
+      // Left wall
+      this.matter.add.rectangle(
+        -wallThickness / 2,
+        worldHeight / 2 - wallHeight / 4,
+        wallThickness,
+        wallHeight,
+        { isStatic: true, friction: 0.8, restitution: 0.2, label: 'leftWall' }
+      );
+      
+      // Right wall
+      this.matter.add.rectangle(
+        worldWidth + wallThickness / 2,
+        worldHeight / 2 - wallHeight / 4,
+        wallThickness,
+        wallHeight,
+        { isStatic: true, friction: 0.8, restitution: 0.2, label: 'rightWall' }
+      );
+      
+      console.log(`✅ Matter.js boundaries created (floor at Y=${floorY})`);
+      
+      // Enable Matter.js debug rendering
+      if (this.matter.world) {
+        const debugGraphic = this.add.graphics();
+        this.matter.world.debugGraphic = debugGraphic;
+        
+        (this.matter.world as any).drawDebug = true;
+        (this.matter.world as any).debugConfig = {
+          staticFillColor: 0xff0000,
+          staticLineColor: 0xff0000,
+          dynamicFillColor: 0x00ff00,
+          dynamicLineColor: 0x00ff00,
+          lineThickness: 2,
+          staticFillOpacity: 0.1,
+          dynamicFillOpacity: 0.1,
+          staticLineOpacity: 1,
+          dynamicLineOpacity: 1,
+          velocityLineColor: 0x0000ff,
+          velocityLineOpacity: 0.7,
+          angularVelocityLineColor: 0xff00ff,
+          renderFill: true,
+          renderLine: true,
+          renderVelocity: false
+        };
+      }
+    }
 
     this.drawGuide();
     this.setupDragHandlers();
@@ -1185,7 +1266,10 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   private beginIntroShiver(): void {
+    console.log(`🔵 [SHIMMER] Starting shimmer phase with ${this.pieces.length} pieces, duration: ${EXPLOSION_SHIVER_DURATION}ms`);
+    
     if (this.pieces.length === 0) {
+      console.warn(`🔵 [SHIMMER] No pieces found, skipping to puzzle phase`);
       this.preparePiecesForPuzzle();
       return;
     }
@@ -1201,6 +1285,7 @@ export class PuzzleScene extends Phaser.Scene {
       this.shiverTweens.push(this.createPieceShiverTween(piece, rest));
     });
 
+    console.log(`🔵 [SHIMMER] Created ${this.shiverTweens.length} shimmer tweens, will end in ${EXPLOSION_SHIVER_DURATION}ms`);
     this.time.delayedCall(EXPLOSION_SHIVER_DURATION, () => this.endIntroShiver());
   }
 
@@ -1234,6 +1319,9 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   private endIntroShiver(): void {
+    const elapsed = this.time.now - this.shiverStartTime;
+    console.log(`🟢 [SHIMMER→EXPLOSION] Shimmer phase ended after ${elapsed}ms, transitioning to explosion...`);
+    
     this.stopShiverTweens();
 
     this.pieces.forEach((piece) => {
@@ -1243,17 +1331,28 @@ export class PuzzleScene extends Phaser.Scene {
       this.syncDetailsTransform(piece);
     });
 
+    console.log(`🟢 [SHIMMER→EXPLOSION] All ${this.pieces.length} pieces reset to rest position, calling beginIntroExplosion()...`);
     this.beginIntroExplosion();
   }
 
   private stopShiverTweens(): void {
+    const count = this.shiverTweens.length;
     this.shiverTweens.forEach((tween) => tween.remove());
     this.shiverTweens = [];
     this.shiverStartTime = 0;
+    if (count > 0) {
+      console.log(`🔴 [SHIMMER] Stopped ${count} shimmer tweens`);
+    }
   }
 
   private beginIntroExplosion(): void {
+    console.log(`🟠 [EXPLOSION] Starting explosion phase`);
+    console.log(`🟠 [EXPLOSION] - Pieces: ${this.pieces.length}`);
+    console.log(`🟠 [EXPLOSION] - Matter.js: ${!!this.matter ? 'Available' : 'NOT AVAILABLE'}`);
+    console.log(`🟠 [EXPLOSION] - Matter.world: ${!!this.matter?.world ? 'Available' : 'NOT AVAILABLE'}`);
+    
     if (this.pieces.length === 0) {
+      console.error(`🟠 [EXPLOSION] ❌ No pieces found, aborting explosion`);
       this.preparePiecesForPuzzle();
       return;
     }
@@ -1262,6 +1361,43 @@ export class PuzzleScene extends Phaser.Scene {
     this.explosionActive = true;
     this.explosionComplete = false;
 
+    // Clean up any existing Matter bodies from previous states
+    let removedCount = 0;
+    this.pieces.forEach((piece) => {
+      if ((piece as any).matterBody) {
+        this.removeMatterBody(piece);
+        removedCount++;
+      }
+    });
+    if (removedCount > 0) {
+      console.log(`🟠 [EXPLOSION] Removed ${removedCount} old Matter bodies`);
+    }
+
+    // Enable Matter.js physics for explosion with collisions
+    this.useMatterPhysics = true;
+    
+    if (this.matter && this.matter.world) {
+      const world = (this.matter.world as any);
+      
+      // Ensure Matter.js world is running
+      if (world.enabled === false) {
+        world.enabled = true;
+        console.log(`🟠 [EXPLOSION] Enabled Matter.js world`);
+      }
+      
+      if (world.engine && world.engine.gravity) {
+        const oldGravity = world.engine.gravity.y;
+        world.engine.gravity.y = 1.2; // Moderate gravity (was 2.5, too strong initially - let's balance it)
+        console.log(`🟠 [EXPLOSION] Gravity: ${oldGravity} → ${world.engine.gravity.y}`);
+        console.log(`🟠 [EXPLOSION] World enabled: ${world.enabled}, autoUpdate: ${world.autoUpdate}`);
+      } else {
+        console.error(`🟠 [EXPLOSION] ❌ Matter engine/gravity not found!`);
+      }
+    } else {
+      console.error(`🟠 [EXPLOSION] ❌ Matter.js not available!`);
+    }
+
+    // Schedule all pieces to launch
     this.pieces.forEach((piece, index) => {
       const scatterAnchor = this.generateGroundScatterPosition(scatterPositions);
       scatterPositions.push(scatterAnchor);
@@ -1270,8 +1406,10 @@ export class PuzzleScene extends Phaser.Scene {
       this.stylePieceForBurst(piece, index);
 
       const launchDelay = index * EXPLOSION_STAGGER;
-      this.time.delayedCall(launchDelay, () => this.launchPieceExplosion(piece));
+      this.time.delayedCall(launchDelay, () => this.launchPieceExplosionWithMatter(piece));
     });
+    
+    console.log(`🟠 [EXPLOSION] ${this.pieces.length} pieces scheduled, first launches immediately, last in ${(this.pieces.length - 1) * EXPLOSION_STAGGER}ms`);
   }
 
   private launchPieceExplosion(piece: PieceRuntime): void {
@@ -1304,6 +1442,71 @@ export class PuzzleScene extends Phaser.Scene {
     piece.hasLaunched = true;
   }
 
+  /**
+   * Launch piece explosion using Matter.js physics for realistic collisions
+   */
+  private launchPieceExplosionWithMatter(piece: PieceRuntime): void {
+    const start = new Phaser.Math.Vector2(piece.target.x + piece.origin.x, piece.target.y + piece.origin.y);
+    
+    if (!this.matter) {
+      console.warn(`🚀 [LAUNCH] ${piece.id}: Matter.js not available, using tween fallback`);
+      this.launchPieceExplosion(piece);
+      return;
+    }
+
+    // Create accurate polygon collision body using poly-decomp
+    this.convertToMatterBody(piece);
+    
+    const body = (piece as any).matterBody;
+    if (!body) {
+      console.error(`🚀 [LAUNCH] ${piece.id}: ❌ Body creation failed, using tween fallback`);
+      this.launchPieceExplosion(piece);
+      return;
+    }
+
+    // Override physics properties for explosion effect
+    this.matter.body.set(body, {
+      restitution: 0.6,
+      friction: 0.05,
+      frictionAir: 0.005,
+      density: 0.002,
+      angle: Phaser.Math.FloatBetween(-0.12, 0.12)
+    });
+    
+    // Position the body at the start location
+    this.matter.body.setPosition(body, { x: start.x, y: start.y });
+
+    // Calculate launch velocity
+    const dx = piece.scatterTarget.x - piece.target.x;
+    const horizontalBias = Math.sign(dx || Phaser.Math.FloatBetween(-1, 1));
+    const spreadAngle = Phaser.Math.FloatBetween(-Math.PI * 0.25, Math.PI * 0.25);
+    const burstAngle = spreadAngle + (horizontalBias * Math.PI * 0.5);
+    const burstMagnitude = Phaser.Math.Between(EXPLOSION_RADIAL_BOOST.min, EXPLOSION_RADIAL_BOOST.max) * 0.01;
+    
+    const velocityX = (dx * 0.005) + Math.cos(burstAngle) * burstMagnitude;
+    const velocityY = -Phaser.Math.FloatBetween(1.5, 2.5); // Moderate upward launch (reduced from 3-5)
+
+    // Apply initial velocity
+    this.matter.body.setVelocity(body, { x: velocityX, y: velocityY });
+    
+    // Apply angular velocity for spinning
+    const angularVelocity = Phaser.Math.FloatBetween(-0.15, 0.15); // Increased spin
+    this.matter.body.setAngularVelocity(body, angularVelocity);
+
+    piece.exploding = true;
+    piece.hasLaunched = true;
+    
+    // Set initial visual state
+    piece.shape.setPosition(start.x, start.y);
+    piece.shape.setScale(Phaser.Math.FloatBetween(0.96, 1.04));
+    this.syncDetailsTransform(piece);
+    
+    // Only log first 3 launches to avoid spam
+    if (this.pieces.filter(p => p.hasLaunched).length <= 3) {
+      console.log(`🚀 [LAUNCH] ${piece.id}: Body created, velocity=(${velocityX.toFixed(2)}, ${velocityY.toFixed(2)})`);
+    }
+  }
+
   private generateGroundScatterPosition(existing: Phaser.Math.Vector2[]): Phaser.Math.Vector2 {
     const minX = EXPLOSION_WALL_MARGIN + 12;
     const maxX = this.scale.width - EXPLOSION_WALL_MARGIN - 12;
@@ -1331,8 +1534,28 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   private preparePiecesForPuzzle(): void {
+    console.log('[preparePiecesForPuzzle] Starting puzzle preparation');
     this.stopShiverTweens();
+    
+    // Gravity handling based on physics mode
+    if (this.matter && this.matter.world) {
+      const world = (this.matter.world as any);
+      if (world.engine && world.engine.gravity) {
+        // Keep gravity enabled if using Matter.js physics, otherwise disable it
+        world.engine.gravity.y = this.useMatterPhysics ? 1 : 0;
+        console.log(`[preparePiecesForPuzzle] Gravity ${this.useMatterPhysics ? 'kept enabled (physics mode)' : 'disabled'}`);
+      }
+    }
+    
     this.pieces.forEach((piece, index) => {
+      // Only remove Matter body if physics mode is disabled
+      // If physics mode is enabled, keep bodies for collision during puzzle phase
+      if (!this.useMatterPhysics) {
+        this.removeMatterBody(piece);
+      } else {
+        console.log(`[preparePiecesForPuzzle] Keeping Matter body for piece ${index} (physics mode enabled)`);
+      }
+      
       const restPosition = piece.restPosition ?? new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
       piece.shape.setPosition(restPosition.x, restPosition.y);
       const startRotation = piece.restRotation ?? 0;
@@ -1343,6 +1566,7 @@ export class PuzzleScene extends Phaser.Scene {
       this.clearDragVisuals(piece);
       this.stylePieceForPuzzle(piece);
       this.input.setDraggable(piece.shape);
+      console.log(`[preparePiecesForPuzzle] Piece ${index} made draggable, interactive: ${piece.shape.input?.enabled}, draggable: ${piece.shape.input?.draggable}`);
       this.syncDetailsTransform(piece);
     });
 
@@ -1352,6 +1576,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.emitter?.emit('puzzle-reset');
     this.explosionComplete = true;
     this.explosionActive = false;
+    console.log(`[preparePiecesForPuzzle] Puzzle ready - explosionComplete: ${this.explosionComplete}, explosionActive: ${this.explosionActive}, total pieces: ${this.pieces.length}`);
 
     this.resetCoinHud();
 
@@ -1382,11 +1607,111 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     if (this.explosionActive && !this.explosionComplete) {
-      this.updateExplosion(delta);
+      this.updateExplosionWithMatter(delta);
     }
+
+    // Update Matter.js physics bodies to sync with visual shapes
+    this.pieces.forEach((piece) => {
+      const matterBody = (piece as any).matterBody;
+      if (matterBody && !piece.placed && !piece.isDragging) {
+        // Sync visual shape with Matter body position
+        piece.shape.setPosition(matterBody.position.x, matterBody.position.y);
+        piece.shape.setRotation(matterBody.angle);
+        this.syncDetailsTransform(piece);
+      }
+    });
+
+    // Custom debug rendering for Matter bodies
+    this.renderMatterDebug();
 
     this.updateCoinHudLayout();
     this.updateTimerDisplay();
+  }
+
+  /**
+   * Update explosion using Matter.js physics (pieces collide with each other)
+   */
+  private updateExplosionWithMatter(_delta: number): void {
+    let settledCount = 0;
+    let launchedCount = 0;
+    let matterBodyCount = 0;
+
+    // Check if all pieces have settled
+    this.pieces.forEach((piece) => {
+      if (!piece.hasLaunched) {
+        this.syncDetailsTransform(piece);
+        return;
+      }
+
+      launchedCount += 1;
+
+      // Check if piece already finished exploding (settled)
+      if (!piece.exploding) {
+        settledCount += 1;
+        return;
+      }
+
+      const matterBody = (piece as any).matterBody;
+      if (!matterBody) {
+        // No Matter body but still exploding - mark as settled
+        piece.exploding = false;
+        settledCount += 1;
+        return;
+      }
+
+      matterBodyCount += 1; // Count pieces with active Matter bodies
+
+      // Sync visual shape with Matter body position during explosion
+      piece.shape.setPosition(matterBody.position.x, matterBody.position.y);
+      piece.shape.setRotation(matterBody.angle);
+      
+      // Check if piece has settled (very low velocity)
+      const velocity = matterBody.velocity;
+      const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+      const angularSpeed = Math.abs(matterBody.angularVelocity);
+
+      const bounds = piece.shape.getBounds();
+      const floorLimit = this.scale.height - SCENE_FLOOR_BOTTOM_MARGIN;
+      const nearGround = bounds.bottom >= floorLimit - 50;
+      
+      const isMotionless = speed < 0.01 && angularSpeed < 0.01;
+      const shouldSettle = (speed < 0.05 && angularSpeed < 0.05 && nearGround) || isMotionless;
+      
+      if (shouldSettle && piece.exploding) {
+        piece.exploding = false;
+        piece.shape.setScale(1);
+        this.recordRestingState(piece);
+        settledCount += 1;
+      }
+
+      this.syncDetailsTransform(piece);
+    });
+
+    // Log progress every ~2 seconds to track what's happening
+    if (Math.random() < 0.008) {
+      // Also check gravity status
+      const gravityY = (this.matter?.world as any)?.engine?.gravity?.y || 0;
+      const worldEnabled = (this.matter?.world as any)?.enabled;
+      const autoUpdate = (this.matter?.world as any)?.autoUpdate;
+      console.log(`⏳ [EXPLOSION] ${settledCount}/${launchedCount} settled, ${matterBodyCount} with bodies, gravity=${gravityY}, enabled=${worldEnabled}, autoUpdate=${autoUpdate}`);
+      
+      // Sample one piece for detailed info
+      const samplePiece = this.pieces.find(p => p.hasLaunched && p.exploding);
+      if (samplePiece) {
+        const sampleBody = (samplePiece as any).matterBody;
+        if (sampleBody) {
+          console.log(`📊 [SAMPLE] ${samplePiece.id}: Y=${sampleBody.position.y.toFixed(1)}, velY=${sampleBody.velocity.y.toFixed(2)}, sleeping=${sampleBody.isSleeping}, inWorld=${!!sampleBody.world}`);
+        }
+      }
+    }
+
+    // When all pieces have settled, transition to puzzle phase
+    if (launchedCount > 0 && settledCount === launchedCount) {
+      console.log(`✅ [EXPLOSION→PUZZLE] All ${launchedCount} pieces settled, transitioning to puzzle...`);
+      this.explosionComplete = true;
+      this.explosionActive = false;
+      this.time.delayedCall(EXPLOSION_REST_DELAY, () => this.preparePiecesForPuzzle());
+    }
   }
 
   private updateExplosion(delta: number): void {
@@ -1570,22 +1895,36 @@ export class PuzzleScene extends Phaser.Scene {
 
   private setupDragHandlers(): void {
     this.input.on('dragstart', (pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject) => {
+      console.log('[dragstart] Drag started on object');
       const index = gameObject.getData('pieceIndex');
       if (index == null) {
+        console.log('[dragstart] No pieceIndex found on object');
         return;
       }
 
       const piece = this.pieces[index as number];
       if (!piece || piece.placed) {
+        console.log(`[dragstart] Piece ${index} not draggable - placed: ${piece?.placed}`);
         return;
       }
 
+      console.log(`[dragstart] Piece ${index} drag started successfully`);
       // Detect if this is touch input: touch pointers don't have mouse button properties
       // pointer.event is the native DOM event which has 'touches' for touch events
       const nativeEvent = pointer.event as any;
       this.isTouchDragging = nativeEvent && (nativeEvent.touches !== undefined || nativeEvent.type === 'touchstart');
 
       piece.isDragging = true;
+      
+      // If piece has a Matter body, DON'T make it static - keep it dynamic for collisions
+      // Instead, we'll control its position manually during drag
+      const matterBody = (piece as any).matterBody;
+      if (matterBody && this.matter) {
+        console.log(`[dragstart] Piece ${index} has Matter body - collision-enabled drag mode`);
+        // Don't set to static - we want collisions!
+        // We'll manually update position and velocity in the drag handler
+      }
+      
       this.input.setDefaultCursor('grabbing');
       if (this.input.manager?.canvas) {
         this.input.manager.canvas.style.cursor = 'grabbing';
@@ -1647,10 +1986,111 @@ export class PuzzleScene extends Phaser.Scene {
       if (!piece.dragOffset) {
         piece.shape.setPosition(dragX, dragY);
         this.syncDetailsTransform(piece);
+        
+        // Update Matter body if present
+        const matterBody = (piece as any).matterBody;
+        if (matterBody && this.matter) {
+          this.matter.body.setPosition(matterBody, { x: dragX, y: dragY });
+        }
         return;
       }
 
       this.updateDraggingPieceTransform(piece, pointer);
+      
+      // Update Matter body position during drag with collision support
+      const matterBody = (piece as any).matterBody;
+      if (matterBody && this.matter) {
+        // Log once per drag to confirm collision detection is active
+        if (!piece.shape.getData('collisionLogged')) {
+          console.log(`[Drag Collision] Piece ${index} has Matter body - collision detection active`);
+          console.log(`[Drag Collision] Implementing manual collision detection for dragged piece`);
+          piece.shape.setData('collisionLogged', true);
+        }
+        
+        // Store previous position to calculate velocity
+        const prevPos = (piece as any).previousDragPosition || { x: piece.shape.x, y: piece.shape.y };
+        const dt = this.game.loop.delta / 1000 || 0.016; // Delta time in seconds
+        
+        // Calculate velocity based on actual movement
+        const velocityX = (piece.shape.x - prevPos.x) / dt;
+        const velocityY = (piece.shape.y - prevPos.y) / dt;
+        
+        // Set velocity for the dragged piece (helps with momentum when released)
+        this.matter.body.setVelocity(matterBody, { 
+          x: velocityX * 0.1,  // Damped velocity for smoother feel
+          y: velocityY * 0.1
+        });
+        
+        // Clamp position to keep pieces within game boundaries
+        const margin = 50; // Keep pieces at least 50px from edge
+        const clampedX = Phaser.Math.Clamp(piece.shape.x, margin, this.scale.width - margin);
+        const clampedY = Phaser.Math.Clamp(piece.shape.y, margin, this.scale.height - margin);
+        
+        // Update body position (dragged piece follows pointer but stays in bounds)
+        this.matter.body.setPosition(matterBody, { x: clampedX, y: clampedY });
+        this.matter.body.setAngle(matterBody, piece.shape.rotation);
+        
+        // If position was clamped, also update the visual shape
+        if (clampedX !== piece.shape.x || clampedY !== piece.shape.y) {
+          piece.shape.setPosition(clampedX, clampedY);
+          this.syncDetailsTransform(piece);
+        }
+        
+        // MANUAL COLLISION DETECTION: Check for overlaps with other pieces
+        this.pieces.forEach((otherPiece, otherIndex) => {
+          if (otherIndex === index || otherPiece.placed) return; // Skip self and placed pieces
+          
+          const otherBody = (otherPiece as any).matterBody;
+          if (!otherBody) return; // Skip pieces without Matter bodies
+          
+          // Check if bodies overlap using Matter.js collision detection
+          const collision = this.matter.overlap(matterBody, otherBody);
+          if (collision) {
+            // Calculate push direction (from dragged piece to other piece)
+            const dx = otherBody.position.x - matterBody.position.x;
+            const dy = otherBody.position.y - matterBody.position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > 0.1) { // Avoid division by zero
+              // Normalize direction
+              const nx = dx / distance;
+              const ny = dy / distance;
+              
+              // Apply gentle impulse to push the other piece away
+              // Use very small multiplier for gentle, realistic collisions
+              const impulseMagnitude = Math.sqrt(velocityX * velocityX + velocityY * velocityY) * otherBody.mass * 0.00002;
+              this.matter.body.applyForce(otherBody, otherBody.position, {
+                x: nx * impulseMagnitude,
+                y: ny * impulseMagnitude
+              });
+              
+              // Limit velocity to prevent tunneling through walls
+              const maxVelocity = 20; // Max velocity in pixels per frame
+              const currentVelX = (otherBody as any).velocity.x;
+              const currentVelY = (otherBody as any).velocity.y;
+              const speed = Math.sqrt(currentVelX * currentVelX + currentVelY * currentVelY);
+              
+              if (speed > maxVelocity) {
+                const scale = maxVelocity / speed;
+                this.matter.body.setVelocity(otherBody, {
+                  x: currentVelX * scale,
+                  y: currentVelY * scale
+                });
+              }
+              
+              // Log collision for debugging
+              if (Math.random() < 0.1) { // Log 10% of collisions
+                console.log(`[Collision] Piece ${index} pushing piece ${otherIndex}, impulse: ${impulseMagnitude.toFixed(6)}, velocity clamped to ${maxVelocity}`);
+              }
+            }
+          }
+        });
+        
+        // Store current position for next frame
+        (piece as any).previousDragPosition = { x: piece.shape.x, y: piece.shape.y };
+      } else if (!matterBody && Math.random() < 0.01) {
+        console.log(`[Drag NO Collision] Piece ${index} has NO Matter body - simple drag mode`);
+      }
     });
 
     this.input.on('dragend', (_pointer, gameObject: Phaser.GameObjects.GameObject) => {
@@ -1669,6 +2109,8 @@ export class PuzzleScene extends Phaser.Scene {
       piece.dragPointer = undefined;
       piece.dragStartRotation = undefined;
       this.isTouchDragging = false; // Reset touch flag
+      (piece as any).previousDragPosition = undefined; // Clean up drag position tracking
+      piece.shape.setData('collisionLogged', false); // Reset collision logging flag
       this.applyDragVisuals(piece, false);
 
       const snapped = this.trySnapPiece(piece);
@@ -1680,6 +2122,22 @@ export class PuzzleScene extends Phaser.Scene {
         piece.shape.setFillStyle(active.fillColor, active.fillAlpha);
         piece.shape.setStrokeStyle(active.strokeWidth, active.strokeColor, active.strokeAlpha);
         this.syncDetailsTransform(piece);
+        
+        // If piece has a Matter body, ensure it falls back to the ground
+        const matterBody = (piece as any).matterBody;
+        if (matterBody && this.matter) {
+          // Update Matter body position to match the visual shape
+          this.matter.body.setPosition(matterBody, { x: piece.shape.x, y: piece.shape.y });
+          this.matter.body.setAngle(matterBody, piece.shape.rotation);
+          
+          // Reset velocity and wake up the body so it falls due to gravity
+          this.matter.body.setVelocity(matterBody, { x: 0, y: 0 });
+          this.matter.body.setAngularVelocity(matterBody, 0);
+          
+          // Wake up the body to ensure gravity is applied
+          (matterBody as any).isSleeping = false;
+          (matterBody as any).sleepCounter = 0;
+        }
       } else {
         this.input.setDefaultCursor('default');
         if (this.input.manager?.canvas) {
@@ -1688,6 +2146,9 @@ export class PuzzleScene extends Phaser.Scene {
         if (this.debugEnabled) {
           this.hideDebugOutline();
         }
+        
+        // Remove Matter body when piece is placed
+        this.removeMatterBody(piece);
       }
 
       
@@ -2225,6 +2686,104 @@ export class PuzzleScene extends Phaser.Scene {
     this.debugOverlay.setVisible(false);
   }
 
+  /**
+   * Render Matter.js collision bodies for debugging
+   */
+  private renderMatterDebug(): void {
+    if (!this.matter || !this.matter.world) {
+      return;
+    }
+
+    // Create or get debug graphics
+    if (!(this as any).matterDebugGraphics) {
+      (this as any).matterDebugGraphics = this.add.graphics();
+      (this as any).matterDebugGraphics.setDepth(10000);
+      (this as any).matterDebugGraphics.setScrollFactor(0);
+    }
+
+    const debugGraphics = (this as any).matterDebugGraphics as Phaser.GameObjects.Graphics;
+    debugGraphics.clear();
+    debugGraphics.setVisible(true);
+    debugGraphics.setAlpha(1);
+
+    const world = this.matter.world;
+    let bodies: any[] = [];
+
+    // Try multiple ways to access bodies
+    if ((world as any).localWorld?.bodies) {
+      bodies = (world as any).localWorld.bodies;
+    } else if ((world as any).bodies) {
+      bodies = (world as any).bodies;
+    } else if ((world as any).engine?.world?.bodies) {
+      bodies = (world as any).engine.world.bodies;
+    }
+
+    if (!bodies || bodies.length === 0) {
+      return;
+    }
+
+    bodies.forEach((body: any) => {
+      if (!body) return;
+
+      const isStatic = body.isStatic;
+      const color = isStatic ? 0xff0000 : 0x00ff00;
+      const lineColor = isStatic ? 0xff6666 : 0x66ff66;
+      const fillAlpha = isStatic ? 0.2 : 0.3;
+      const lineWidth = isStatic ? 4 : 3;
+
+      const hasCompoundParts = body.parts && body.parts.length > 1;
+      
+      if (hasCompoundParts) {
+        body.parts.forEach((part: any, partIndex: number) => {
+          if (partIndex === 0) return;
+          if (!part.vertices || part.vertices.length === 0) return;
+          this.drawBodyPart(debugGraphics, part, lineWidth, lineColor, color, fillAlpha);
+        });
+      } else if (body.vertices && body.vertices.length > 0) {
+        this.drawBodyPart(debugGraphics, body, lineWidth, lineColor, color, fillAlpha);
+      }
+    });
+  }
+
+  /**
+   * Draw a single Matter.js body part (helper method)
+   */
+  private drawBodyPart(
+    graphics: Phaser.GameObjects.Graphics,
+    part: any,
+    lineWidth: number,
+    lineColor: number,
+    fillColor: number,
+    fillAlpha: number
+  ): void {
+    if (!part.vertices || part.vertices.length === 0) return;
+
+    // Draw the collision polygon with thick, visible lines
+    graphics.lineStyle(lineWidth, lineColor, 1);
+    graphics.fillStyle(fillColor, fillAlpha);
+    
+    graphics.beginPath();
+    graphics.moveTo(part.vertices[0].x, part.vertices[0].y);
+    
+    for (let i = 1; i < part.vertices.length; i++) {
+      graphics.lineTo(part.vertices[i].x, part.vertices[i].y);
+    }
+    
+    graphics.closePath();
+    graphics.strokePath();
+    graphics.fillPath();
+
+    // Draw vertices as dots
+    graphics.fillStyle(lineColor, 0.8);
+    part.vertices.forEach((vertex: any) => {
+      graphics.fillCircle(vertex.x, vertex.y, 3);
+    });
+
+    // Draw center point (larger)
+    graphics.fillStyle(fillColor, 1);
+    graphics.fillCircle(part.position.x, part.position.y, 6);
+  }
+
   setDebugVisible(show: boolean): void {
     this.debugEnabled = show;
 
@@ -2299,6 +2858,183 @@ export class PuzzleScene extends Phaser.Scene {
     const alphaBoost = this.glassMode ? 0.08 : 0.06;
     const alpha = Phaser.Math.Clamp(base.strokeAlpha + alphaBoost, 0, 1);
     return { width, color: base.strokeColor, alpha };
+  }
+
+  /**
+   * Toggle between simple drag-and-drop and Matter.js physics mode
+   */
+  togglePhysicsMode(useMatter: boolean): void {
+    console.log(`[togglePhysicsMode] Switching to ${useMatter ? 'Matter.js' : 'Simple'} mode`);
+    if (!this.matter || !this.matter.world) {
+      console.warn('Matter physics not initialized');
+      return;
+    }
+
+    // Update physics mode flag
+    this.useMatterPhysics = useMatter;
+
+    // Access the Matter.js gravity directly
+    const world = (this.matter.world as any);
+    
+    if (useMatter) {
+      // Enable Matter.js physics: add gravity
+      if (world.engine && world.engine.gravity) {
+        world.engine.gravity.y = 1;
+      } else {
+        world.gravity = { x: 0, y: 1 };
+      }
+      console.log('✅ Matter.js physics enabled - pieces will fall with realistic physics');
+
+      // Convert all non-placed pieces to Matter bodies
+      let converted = 0;
+      this.pieces.forEach((piece) => {
+        if (!piece.placed && !piece.isDragging) {
+          this.convertToMatterBody(piece);
+          converted++;
+        }
+      });
+      console.log(`[togglePhysicsMode] Converted ${converted} pieces to Matter bodies`);
+    } else {
+      // Disable physics: remove gravity
+      if (world.engine && world.engine.gravity) {
+        world.engine.gravity.y = 0;
+      } else {
+        world.gravity = { x: 0, y: 0 };
+      }
+      console.log('✅ Physics disabled - back to simple drag-and-drop');
+
+      // Remove Matter bodies from all pieces
+      let removed = 0;
+      this.pieces.forEach((piece) => {
+        if (!piece.placed) {
+          this.removeMatterBody(piece);
+          removed++;
+        }
+      });
+      console.log(`[togglePhysicsMode] Removed ${removed} Matter bodies`);
+    }
+  }
+
+  /**
+   * Convert a puzzle piece to a Matter.js physics body
+   */
+  private convertToMatterBody(piece: PieceRuntime): void {
+    if (!this.matter) {
+      console.error(`⚙️ [CONVERT] ${piece.id}: ❌ Matter.js not available!`);
+      return;
+    }
+    
+    if ((piece as any).matterBody) {
+      return; // Silent skip if already has body
+    }
+
+    // Get the actual vertices from the piece shape (relative to piece center)
+    const localVertices = piece.localPoints.map(pt => ({ x: pt.x, y: pt.y }));
+    
+    // Simplify vertices - puzzle pieces can have 100+ points
+    // Reduce to ~20 vertices for good balance between accuracy and performance
+    const targetVertexCount = 20;
+    const simplificationFactor = Math.max(1, Math.floor(localVertices.length / targetVertexCount));
+    const simplifiedVertices: { x: number; y: number }[] = [];
+    
+    for (let i = 0; i < localVertices.length; i += simplificationFactor) {
+      simplifiedVertices.push(localVertices[i]);
+    }
+    
+    // Ensure we include the last vertex
+    if (simplifiedVertices.length > 0) {
+      const lastOriginal = localVertices[localVertices.length - 1];
+      const lastSimplified = simplifiedVertices[simplifiedVertices.length - 1];
+      const dist = Math.sqrt(
+        Math.pow(lastOriginal.x - lastSimplified.x, 2) + 
+        Math.pow(lastOriginal.y - lastSimplified.y, 2)
+      );
+      if (dist > 1) {
+        simplifiedVertices.push(lastOriginal);
+      }
+    }
+
+    const centerX = piece.shape.x;
+    const centerY = piece.shape.y;
+    let body: any = null;
+
+    try {
+      // Create body from actual piece vertices using poly-decomp
+      body = (this.matter.bodies as any).fromVertices(
+        centerX,
+        centerY,
+        [simplifiedVertices],
+        {
+          restitution: 0.3,
+          friction: 0.9,
+          frictionAir: 0.01,
+          density: 0.002,
+          angle: piece.shape.rotation,
+          isStatic: false,
+          label: `piece_${piece.id}`
+        },
+        false,
+        0.01,
+        10,
+        0.01
+      );
+
+      // CRITICAL: Add the body to the Matter.js world
+      this.matter.world.add(body);
+
+      const partCount = body.parts ? body.parts.length - 1 : 0;
+      
+      // Only log first 3 conversions
+      if (this.pieces.filter(p => (p as any).matterBody).length < 3) {
+        console.log(`⚙️ [CONVERT] ${piece.id}: ✅ ${localVertices.length}→${simplifiedVertices.length} vertices, ${partCount} parts, added to world`);
+      }
+      
+    } catch (error) {
+      console.error(`⚙️ [CONVERT] ${piece.id}: ❌ fromVertices failed:`, error);
+      
+      // Fallback to rectangle
+      const bounds = piece.shape.getBounds();
+      body = this.matter.add.rectangle(
+        centerX,
+        centerY,
+        bounds.width * 0.8,
+        bounds.height * 0.8,
+        {
+          restitution: 0.3,
+          friction: 0.9,
+          frictionAir: 0.01,
+          density: 0.002,
+          angle: piece.shape.rotation,
+          isStatic: false,
+          label: `piece_${piece.id}_rect`
+        }
+      );
+      console.log(`⚙️ [CONVERT] ${piece.id}: Using rectangle fallback`);
+    }
+
+    if (body) {
+      // Ensure body is awake
+      (body as any).isSleeping = false;
+      (body as any).sleepCounter = 0;
+      
+      // Store bidirectional references
+      (piece as any).matterBody = body;
+      (body as any).gameObject = piece.shape;
+      piece.shape.setData('matterBody', body);
+      piece.shape.setData('pieceRuntime', piece);
+    }
+  }
+
+  /**
+   * Remove Matter.js physics body from a piece
+   */
+  private removeMatterBody(piece: PieceRuntime): void {
+    const matterBody = (piece as any).matterBody;
+    if (matterBody && this.matter && this.matter.world) {
+      this.matter.world.remove(matterBody);
+      (piece as any).matterBody = undefined;
+      piece.shape.setData('matterBody', undefined);
+    }
   }
 
 }

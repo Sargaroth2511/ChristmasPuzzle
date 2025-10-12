@@ -9,11 +9,12 @@ import { PuzzleScene } from '../game/puzzle.scene';
 import { UserService, UserData, Language, Salutation } from './user.service';
 import { LanguageSwitcherComponent } from './language-switcher/language-switcher.component';
 import { ModalComponent } from './shared/modal.component';
+import { PhysicsToggleComponent } from './physics-toggle/physics-toggle.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, TranslateModule, LanguageSwitcherComponent, ModalComponent],
+  imports: [CommonModule, HttpClientModule, TranslateModule, LanguageSwitcherComponent, ModalComponent, PhysicsToggleComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -27,6 +28,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   puzzleComplete = false;
   showDebug = false;
   useGlassStyle = false;
+  useMatterPhysics = false;
   menuOpen = false;
   showIntroOverlay = false;
   showInitialContinueButton = false;
@@ -243,6 +245,17 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         autoCenter: Phaser.Scale.CENTER_BOTH,
         width,
         height
+      },
+      physics: {
+        default: 'matter',
+        matter: {
+          gravity: {
+            x: 0,
+            y: 0
+          },
+          debug: false,
+          enableSleeping: true
+        }
       }
     });
 
@@ -388,6 +401,29 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       initialScene?.updatePreferences({ useGlassStyle: this.useGlassStyle });
     }
     this.menuOpen = false;
+  }
+
+  togglePhysicsMode(useMatter: boolean): void {
+    console.log(`[AppComponent.togglePhysicsMode] Called with useMatter: ${useMatter}`);
+    this.useMatterPhysics = useMatter;
+    if (!this.game) {
+      console.warn('[AppComponent.togglePhysicsMode] Game not initialized');
+      return;
+    }
+
+    if (this.game.scene.isActive('PuzzleScene')) {
+      const scene = this.game.scene.getScene('PuzzleScene') as any;
+      console.log(`[AppComponent.togglePhysicsMode] PuzzleScene found:`, scene ? 'YES' : 'NO');
+      if (scene && typeof scene.togglePhysicsMode === 'function') {
+        console.log(`[AppComponent.togglePhysicsMode] Calling scene.togglePhysicsMode(${useMatter})`);
+        scene.togglePhysicsMode(useMatter);
+      } else {
+        console.error('[AppComponent.togglePhysicsMode] togglePhysicsMode method not found on scene');
+      }
+    } else {
+      console.warn('[AppComponent.togglePhysicsMode] PuzzleScene not active');
+    }
+    this.cdr.markForCheck();
   }
 
   toggleMenu(): void {

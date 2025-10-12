@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en-US" datatype="plaintext" original="ng2.template">
+    <body>
+      <trans-unit id="userInfoLanguage" datatype="html">
+        <source>Sprache:</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">7</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="userInfoBestTime" datatype="html">
+        <source>Beste Zeit:</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">8</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="userInfoMaxPieces" datatype="html">
+        <source>Max. Teile:</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">9</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="userInfoCompleted" datatype="html">
+        <source>Abgeschlossen:</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">10</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="heroDescription" datatype="html">
+        <source>Drag the pieces into place to complete the festive puzzle.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">17</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="menuHideGuides" datatype="html">
+        <source>Hide Guides</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">37</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="menuShowGuides" datatype="html">
+        <source>Show Guides</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">38</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="menuOpaquePieces" datatype="html">
+        <source>Opaque Pieces</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">41</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="menuGlassPieces" datatype="html">
+        <source>Glass Pieces</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">42</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="menuClose" datatype="html">
+        <source>Close Menu</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">44</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="introDescription" datatype="html">
+        <source>Drag the pieces into place to complete the festive puzzle.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="btnStartPuzzle" datatype="html">
+        <source>Start Puzzle</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">51</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="completePerfect" datatype="html">
+        <source>🎉 Perfekt! Alle 22 Münzen in <x id="INTERPOLATION" equiv-text="{{ formatTime(completionTime) }}"/> gesammelt!</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">58</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="completePerfectDescription" datatype="html">
+        <source>Möchtest du deine Münzen an OH22 schicken?<x id="LINE_BREAK" ctype="lb" equiv-text="&lt;br&gt;"/> Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck. ❤️</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">59,60</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="completePerfectTryAgain" datatype="html">
+        <source>Oder willst du es noch einmal versuchen und schneller sein? ⏱️🚀</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">61</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="btnNewGame" datatype="html">
+        <source>Neues Spiel</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">63</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">73</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">85</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="btnSendCoins" datatype="html">
+        <source>Münzen senden</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">64</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">74</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="completePartial" datatype="html">
+        <source>Du hast <x id="INTERPOLATION" equiv-text="{{ coinTotal | number: &apos;1.0-0&apos; }}"/> Münzen in <x id="INTERPOLATION_1" equiv-text="{{ formatTime(completionTime) }}"/> gesammelt! 💰</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">68</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="completePartialDescription" datatype="html">
+        <source>Möchtest du sie an OH22 schicken?<x id="LINE_BREAK" ctype="lb" equiv-text="&lt;br&gt;"/> Wir wandeln deinen höchsten eingereichten Betrag in Euro um und spenden ihn an einen guten Zweck. ❤️</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">69,70</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="completePartialTryAgain" datatype="html">
+        <source>Oder willst du dein Glück noch einmal versuchen und noch mehr Münzen sammeln? 🧩✨</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">71</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="completeNoCoins" datatype="html">
+        <source>😅 Noch keine Münzen gesammelt!</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">78</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="completeNoCoinsFirstPart" datatype="html">
+        <source>Diesmal hast du 0 Münzen in <x id="INTERPOLATION" equiv-text="{{ formatTime(completionTime) }}"/> erreicht – aber kein Grund zur Sorge! 💪</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">79</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="completeNoCoinsSecondPart" datatype="html">
+        <source>Vielleicht klappt&apos;s beim nächsten Versuch besser.<x id="LINE_BREAK" ctype="lb" equiv-text="&lt;br&gt;"/> Sammle Münzen, schick sie an OH22, und wir wandeln deinen höchsten Betrag in Euro um –<x id="LINE_BREAK" ctype="lb" equiv-text="&lt;br&gt;"/> für einen guten Zweck! ❤️</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">80,82</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="completeNoCoinsReady" datatype="html">
+        <source>Bereit für eine neue Runde? 🎮✨</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">83</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="donationMessage" datatype="html">
+        <source><x id="INTERPOLATION" equiv-text="Münzen für einen guten Zweck gespendet&lt;/span&gt;"/> Münzen für einen guten Zweck gespendet</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">89</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="modalStagProblem" datatype="html">
+        <source>... irgend etwas stimmt mit unserem Hirsch nicht!</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">97</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="btnContinue" datatype="html">
+        <source>Weiter</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">98</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="modalExplosionTitle" datatype="html">
+        <source>Oh nein – unser oh22 Weihnachtshirsch ist zerfallen!</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">104</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="modalExplosionDescription" datatype="html">
+        <source>Hilf uns dabei, die 22 verstreuten Teile wieder zusammenzusetzen, damit unser Hirsch alle Weihnachtsgeschenke rechtzeitig verteilen kann.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">105</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="btnLetsGo" datatype="html">
+        <source>Los geht&apos;s</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">106</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="instructionDrag" datatype="html">
+        <source>Ziehe die Teile mit der Maus an die richtige Stelle.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">111</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="desktopHideGuides" datatype="html">
+        <source>Hide Guides</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">115</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="desktopShowGuides" datatype="html">
+        <source>Show Guides</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">116</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="desktopOpaquePieces" datatype="html">
+        <source>Opaque Pieces</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">119</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="desktopGlassPieces" datatype="html">
+        <source>Glass Pieces</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/app.component.html</context>
+          <context context-type="linenumber">120</context>
+        </context-group>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>

@@ -1,0 +1,139 @@
+.physics-toggle-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.physics-toggle-button {
+  pointer-events: all;
+  padding: 12px 24px;
+  border: 2px solid #fff;
+  border-radius: 12px;
+  background: rgba(11, 23, 36, 0.9);
+  color: #fff;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+
+  &:hover:not(:disabled) {
+    background: rgba(11, 23, 36, 0.95);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    border-color: #4CAF50;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.arcade-mode {
+    border-color: #2196F3;
+
+    &:hover:not(:disabled) {
+      border-color: #1976D2;
+      background: rgba(33, 150, 243, 0.1);
+    }
+
+    .mode-icon svg {
+      color: #2196F3;
+    }
+  }
+
+  &.matter-mode {
+    border-color: #FF9800;
+
+    &:hover:not(:disabled) {
+      border-color: #F57C00;
+      background: rgba(255, 152, 0, 0.1);
+    }
+
+    .mode-icon svg {
+      color: #FF9800;
+    }
+  }
+}
+
+.toggle-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mode-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  
+  svg {
+    transition: all 0.3s ease;
+  }
+}
+
+.mode-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.mode-name {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.mode-description {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.8;
+  letter-spacing: 0.3px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .physics-toggle-container {
+    bottom: 15px;
+  }
+
+  .physics-toggle-button {
+    padding: 10px 20px;
+  }
+
+  .mode-name {
+    font-size: 14px;
+  }
+
+  .mode-description {
+    font-size: 10px;
+  }
+}
+
+/* Animation on mode change */
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.physics-toggle-button.arcade-mode,
+.physics-toggle-button.matter-mode {
+  animation: pulse 0.5s ease;
+}

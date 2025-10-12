@@ -89,6 +89,13 @@
         <button type="button" (click)="closeExplosionModal()">{{ 'buttons.letsGo' | translate }}</button>
       </app-modal>
       
+      <!-- Physics Toggle Button -->
+      <app-physics-toggle
+        [useMatterPhysics]="useMatterPhysics"
+        [disabled]="puzzleComplete || showInitialContinueButton || showExplosionModal"
+        (togglePhysics)="togglePhysicsMode($event)">
+      </app-physics-toggle>
+      
     </div>
     
     <div class="desktop-controls-wrapper">
