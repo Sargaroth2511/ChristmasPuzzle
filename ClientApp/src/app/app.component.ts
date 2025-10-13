@@ -44,6 +44,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   showExplosionModal = false;
   showGreetingModal = false;
   greetingHeadline = '';
+  greetingNamePart = '';
+  greetingMessagePart = '';
   showInstructions = false;
   coinTotal = 0;
   hideRestartButton = false;
@@ -67,6 +69,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
   showThankYouModal = false;
   thankYouErrorMessage?: string;
+  salutationVariant: 'informal' | 'formal' = 'informal';
 
   private pendingSnapQueue: RecordPieceSnapRequest[] = [];
   private processingSnap = false;
@@ -161,7 +164,24 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   private setGreetingMessage(userFound: boolean): void {
     if (userFound && this.userData) {
       const isFormal = this.userData.salutation === Salutation.Formal;
+      this.salutationVariant = isFormal ? 'formal' : 'informal';
+      this.cdr.markForCheck();
       const fullName = `${this.userData.firstName} ${this.userData.lastName}`;
+      
+      // Set name part (CompanySans)
+      this.translate.get('greeting.namePart', { name: fullName }).subscribe(namePart => {
+        this.greetingNamePart = namePart;
+        this.cdr.markForCheck();
+      });
+      
+      // Set message part (Lausanne)
+      const messageKey = isFormal ? 'greeting.messageFormal' : 'greeting.messageInformal';
+      this.translate.get(messageKey).subscribe(messagePart => {
+        this.greetingMessagePart = messagePart;
+        this.cdr.markForCheck();
+      });
+      
+      // Keep full greeting for backwards compatibility
       const key = isFormal ? 'greeting.personalFormal' : 'greeting.personalInformal';
       this.translate.get(key, { name: fullName }).subscribe(translation => {
         this.greetingHeadline = translation;
@@ -169,10 +189,26 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         this.cdr.markForCheck();
       });
     } else {
-      this.translate.get('greeting.generic').subscribe(fullGreeting => {
-        this.greetingHeadline = fullGreeting;
-        console.log('ℹ️ Generic greeting set:', this.greetingHeadline);
-        this.cdr.markForCheck();
+      this.salutationVariant = 'informal';
+      this.cdr.markForCheck();
+      // Generic greeting - split by exclamation mark
+      this.translate.get('greeting.namePart', { name: '' }).subscribe(namePart => {
+        // For generic, use the generic message parts
+        this.translate.get('greeting.generic').subscribe(fullGreeting => {
+          // Split "Willkommen! Viel Spaß beim Puzzle!" 
+          const parts = fullGreeting.split('!');
+          if (parts.length >= 2) {
+            this.greetingNamePart = parts[0] + '!'; // "Willkommen!"
+            this.greetingMessagePart = parts.slice(1).join('!').trim(); // "Viel Spaß beim Puzzle!"
+          } else {
+            this.greetingNamePart = fullGreeting;
+            this.greetingMessagePart = '';
+          }
+          
+          this.greetingHeadline = fullGreeting;
+          console.log('ℹ️ Generic greeting set:', this.greetingHeadline);
+          this.cdr.markForCheck();
+        });
       });
     }
   }
@@ -198,6 +234,10 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
   getSalutationVerb(): string {
     return this.userData?.salutation === Salutation.Formal ? 'sind' : 'bist';
+  }
+
+  private getSalutationKey(baseKey: string): string {
+    return `${baseKey}.${this.salutationVariant}`;
   }
 
   ngAfterViewInit(): void {
@@ -508,14 +548,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
     if (!this.userValidated || !this.userGuid || !this.completionTime) {
       this.sessionErrorMessage = undefined;
-      const message = this.translate.instant('completion.thankYouNotStored');
+      const message = this.translate.instant(this.getSalutationKey('completion.thankYouNotStored'));
       this.openThankYouModal(message);
       return;
     }
 
     if (!this.activeSessionId) {
       console.warn('⚠️ No active session to complete.');
-      const message = this.translate.instant('completion.thankYouNoSession');
+      const message = this.translate.instant(this.getSalutationKey('completion.thankYouNoSession'));
       this.sessionErrorMessage = message;
       this.openThankYouModal(message);
       return;
@@ -524,7 +564,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     if (this.pendingSnapQueue.length > 0 || this.processingSnap) {
       console.warn('⏳ Waiting for backend validation to finish before completing the session.');
       this.flushPendingSnaps();
-      const message = this.translate.instant('completion.thankYouSyncing');
+      const message = this.translate.instant(this.getSalutationKey('completion.thankYouSyncing'));
       this.sessionErrorMessage = message;
       this.openThankYouModal(message);
       return;
@@ -536,6 +576,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       next: (response: CompleteGameSessionResponse) => {
         if (response.userData) {
           this.userData = response.userData;
+          this.salutationVariant = this.userData.salutation === Salutation.Formal ? 'formal' : 'informal';
         }
 
         this.sessionErrorMessage = undefined;
@@ -547,7 +588,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       },
       error: (error) => {
         console.error('❌ Failed to complete game session:', error);
-        const message = this.translate.instant('completion.thankYouError');
+        const message = this.translate.instant(this.getSalutationKey('completion.thankYouError'));
         this.sessionErrorMessage = message;
         this.openThankYouModal(message);
       }
@@ -562,6 +603,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
   closeThankYouModal(): void {
     this.showThankYouModal = false;
+    this.puzzleComplete = false; // Hide the completion modal so user can see finished puzzle
     this.thankYouErrorMessage = undefined;
     this.cdr.markForCheck();
   }

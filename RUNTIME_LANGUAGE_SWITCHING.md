@@ -108,15 +108,23 @@ ClientApp/
 
 ### Translation with Parameters
 ```html
-<h2>{{ 'completion.perfect' | translate: { time: formatTime(completionTime) } }}</h2>
-<!-- Output: "🎉 Perfekt! Alle 22 Münzen in 2:30 gesammelt!" -->
+<h2>{{ ('completion.perfect.' + salutationVariant) | translate: { time: formatTime(completionTime) } }}</h2>
+<!-- Output (German informal): "🎉 Perfekt! Du hast alle 22 Teile in 2:30 zusammengesetzt!" -->
 ```
+> `salutationVariant` is a component property that resolves to `'informal'` or `'formal'` based on the active user salutation.
 
 ### Translation with HTML
 ```html
-<p [innerHTML]="'completion.perfectDescription' | translate"></p>
+<p [innerHTML]="('completion.perfectDescription.' + salutationVariant) | translate"></p>
 <!-- Renders HTML like <br> tags -->
 ```
+
+### Salutation-aware Strings
+```html
+<h1>{{ ('app.title.' + salutationVariant) | translate }}</h1>
+<p>{{ ('hero.description.' + salutationVariant) | translate }}</p>
+```
+> Use the same pattern for any text that needs formal/informal variants (e.g. `'instructions.drag'`, `'modals.explosionDescription'`).
 
 ### Conditional Translation
 ```html

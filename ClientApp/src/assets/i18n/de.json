@@ -1,6 +1,9 @@
 {
     "app": {
-        "title": "Hilf unserem oh22 Weihnachtshirsch!"
+        "title": {
+            "informal": "Hilf unserem oh22 Weihnachtshirsch!",
+            "formal": "Helfen Sie unserem oh22 Weihnachtshirsch!"
+        }
     },
     "userInfo": {
         "language": "Sprache:",
@@ -9,7 +12,10 @@
         "completed": "Abgeschlossen:"
     },
     "hero": {
-        "description": "Ziehe die Teile an die richtige Stelle, um das festliche Puzzle zu vervollständigen."
+        "description": {
+            "informal": "Ziehe die Teile an die richtige Stelle, um das festliche Puzzle zu vervollständigen.",
+            "formal": "Ziehen Sie die Teile an die richtige Stelle, um das festliche Puzzle zu vervollständigen."
+        }
     },
     "menu": {
         "hideGuides": "Hilfslinien ausblenden",
@@ -28,27 +34,60 @@
         "nextRound": "Nächste Runde"
     },
     "completion": {
-        "perfect": "Perfekt! Du hast alle 22 Teile in {{time}} zusammengesetzt!",
-        "perfectDescription": "Damit hast Du nicht nur unseren Hirsch gerettet und sondern gleichzeitig eine gute Tat vollbracht – Denn wir wandeln das Ganze in echte Münzen um und spenden den Betrag an eine Hilfsorganisation.<br>Möchtest Du Deine Zeit einreichen, oder schaffst Du es vielleicht noch schneller?",
-        "thankYouTitle": "Danke, dass Du mitgepuzzelt hast!",
-        "thankYouBody": "Deine Zeit ist jetzt sicher gespeichert und bringt unseren Spendentopf zum Wachsen. Bleib gern noch einen Moment beim fertigen Bild oder starte direkt in die nächste Runde.",
-        "thankYouNotStored": "Wir konnten diese Zeit nicht speichern, freuen uns aber trotzdem, dass Du dabei warst. Mit einem persönlichen Link klappt es beim nächsten Lauf ganz sicher.",
-        "thankYouNoSession": "Wir haben keine aktive Sitzung zum Übermitteln gefunden. Bitte lade die Seite neu und versuch es gleich noch einmal.",
-        "thankYouSyncing": "Wir gleichen noch Deine gelegten Teile ab. Warte einen kleinen Moment und reiche die Zeit anschließend erneut ein.",
-        "thankYouError": "Beim Speichern Deiner Zeit ist etwas schiefgelaufen. Bitte versuch es später noch einmal."
+        "perfect": {
+            "informal": "Perfekt! Du hast alle 22 Teile in {{time}} zusammengesetzt!",
+            "formal": "Perfekt! Sie haben alle 22 Teile in {{time}} zusammengesetzt!"
+        },
+        "perfectDescription": {
+            "informal": "Damit hast Du nicht nur unseren Hirsch gerettet, sondern gleichzeitig eine gute Tat vollbracht – Denn wir wandeln das Ganze in echte Münzen um und spenden den Betrag an eine Hilfsorganisation.<br>Möchtest Du Deine Zeit einreichen, oder schaffst Du es vielleicht noch schneller?",
+            "formal": "Damit haben Sie nicht nur unseren Hirsch gerettet, sondern gleichzeitig eine gute Tat vollbracht – Denn wir wandeln das Ganze in echte Münzen um und spenden den Betrag an eine Hilfsorganisation.<br>Möchten Sie Ihre Zeit einreichen, oder schaffen Sie es vielleicht noch schneller?"
+        },
+        "thankYouTitle": {
+            "informal": "Danke, dass Du mitgepuzzelt hast!",
+            "formal": "Danke, dass Sie mitgepuzzelt haben!"
+        },
+        "thankYouBody": {
+            "informal": "Deine Zeit ist jetzt sicher gespeichert und bringt unseren Spendentopf zum Wachsen. Bleib gern noch einen Moment beim fertigen Bild oder starte direkt in die nächste Runde.",
+            "formal": "Ihre Zeit ist jetzt sicher gespeichert und bringt unseren Spendentopf zum Wachsen. Bleiben Sie gern noch einen Moment beim fertigen Bild oder starten Sie direkt in die nächste Runde."
+        },
+        "thankYouNotStored": {
+            "informal": "Wir konnten diese Zeit nicht speichern, freuen uns aber trotzdem, dass Du dabei warst. Mit einem persönlichen Link klappt es beim nächsten Lauf ganz sicher.",
+            "formal": "Wir konnten diese Zeit nicht speichern, freuen uns aber trotzdem, dass Sie dabei waren. Mit einem persönlichen Link klappt es beim nächsten Lauf ganz sicher."
+        },
+        "thankYouNoSession": {
+            "informal": "Wir haben keine aktive Sitzung zum Übermitteln gefunden. Bitte lade die Seite neu und versuch es gleich noch einmal.",
+            "formal": "Wir haben keine aktive Sitzung zum Übermitteln gefunden. Bitte laden Sie die Seite neu und versuchen Sie es gleich noch einmal."
+        },
+        "thankYouSyncing": {
+            "informal": "Wir gleichen noch Deine gelegten Teile ab. Warte einen kleinen Moment und reiche die Zeit anschließend erneut ein.",
+            "formal": "Wir gleichen noch Ihre gelegten Teile ab. Warten Sie einen kleinen Moment und reichen Sie die Zeit anschließend erneut ein."
+        },
+        "thankYouError": {
+            "informal": "Beim Speichern Deiner Zeit ist etwas schiefgelaufen. Bitte versuch es später noch einmal.",
+            "formal": "Beim Speichern Ihrer Zeit ist etwas schiefgelaufen. Bitte versuchen Sie es später noch einmal."
+        }
     },
     "modals": {
         "stagTitle": "Oh nein!",
-        "stagProblem": "Irgendetwas stimmt mit unserem oh22 Weihnachtshirsch nicht…",
+        "stagProblem": {
+            "informal": "Irgendetwas stimmt mit unserem oh22 Weihnachtshirsch nicht…",
+            "formal": "Irgendetwas stimmt mit unserem oh22 Weihnachtshirsch nicht…"
+        },
         "explosionTitle": "Unser oh22 Weihnachtshirsch ist zerfallen!",
-        "explosionDescription": "Hilf uns dabei, die 22 verstreuten Teile wieder zusammenzusetzen, damit unser Hirsch alle Weihnachtsgeschenke rechtzeitig verteilen kann."
+        "explosionDescription": {
+            "informal": "Hilf uns dabei, die 22 verstreuten Teile wieder zusammenzusetzen, damit unser Hirsch alle Weihnachtsgeschenke rechtzeitig verteilen kann.",
+            "formal": "Helfen Sie uns dabei, die 22 verstreuten Teile wieder zusammenzusetzen, damit unser Hirsch alle Weihnachtsgeschenke rechtzeitig verteilen kann."
+        }
     },
     "instructions": {
-        "drag": "Ziehe die Teile mit der Maus an die richtige Stelle."
+        "drag": {
+            "informal": "Ziehe die Teile mit der Maus an die richtige Stelle.",
+            "formal": "Ziehen Sie die Teile mit der Maus an die richtige Stelle."
+        }
     },
     "greeting": {
         "personalFormal": "Hallo {{name}}! Schön, dass Sie da sind!",
-        "personalInformal": "Hallo {{name}}! Schön, dass du da bist!",
+        "personalInformal": "Hallo {{name}}! Schön, dass Du da bist!",
         "generic": "Willkommen! Viel Spaß beim Puzzle!",
         "namePart": "Hallo {{name}},",
         "messageFormal": "schön, dass Sie da sind!",
