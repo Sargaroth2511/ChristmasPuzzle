@@ -97,8 +97,6 @@ else
     app.Logger.LogWarning("Angular dist folder not found. Build the client into wwwroot or run 'npm run build' inside ClientApp.");
 }
 
-app.UseStaticFiles();
-
 app.UseRouting();
 app.UseCors("ClientOrigin");
 
