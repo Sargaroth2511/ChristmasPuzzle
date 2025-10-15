@@ -90,6 +90,8 @@ type PieceRuntime = {
   shimmerGeometryMask?: Phaser.Display.Masks.GeometryMask;
   dragShadow?: Phaser.GameObjects.Polygon;
   touchHitArea?: Phaser.Geom.Point[];
+  matterOffset?: Phaser.Math.Vector2;
+  matterAngleOffset?: number;
 };
 
 type PieceDetailPath = {
@@ -1465,12 +1467,13 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     // Override physics properties for explosion effect
+    const launchAngle = Phaser.Math.FloatBetween(-0.12, 0.12);
     this.matter.body.set(body, {
       restitution: 0.6,
       friction: 0.05,
       frictionAir: 0.005,
       density: 0.002,
-      angle: Phaser.Math.FloatBetween(-0.12, 0.12)
+      angle: launchAngle
     });
     
     // Apply high angular damping during explosion to reduce spinning
@@ -1502,8 +1505,10 @@ export class PuzzleScene extends Phaser.Scene {
     
     // Set initial visual state
     piece.shape.setPosition(start.x, start.y);
+    piece.shape.setRotation(launchAngle);
     piece.shape.setScale(Phaser.Math.FloatBetween(0.96, 1.04));
-    this.syncDetailsTransform(piece);
+    this.captureMatterAttachment(piece, body);
+    this.syncShapeWithMatterBody(piece, body);
     
     // Only log first 3 launches to avoid spam
     if (this.pieces.filter(p => p.hasLaunched).length <= 3) {
@@ -1569,13 +1574,10 @@ export class PuzzleScene extends Phaser.Scene {
       // Use the corrected anchor position (shape.position - displayOrigin)
       const matterBody = (piece as any).matterBody;
       if (matterBody && this.matter) {
-        const bodyX = restPosition.x - piece.shape.displayOriginX;
-        const bodyY = restPosition.y - piece.shape.displayOriginY;
-        this.matter.body.setPosition(matterBody, { x: bodyX, y: bodyY });
-        this.matter.body.setAngle(matterBody, startRotation);
+        this.syncMatterBodyWithShape(piece, matterBody);
         this.matter.body.setVelocity(matterBody, { x: 0, y: 0 });
         this.matter.body.setAngularVelocity(matterBody, 0);
-        console.log(`[preparePiecesForPuzzle] Synced Matter body ${index} to anchor (${bodyX.toFixed(1)}, ${bodyY.toFixed(1)}) [visual at (${restPosition.x.toFixed(1)}, ${restPosition.y.toFixed(1)})]`);
+        console.log(`[preparePiecesForPuzzle] Synced Matter body ${index} to visual transform, bodyPos=(${matterBody.position.x.toFixed(1)}, ${matterBody.position.y.toFixed(1)}), angle=${(matterBody.angle ?? 0).toFixed(3)}`);
       }
       
       this.recordRestingState(piece);
@@ -1632,26 +1634,12 @@ export class PuzzleScene extends Phaser.Scene {
     this.pieces.forEach((piece) => {
       const matterBody = (piece as any).matterBody;
       if (matterBody && !piece.placed && !piece.isDragging) {
-        // Sync visual shape with Matter body position
-        // Add displayOrigin offset to convert from body (anchor) to visual position
-        const visualX = matterBody.position.x + piece.shape.displayOriginX;
-        const visualY = matterBody.position.y + piece.shape.displayOriginY;
-        
-        // Check for significant offset (indicates desync)
-        const currentVisualX = piece.shape.x;
-        const currentVisualY = piece.shape.y;
-        const offsetX = visualX - currentVisualX;
-        const offsetY = visualY - currentVisualY;
-        
-        if (Math.abs(offsetX) > 5 || Math.abs(offsetY) > 5) {
-          if (Math.random() < 0.05) {
-            console.log(`⚠️ [SYNC] ${piece.id}: Correcting visual from (${currentVisualX.toFixed(1)}, ${currentVisualY.toFixed(1)}) to (${visualX.toFixed(1)}, ${visualY.toFixed(1)}), offset=(${offsetX.toFixed(1)}, ${offsetY.toFixed(1)}), bodyPos=(${matterBody.position.x.toFixed(1)}, ${matterBody.position.y.toFixed(1)}), displayOrigin=(${piece.shape.displayOriginX.toFixed(1)}, ${piece.shape.displayOriginY.toFixed(1)})`);
-          }
+        const prevX = piece.shape.x;
+        const prevY = piece.shape.y;
+        this.syncShapeWithMatterBody(piece, matterBody);
+        if ((Math.abs(piece.shape.x - prevX) > 5 || Math.abs(piece.shape.y - prevY) > 5) && Math.random() < 0.05) {
+          console.log(`⚠️ [SYNC] ${piece.id}: Adjusted visual to follow Matter body (Δx=${(piece.shape.x - prevX).toFixed(1)}, Δy=${(piece.shape.y - prevY).toFixed(1)})`);
         }
-        
-        piece.shape.setPosition(visualX, visualY);
-        piece.shape.setRotation(matterBody.angle);
-        this.syncDetailsTransform(piece);
       }
     });
 
@@ -1696,24 +1684,11 @@ export class PuzzleScene extends Phaser.Scene {
       matterBodyCount += 1; // Count pieces with active Matter bodies
 
       // Sync visual shape with Matter body position during explosion
-      const bodyX = matterBody.position.x;
-      const bodyY = matterBody.position.y;
-      const visualX = piece.shape.x;
-      const visualY = piece.shape.y;
-      
-      // Update visual to match body (add displayOrigin offset)
-      const correctedVisualX = bodyX + piece.shape.displayOriginX;
-      const correctedVisualY = bodyY + piece.shape.displayOriginY;
-      piece.shape.setPosition(correctedVisualX, correctedVisualY);
-      piece.shape.setRotation(matterBody.angle);
-      
-      // Check for offset mismatch BEFORE syncing (to see the offset)
-      const offsetX = bodyX - (visualX - piece.shape.displayOriginX);
-      const offsetY = bodyY - (visualY - piece.shape.displayOriginY);
-      
-      // Log significant offsets for debugging
-      if ((Math.abs(offsetX) > 5 || Math.abs(offsetY) > 5) && Math.random() < 0.02) {
-        console.log(`⚠️ [OFFSET] ${piece.id}: Body (${bodyX.toFixed(1)}, ${bodyY.toFixed(1)}) vs Visual anchor (${(visualX - piece.shape.displayOriginX).toFixed(1)}, ${(visualY - piece.shape.displayOriginY).toFixed(1)}), offset=(${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`);
+      const prevX = piece.shape.x;
+      const prevY = piece.shape.y;
+      this.syncShapeWithMatterBody(piece, matterBody);
+      if ((Math.abs(piece.shape.x - prevX) > 5 || Math.abs(piece.shape.y - prevY) > 5) && Math.random() < 0.02) {
+        console.log(`⚠️ [OFFSET] ${piece.id}: Visual adjusted by Δx=${(piece.shape.x - prevX).toFixed(1)}, Δy=${(piece.shape.y - prevY).toFixed(1)} to stay aligned with Matter body`);
       }
       
       // Check if piece has settled (very low velocity)
@@ -2043,9 +2018,7 @@ export class PuzzleScene extends Phaser.Scene {
         // Update Matter body if present (use anchor position, not visual position!)
         const matterBody = (piece as any).matterBody;
         if (matterBody && this.matter) {
-          const bodyX = dragX - piece.shape.displayOriginX;
-          const bodyY = dragY - piece.shape.displayOriginY;
-          this.matter.body.setPosition(matterBody, { x: bodyX, y: bodyY });
+          this.syncMatterBodyWithShape(piece, matterBody);
         }
         return;
       }
@@ -2055,10 +2028,7 @@ export class PuzzleScene extends Phaser.Scene {
       // Update Matter body during drag (use anchor position, not visual position!)
       const matterBody = (piece as any).matterBody;
       if (matterBody && this.matter) {
-        const bodyX = piece.shape.x - piece.shape.displayOriginX;
-        const bodyY = piece.shape.y - piece.shape.displayOriginY;
-        this.matter.body.setPosition(matterBody, { x: bodyX, y: bodyY });
-        this.matter.body.setAngle(matterBody, piece.shape.rotation);
+        this.syncMatterBodyWithShape(piece, matterBody);
       }
     });
 
@@ -2098,21 +2068,14 @@ export class PuzzleScene extends Phaser.Scene {
           // Restore to dynamic state so gravity works again
           this.matter.body.setStatic(matterBody, false);
           
-          // Update Matter body position to match the visual shape (use anchor, not visual position)
-          const bodyX = piece.shape.x - piece.shape.displayOriginX;
-          const bodyY = piece.shape.y - piece.shape.displayOriginY;
-          this.matter.body.setPosition(matterBody, { x: bodyX, y: bodyY });
-          this.matter.body.setAngle(matterBody, piece.shape.rotation);
+          // Update Matter body position to match the visual shape
+          this.syncMatterBodyWithShape(piece, matterBody);
           
           // Reset velocity and wake up the body so it falls due to gravity
           this.matter.body.setVelocity(matterBody, { x: 0, y: 0 });
           this.matter.body.setAngularVelocity(matterBody, 0);
           
-          // Wake up the body to ensure gravity is applied
-          (matterBody as any).isSleeping = false;
-          (matterBody as any).sleepCounter = 0;
-          
-          console.log(`[dragend] Piece ${index} body restored to dynamic at anchor (${bodyX.toFixed(1)}, ${bodyY.toFixed(1)}), will fall to ground`);
+          console.log(`[dragend] Piece ${index} body restored to dynamic at (${matterBody.position.x.toFixed(1)}, ${matterBody.position.y.toFixed(1)}), angle=${(matterBody.angle ?? 0).toFixed(3)}`);
         }
       } else {
         this.input.setDefaultCursor('default');
@@ -2891,6 +2854,70 @@ export class PuzzleScene extends Phaser.Scene {
     }
   }
 
+  private captureMatterAttachment(piece: PieceRuntime, body: any): void {
+    const bodyAngle = body.angle ?? 0;
+    const dx = piece.shape.x - body.position.x;
+    const dy = piece.shape.y - body.position.y;
+    const cos = Math.cos(bodyAngle);
+    const sin = Math.sin(bodyAngle);
+    const localX = dx * cos + dy * sin;
+    const localY = -dx * sin + dy * cos;
+    if (piece.matterOffset) {
+      piece.matterOffset.set(localX, localY);
+    } else {
+      piece.matterOffset = new Phaser.Math.Vector2(localX, localY);
+    }
+    piece.matterAngleOffset = piece.shape.rotation - bodyAngle;
+  }
+
+  private syncShapeWithMatterBody(piece: PieceRuntime, body: any): void {
+    const bodyAngle = body.angle ?? 0;
+    const offset = piece.matterOffset;
+    let offsetX: number;
+    let offsetY: number;
+    if (offset) {
+      const cos = Math.cos(bodyAngle);
+      const sin = Math.sin(bodyAngle);
+      offsetX = offset.x * cos - offset.y * sin;
+      offsetY = offset.x * sin + offset.y * cos;
+    } else {
+      offsetX = piece.shape.displayOriginX;
+      offsetY = piece.shape.displayOriginY;
+    }
+    const angleOffset = piece.matterAngleOffset ?? 0;
+    piece.shape.setPosition(body.position.x + offsetX, body.position.y + offsetY);
+    piece.shape.setRotation(bodyAngle + angleOffset);
+    this.syncDetailsTransform(piece);
+  }
+
+  private syncMatterBodyWithShape(piece: PieceRuntime, body: any): void {
+    if (!this.matter) {
+      return;
+    }
+    const angleOffset = piece.matterAngleOffset ?? 0;
+    const targetAngle = piece.shape.rotation - angleOffset;
+    this.matter.body.setAngle(body, targetAngle);
+    const offset = piece.matterOffset;
+    let offsetX: number;
+    let offsetY: number;
+    if (offset) {
+      const cos = Math.cos(targetAngle);
+      const sin = Math.sin(targetAngle);
+      offsetX = offset.x * cos - offset.y * sin;
+      offsetY = offset.x * sin + offset.y * cos;
+    } else {
+      offsetX = piece.shape.displayOriginX;
+      offsetY = piece.shape.displayOriginY;
+    }
+    this.matter.body.setPosition(body, {
+      x: piece.shape.x - offsetX,
+      y: piece.shape.y - offsetY
+    });
+    (body as any).isSleeping = false;
+    (body as any).sleepCounter = 0;
+    this.captureMatterAttachment(piece, body);
+  }
+
   /**
    * Convert a puzzle piece to a Matter.js physics body
    */
@@ -3061,6 +3088,8 @@ export class PuzzleScene extends Phaser.Scene {
       (body as any).isSleeping = false;
       (body as any).sleepCounter = 0;
       
+      this.captureMatterAttachment(piece, body);
+      this.syncShapeWithMatterBody(piece, body);
       // Store bidirectional references
       (piece as any).matterBody = body;
       (body as any).gameObject = piece.shape;
@@ -3078,6 +3107,8 @@ export class PuzzleScene extends Phaser.Scene {
       this.matter.world.remove(matterBody);
       (piece as any).matterBody = undefined;
       piece.shape.setData('matterBody', undefined);
+      piece.matterOffset = undefined;
+      piece.matterAngleOffset = undefined;
     }
   }
 
