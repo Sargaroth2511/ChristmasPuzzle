@@ -92,6 +92,7 @@ type PieceRuntime = {
   touchHitArea?: Phaser.Geom.Point[];
   matterOffset?: Phaser.Math.Vector2;
   matterAngleOffset?: number;
+  dragConstraint?: any;
 };
 
 type PieceDetailPath = {
@@ -1630,7 +1631,7 @@ export class PuzzleScene extends Phaser.Scene {
     // Update Matter.js physics bodies to sync with visual shapes
     this.pieces.forEach((piece) => {
       const matterBody = (piece as any).matterBody;
-      if (matterBody && !piece.placed && !piece.isDragging) {
+      if (matterBody && !piece.placed) {
         const prevX = piece.shape.x;
         const prevY = piece.shape.y;
         this.syncShapeWithMatterBody(piece, matterBody);
@@ -1904,6 +1905,9 @@ export class PuzzleScene extends Phaser.Scene {
       return;
     }
 
+    const matterBody = (piece as any).matterBody;
+    const useMatterDrag = !!(matterBody && this.matter && this.useMatterPhysics);
+
     const startRotation = piece.dragStartRotation ?? 0;
     const delta = piece.shape.rotation - startRotation;
     const rotatedOffset = piece.dragOffset.clone().rotate(delta);
@@ -1911,11 +1915,30 @@ export class PuzzleScene extends Phaser.Scene {
     // Apply touch offset: move piece up and left on touch devices so it's visible above/beside finger
     const touchOffsetX = this.isTouchDragging ? TOUCH_DRAG_OFFSET.x : 0;
     const touchOffsetY = this.isTouchDragging ? TOUCH_DRAG_OFFSET.y : 0;
-    
-    piece.shape.setPosition(
-      pointerPosition.x + rotatedOffset.x + touchOffsetX, 
-      pointerPosition.y + rotatedOffset.y + touchOffsetY
-    );
+
+    const targetX = pointerPosition.x + rotatedOffset.x + touchOffsetX;
+    const targetY = pointerPosition.y + rotatedOffset.y + touchOffsetY;
+
+    if (useMatterDrag) {
+      const targetAnchorX = targetX - piece.shape.displayOriginX;
+      const targetAnchorY = targetY - piece.shape.displayOriginY;
+      if (!piece.dragConstraint) {
+        piece.dragConstraint = this.matter!.add.worldConstraint(matterBody, 0, 0.9, {
+          pointA: { x: targetAnchorX, y: targetAnchorY },
+          pointB: { x: 0, y: 0 }
+        });
+        if (piece.dragConstraint) {
+          (piece.dragConstraint as any).collideConnected = false;
+        }
+      } else {
+        piece.dragConstraint.pointA.x = targetAnchorX;
+        piece.dragConstraint.pointA.y = targetAnchorY;
+      }
+      this.syncDetailsTransform(piece);
+      return;
+    }
+
+    piece.shape.setPosition(targetX, targetY);
     this.syncDetailsTransform(piece);
   }
 
@@ -1942,12 +1965,14 @@ export class PuzzleScene extends Phaser.Scene {
 
       piece.isDragging = true;
       
-      // If piece has a Matter body, make it static so it doesn't fall while dragging
+      // If piece has a Matter body, prepare it for interactive drag
       const matterBody = (piece as any).matterBody;
       if (matterBody && this.matter) {
-        console.log(`[dragstart] Piece ${index} has Matter body - making it static during drag`);
-        this.matter.body.setStatic(matterBody, true);
+        console.log(`[dragstart] Piece ${index} has Matter body - preparing for physics drag`);
+        this.releaseDragConstraint(piece);
+        this.matter.body.setStatic(matterBody, false);
         this.matter.body.setVelocity(matterBody, { x: 0, y: 0 });
+        this.matter.body.setAngularVelocity(matterBody, 0);
       }
       
       this.input.setDefaultCursor('grabbing');
@@ -1995,6 +2020,10 @@ export class PuzzleScene extends Phaser.Scene {
       if (this.debugEnabled) {
         this.showDebugOutline(piece);
       }
+
+      if (matterBody && this.matter && this.useMatterPhysics) {
+        this.syncShapeWithMatterBody(piece, matterBody);
+      }
     });
 
     this.input.on('drag', (pointer: Phaser.Input.Pointer, gameObject, dragX: number, dragY: number) => {
@@ -2008,24 +2037,28 @@ export class PuzzleScene extends Phaser.Scene {
         return;
       }
 
+      const matterBody = (piece as any).matterBody;
+      const usingMatterDrag = !!(matterBody && this.matter && this.useMatterPhysics);
+
       if (!piece.dragOffset) {
-        piece.shape.setPosition(dragX, dragY);
-        this.syncDetailsTransform(piece);
-        
-        // Update Matter body if present (use anchor position, not visual position!)
-        const matterBody = (piece as any).matterBody;
-        if (matterBody && this.matter) {
-          this.syncMatterBodyWithShape(piece, matterBody);
+        if (!usingMatterDrag) {
+          piece.shape.setPosition(dragX, dragY);
+          this.syncDetailsTransform(piece);
+          if (matterBody && this.matter) {
+            this.syncMatterBodyWithShape(piece, matterBody);
+          }
         }
         return;
       }
 
       this.updateDraggingPieceTransform(piece, pointer);
       
-      // Update Matter body during drag (use anchor position, not visual position!)
-      const matterBody = (piece as any).matterBody;
       if (matterBody && this.matter) {
-        this.syncMatterBodyWithShape(piece, matterBody);
+        if (usingMatterDrag) {
+          this.syncShapeWithMatterBody(piece, matterBody);
+        } else {
+          this.syncMatterBodyWithShape(piece, matterBody);
+        }
       }
     });
 
@@ -2044,6 +2077,7 @@ export class PuzzleScene extends Phaser.Scene {
       piece.dragOffset = undefined;
       piece.dragPointer = undefined;
       piece.dragStartRotation = undefined;
+      this.releaseDragConstraint(piece);
       this.isTouchDragging = false; // Reset touch flag
       (piece as any).previousDragPosition = undefined; // Clean up drag position tracking
       piece.shape.setData('collisionLogged', false); // Reset collision logging flag
@@ -2066,7 +2100,11 @@ export class PuzzleScene extends Phaser.Scene {
           this.matter.body.setStatic(matterBody, false);
           
           // Update Matter body position to match the visual shape
-          this.syncMatterBodyWithShape(piece, matterBody);
+          if (this.useMatterPhysics) {
+            this.syncShapeWithMatterBody(piece, matterBody);
+          } else {
+            this.syncMatterBodyWithShape(piece, matterBody);
+          }
           
           // Reset velocity and wake up the body so it falls due to gravity
           this.matter.body.setVelocity(matterBody, { x: 0, y: 0 });
@@ -2971,6 +3009,17 @@ export class PuzzleScene extends Phaser.Scene {
     return filtered;
   }
 
+  private releaseDragConstraint(piece: PieceRuntime): void {
+    if (piece.dragConstraint && this.matter) {
+      try {
+        this.matter.world.removeConstraint(piece.dragConstraint);
+      } catch (error) {
+        console.warn('[releaseDragConstraint] Failed to remove constraint', error);
+      }
+      piece.dragConstraint = undefined;
+    }
+  }
+
   /**
    * Convert a puzzle piece to a Matter.js physics body
    */
@@ -3104,6 +3153,7 @@ export class PuzzleScene extends Phaser.Scene {
   private removeMatterBody(piece: PieceRuntime): void {
     const matterBody = (piece as any).matterBody;
     if (matterBody && this.matter && this.matter.world) {
+      this.releaseDragConstraint(piece);
       this.matter.world.remove(matterBody);
       (piece as any).matterBody = undefined;
       piece.shape.setData('matterBody', undefined);
