@@ -2915,6 +2915,62 @@ export class PuzzleScene extends Phaser.Scene {
     this.captureMatterAttachment(piece, body);
   }
 
+  private cleanVertices(vertices: { x: number; y: number }[]): { x: number; y: number }[] {
+    if (vertices.length === 0) {
+      return [];
+    }
+
+    const deduped: { x: number; y: number }[] = [];
+    const epsilon = 0.08;
+
+    vertices.forEach((point) => {
+      const last = deduped[deduped.length - 1];
+      if (!last || Math.abs(point.x - last.x) > epsilon || Math.abs(point.y - last.y) > epsilon) {
+        deduped.push({ x: point.x, y: point.y });
+      }
+    });
+
+    if (deduped.length > 2) {
+      const first = deduped[0];
+      const last = deduped[deduped.length - 1];
+      if (Math.abs(first.x - last.x) < epsilon && Math.abs(first.y - last.y) < epsilon) {
+        deduped.pop();
+      }
+    }
+
+    if (deduped.length < 3) {
+      return deduped;
+    }
+
+    const filtered: { x: number; y: number }[] = [];
+    const len = deduped.length;
+    for (let i = 0; i < len; i++) {
+      const prev = deduped[(i + len - 1) % len];
+      const curr = deduped[i];
+      const next = deduped[(i + 1) % len];
+      const cross = (curr.x - prev.x) * (next.y - curr.y) - (curr.y - prev.y) * (next.x - curr.x);
+      if (Math.abs(cross) > 1e-3) {
+        filtered.push(curr);
+      }
+    }
+
+    if (filtered.length < 3) {
+      return deduped;
+    }
+
+    let area = 0;
+    for (let i = 0; i < filtered.length; i++) {
+      const j = (i + 1) % filtered.length;
+      area += filtered[i].x * filtered[j].y - filtered[j].x * filtered[i].y;
+    }
+
+    if (area < 0) {
+      filtered.reverse();
+    }
+
+    return filtered;
+  }
+
   /**
    * Convert a puzzle piece to a Matter.js physics body
    */
@@ -2929,93 +2985,45 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     // Get the actual vertices from the piece shape (relative to puzzle anchor)
-    const localVertices = piece.localPoints.map(pt => ({ x: pt.x, y: pt.y }));
+    const localVertices = piece.localPoints.map((pt) => ({ x: pt.x, y: pt.y }));
     const anchorX = piece.shape.x - piece.shape.displayOriginX;
     const anchorY = piece.shape.y - piece.shape.displayOriginY;
-    let centroid = { x: 0, y: 0 };
-    let centerX = anchorX;
-    let centerY = anchorY;
-    
-    // Simplify vertices - puzzle pieces can have 100+ points
-    // Reduce to ~20 vertices for good balance between accuracy and performance
-    const targetVertexCount = 20;
-    const simplificationFactor = Math.max(1, Math.floor(localVertices.length / targetVertexCount));
-    const simplifiedVertices: { x: number; y: number }[] = [];
-    
-    for (let i = 0; i < localVertices.length; i += simplificationFactor) {
-      simplifiedVertices.push(localVertices[i]);
-    }
-    
-    // Ensure we include the last vertex
-    if (simplifiedVertices.length > 0) {
-      const lastOriginal = localVertices[localVertices.length - 1];
-      const lastSimplified = simplifiedVertices[simplifiedVertices.length - 1];
-      const dist = Math.sqrt(
-        Math.pow(lastOriginal.x - lastSimplified.x, 2) + 
-        Math.pow(lastOriginal.y - lastSimplified.y, 2)
-      );
-      if (dist > 1) {
-        simplifiedVertices.push(lastOriginal);
-      }
-    }
-
     let body: any = null;
 
     try {
-      // CRITICAL FIX: Matter.js fromVertices expects vertices relative to the centroid.
-      // We need to:
-      // 1. Calculate the centroid of the simplified vertices
-      // 2. Subtract the centroid from each vertex to center them
-      // 3. Create the body at the anchor position
-      // 4. Matter.js will then position the body correctly
-      
-      // Calculate centroid using the proper polygon centroid formula
-      let signedArea = 0;
-      
-      for (let i = 0; i < simplifiedVertices.length; i++) {
-        const j = (i + 1) % simplifiedVertices.length;
-        const cross = simplifiedVertices[i].x * simplifiedVertices[j].y - simplifiedVertices[j].x * simplifiedVertices[i].y;
-        signedArea += cross;
-        centroid.x += (simplifiedVertices[i].x + simplifiedVertices[j].x) * cross;
-        centroid.y += (simplifiedVertices[i].y + simplifiedVertices[j].y) * cross;
+      let usableVertices = this.cleanVertices(localVertices);
+      if (piece.id === 'piece_7') {
+        console.log(`🟢 [piece_7] raw vertices=${localVertices.length}`);
       }
-      
-      signedArea *= 0.5;
-      if (Math.abs(signedArea) < 1e-6) {
-        centroid = { x: 0, y: 0 };
-      } else {
-        centroid.x /= (6 * signedArea);
-        centroid.y /= (6 * signedArea);
+      if (usableVertices.length < 3) {
+        console.warn(`⚠️ [CONVERT] ${piece.id}: Cleaned vertex count ${usableVertices.length}, falling back to raw outline (${localVertices.length})`);
+        usableVertices = [...localVertices];
       }
-      
-      // CRITICAL: The visual polygon uses the puzzle anchor while Matter expects its own centroid as origin.
-      // Align the body by spawning it at (anchor + centroid) so the world vertices match the SVG shape.
-      centerX = anchorX + centroid.x;
-      centerY = anchorY + centroid.y;
-      
-      // DEBUG: Log sprite positioning details
+      if (usableVertices.length < 3) {
+        throw new Error(`Not enough usable vertices (${usableVertices.length})`);
+      }
+      if (piece.id === 'piece_7') {
+        console.log(`🟢 [piece_7] usable vertices=${usableVertices.length}`);
+      }
+
+      const worldVertices = usableVertices.map((v) => ({
+        x: anchorX + v.x,
+        y: anchorY + v.y
+      }));
+
       const pieceIndex = this.pieces.indexOf(piece);
-      if (pieceIndex < 3) {
+      if (pieceIndex < 3 || piece.id === 'piece_7') {
         console.log(`🔍 [ANCHOR] Piece ${pieceIndex}:`);
         console.log(`  - shape.x/y: (${piece.shape.x.toFixed(1)}, ${piece.shape.y.toFixed(1)})`);
         console.log(`  - displayOrigin: (${piece.shape.displayOriginX.toFixed(1)}, ${piece.shape.displayOriginY.toFixed(1)})`);
         console.log(`  - anchor (corrected): (${anchorX.toFixed(1)}, ${anchorY.toFixed(1)})`);
-        console.log(`  - centroid (local): (${centroid.x.toFixed(2)}, ${centroid.y.toFixed(2)})`);
-        console.log(`  - body center: (${centerX.toFixed(1)}, ${centerY.toFixed(1)})`);
         console.log(`  - restPosition: (${piece.restPosition?.x.toFixed(1)}, ${piece.restPosition?.y.toFixed(1)})`);
       }
-      
-      // Center the vertices around the centroid
-      const centeredVertices = simplifiedVertices.map(v => ({
-        x: v.x - centroid.x,
-        y: v.y - centroid.y
-      }));
-      
-      // Create body at anchor position with centered vertices
+
       body = (this.matter.bodies as any).fromVertices(
-        centerX, // Anchor position X
-        centerY, // Anchor position Y
-        [centeredVertices], // Vertices centered around origin
+        anchorX,
+        anchorY,
+        [worldVertices],
         {
           restitution: 0.3,
           friction: 0.9,
@@ -3025,34 +3033,28 @@ export class PuzzleScene extends Phaser.Scene {
           isStatic: false,
           label: `piece_${piece.id}`
         },
-        false, // flagInternal
-        0.01,  // removeCollinear
-        10,    // minimumArea  
-        0.01   // removeDuplicatePoints
+        false,
+        0.01,
+        10,
+        0.01
       );
 
       if (!body || !body.position) {
         throw new Error('fromVertices returned invalid body');
       }
 
-      // CRITICAL: Add the body to the Matter.js world
       this.matter.world.add(body);
-      
-      // DIAGNOSTIC: Verify alignment
+
       const actualBodyX = body.position.x;
       const actualBodyY = body.position.y;
-      const bodyOffsetX = actualBodyX - centerX;
-      const bodyOffsetY = actualBodyY - centerY;
-
       const partCount = body.parts ? body.parts.length - 1 : 0;
-      
-      // Only log first 3 conversions
-      if (this.pieces.filter(p => (p as any).matterBody).length < 3) {
-        console.log(`⚙️ [BODY] ${piece.id}: ✅ ${localVertices.length}→${simplifiedVertices.length} vertices, ${partCount} parts`);
-        console.log(`⚙️ [BODY] ${piece.id}: Anchor=(${centerX.toFixed(1)}, ${centerY.toFixed(1)}), Body=(${actualBodyX.toFixed(1)}, ${actualBodyY.toFixed(1)}), Offset=(${bodyOffsetX.toFixed(2)}, ${bodyOffsetY.toFixed(2)})`);
-        
+
+      if (this.pieces.filter(p => (p as any).matterBody).length < 3 || piece.id === 'piece_7') {
+        console.log(`⚙️ [BODY] ${piece.id}: ✅ ${localVertices.length}→${usableVertices.length} vertices, ${partCount} parts`);
+        console.log(`⚙️ [BODY] ${piece.id}: Anchor=(${anchorX.toFixed(1)}, ${anchorY.toFixed(1)}), Body=(${actualBodyX.toFixed(1)}, ${actualBodyY.toFixed(1)})`);
+
         if (body.vertices && body.vertices.length > 0) {
-          console.log(`⚙️ [BODY] ${piece.id}: Body has ${body.vertices.length} vertices, first 3:`, 
+          console.log(`⚙️ [BODY] ${piece.id}: Body has ${body.vertices.length} vertices, first 3:`,
             body.vertices.slice(0, 3).map((v: any) => `(${v.x.toFixed(1)}, ${v.y.toFixed(1)})`).join(', ')
           );
         }
@@ -3061,11 +3063,10 @@ export class PuzzleScene extends Phaser.Scene {
     } catch (error) {
       console.error(`⚙️ [CONVERT] ${piece.id}: ❌ fromVertices failed:`, error);
       
-      // Fallback to rectangle
       const bounds = piece.shape.getBounds();
       body = this.matter.add.rectangle(
-        centerX,
-        centerY,
+        anchorX,
+        anchorY,
         bounds.width * 0.8,
         bounds.height * 0.8,
         {
@@ -3078,10 +3079,6 @@ export class PuzzleScene extends Phaser.Scene {
           label: `piece_${piece.id}_rect`
         }
       );
-      
-      // DON'T lock rotation permanently
-      // body.inertia = Infinity;
-      // body.inverseInertia = 0;
       
       console.log(`⚙️ [CONVERT] ${piece.id}: Using rectangle fallback`);
     }
