@@ -254,7 +254,11 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
             y: 0
           },
           debug: false,
-          enableSleeping: true
+          enableSleeping: true,
+          // Increase iterations for more accurate collision resolution
+          positionIterations: 10,  // Default is 6, higher = more accurate
+          velocityIterations: 8,   // Default is 4, higher = more accurate
+          constraintIterations: 4  // Default is 2, higher = more accurate
         }
       }
     });

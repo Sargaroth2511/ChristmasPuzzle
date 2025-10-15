@@ -839,29 +839,52 @@ export class PuzzleScene extends Phaser.Scene {
       
       console.log(`✅ Matter.js boundaries created (floor at Y=${floorY})`);
       
-      // Enable Matter.js debug rendering
+      // Add collision event handler to wake up sleeping bodies when phantom touches them
+      this.matter.world.on('collisionstart', (event: any) => {
+        event.pairs.forEach((pair: any) => {
+          const bodyA = pair.bodyA;
+          const bodyB = pair.bodyB;
+          
+          // Check if either body is a phantom
+          const phantomBody = bodyA.label?.includes('phantom_') ? bodyA : 
+                             bodyB.label?.includes('phantom_') ? bodyB : null;
+          const otherBody = phantomBody === bodyA ? bodyB : bodyA;
+          
+          if (phantomBody && otherBody) {
+            // Wake up the other body if it's sleeping
+            if (otherBody.isSleeping) {
+              otherBody.isSleeping = false;
+              otherBody.sleepCounter = 0;
+            }
+          }
+        });
+      });
+      
+      console.log(`✅ Phantom collision wake-up handler registered`);
+      
+      // Disable Matter.js debug rendering (can be re-enabled later if needed)
       if (this.matter.world) {
-        const debugGraphic = this.add.graphics();
-        this.matter.world.debugGraphic = debugGraphic;
+        // const debugGraphic = this.add.graphics();
+        // this.matter.world.debugGraphic = debugGraphic;
         
-        (this.matter.world as any).drawDebug = true;
-        (this.matter.world as any).debugConfig = {
-          staticFillColor: 0xff0000,
-          staticLineColor: 0xff0000,
-          dynamicFillColor: 0x00ff00,
-          dynamicLineColor: 0x00ff00,
-          lineThickness: 2,
-          staticFillOpacity: 0.1,
-          dynamicFillOpacity: 0.1,
-          staticLineOpacity: 1,
-          dynamicLineOpacity: 1,
-          velocityLineColor: 0x0000ff,
-          velocityLineOpacity: 0.7,
-          angularVelocityLineColor: 0xff00ff,
-          renderFill: true,
-          renderLine: true,
-          renderVelocity: false
-        };
+        (this.matter.world as any).drawDebug = false;
+        // (this.matter.world as any).debugConfig = {
+        //   staticFillColor: 0xff0000,
+        //   staticLineColor: 0xff0000,
+        //   dynamicFillColor: 0x00ff00,
+        //   dynamicLineColor: 0x00ff00,
+        //   lineThickness: 2,
+        //   staticFillOpacity: 0.1,
+        //   dynamicFillOpacity: 0.1,
+        //   staticLineOpacity: 1,
+        //   dynamicLineOpacity: 1,
+        //   velocityLineColor: 0x0000ff,
+        //   velocityLineOpacity: 0.7,
+        //   angularVelocityLineColor: 0xff00ff,
+        //   renderFill: true,
+        //   renderLine: true,
+        //   renderVelocity: false
+        // };
       }
     }
 
@@ -1632,11 +1655,30 @@ export class PuzzleScene extends Phaser.Scene {
     this.pieces.forEach((piece) => {
       const matterBody = (piece as any).matterBody;
       if (matterBody && !piece.placed) {
-        const prevX = piece.shape.x;
-        const prevY = piece.shape.y;
-        this.syncShapeWithMatterBody(piece, matterBody);
-        if ((Math.abs(piece.shape.x - prevX) > 5 || Math.abs(piece.shape.y - prevY) > 5) && Math.random() < 0.05) {
-          console.log(`⚠️ [SYNC] ${piece.id}: Adjusted visual to follow Matter body (Δx=${(piece.shape.x - prevX).toFixed(1)}, Δy=${(piece.shape.y - prevY).toFixed(1)})`);
+        // CRITICAL: Handle dragged pieces differently
+        const isBeingDragged = (piece as any).isBeingDragged;
+        
+        if (isBeingDragged) {
+          // Dragged piece: original body is a sensor (non-physical)
+          // Sync phantom body instead to provide kinematic pushing
+          const phantomBody = (piece as any).phantomBody;
+          if (phantomBody) {
+            this.syncPhantomBodyWithShape(piece, phantomBody);
+          }
+          
+          // Keep original body in sync visually (even though it's a sensor)
+          this.syncMatterBodyWithShape(piece, matterBody);
+          this.matter!.body.setVelocity(matterBody, { x: 0, y: 0 });
+          this.matter!.body.setAngularVelocity(matterBody, 0);
+          (matterBody as any).isSleeping = false;
+        } else {
+          // Free piece: Matter body controls transform, visual shape follows
+          const prevX = piece.shape.x;
+          const prevY = piece.shape.y;
+          this.syncShapeWithMatterBody(piece, matterBody);
+          if ((Math.abs(piece.shape.x - prevX) > 5 || Math.abs(piece.shape.y - prevY) > 5) && Math.random() < 0.05) {
+            console.log(`⚠️ [SYNC] ${piece.id}: Adjusted visual to follow Matter body (Δx=${(piece.shape.x - prevX).toFixed(1)}, Δy=${(piece.shape.y - prevY).toFixed(1)})`);
+          }
         }
       }
     });
@@ -1905,9 +1947,6 @@ export class PuzzleScene extends Phaser.Scene {
       return;
     }
 
-    const matterBody = (piece as any).matterBody;
-    const useMatterDrag = !!(matterBody && this.matter && this.useMatterPhysics);
-
     const startRotation = piece.dragStartRotation ?? 0;
     const delta = piece.shape.rotation - startRotation;
     const rotatedOffset = piece.dragOffset.clone().rotate(delta);
@@ -1919,25 +1958,8 @@ export class PuzzleScene extends Phaser.Scene {
     const targetX = pointerPosition.x + rotatedOffset.x + touchOffsetX;
     const targetY = pointerPosition.y + rotatedOffset.y + touchOffsetY;
 
-    if (useMatterDrag) {
-      const targetAnchorX = targetX - piece.shape.displayOriginX;
-      const targetAnchorY = targetY - piece.shape.displayOriginY;
-      if (!piece.dragConstraint) {
-        piece.dragConstraint = this.matter!.add.worldConstraint(matterBody, 0, 0.9, {
-          pointA: { x: targetAnchorX, y: targetAnchorY },
-          pointB: { x: 0, y: 0 }
-        });
-        if (piece.dragConstraint) {
-          (piece.dragConstraint as any).collideConnected = false;
-        }
-      } else {
-        piece.dragConstraint.pointA.x = targetAnchorX;
-        piece.dragConstraint.pointA.y = targetAnchorY;
-      }
-      this.syncDetailsTransform(piece);
-      return;
-    }
-
+    // CRITICAL: Always update visual shape position directly
+    // This ensures smooth dragging without physics interference
     piece.shape.setPosition(targetX, targetY);
     this.syncDetailsTransform(piece);
   }
@@ -1965,14 +1987,41 @@ export class PuzzleScene extends Phaser.Scene {
 
       piece.isDragging = true;
       
-      // If piece has a Matter body, prepare it for interactive drag
+      // If piece has a Matter body, create a phantom sensor body for interactions
       const matterBody = (piece as any).matterBody;
-      if (matterBody && this.matter) {
-        console.log(`[dragstart] Piece ${index} has Matter body - preparing for physics drag`);
+      if (matterBody && this.matter && this.useMatterPhysics) {
+        console.log(`[dragstart] Piece ${index} has Matter body - creating phantom sensor`);
         this.releaseDragConstraint(piece);
-        this.matter.body.setStatic(matterBody, false);
+        
+        // PHANTOM BODY APPROACH:
+        // 1. Make the original body a non-colliding sensor (detects but doesn't react)
+        // 2. Create a phantom sensor body that follows the dragged piece
+        // 3. Phantom body is kinematic (pushes others but isn't affected)
+        
+        // Store original collision settings to restore later
+        (piece as any).originalIsSensor = matterBody.isSensor;
+        (piece as any).originalCollisionFilter = { ...matterBody.collisionFilter };
+        
+        // Make original body non-interactive during drag
+        matterBody.isSensor = true; // Doesn't physically react
+        matterBody.collisionFilter = {
+          ...matterBody.collisionFilter,
+          mask: 0 // Don't collide with anything
+        };
+        
+        // Create phantom kinematic body that will push others
+        this.createPhantomBody(piece);
+        
+        // Mark as being dragged
+        (piece as any).isBeingDragged = true;
+        
+        // Reset velocities
         this.matter.body.setVelocity(matterBody, { x: 0, y: 0 });
         this.matter.body.setAngularVelocity(matterBody, 0);
+        
+        // Prevent sleeping during drag
+        (matterBody as any).isSleeping = false;
+        (matterBody as any).sleepCounter = 0;
       }
       
       this.input.setDefaultCursor('grabbing');
@@ -2021,9 +2070,8 @@ export class PuzzleScene extends Phaser.Scene {
         this.showDebugOutline(piece);
       }
 
-      if (matterBody && this.matter && this.useMatterPhysics) {
-        this.syncShapeWithMatterBody(piece, matterBody);
-      }
+      // Note: Don't sync shape with Matter body here - let the rotation tween control the visual
+      // The drag handler will sync the Matter body to follow the visual shape
     });
 
     this.input.on('drag', (pointer: Phaser.Input.Pointer, gameObject, dragX: number, dragY: number) => {
@@ -2053,12 +2101,10 @@ export class PuzzleScene extends Phaser.Scene {
 
       this.updateDraggingPieceTransform(piece, pointer);
       
+      // CRITICAL: For Matter physics, override position every frame
+      // The piece is marked as "being dragged" so update() will handle it specially
       if (matterBody && this.matter) {
-        if (usingMatterDrag) {
-          this.syncShapeWithMatterBody(piece, matterBody);
-        } else {
-          this.syncMatterBodyWithShape(piece, matterBody);
-        }
+        // Don't sync here - let the update loop handle it to avoid fighting with physics
       }
     });
 
@@ -2093,24 +2139,47 @@ export class PuzzleScene extends Phaser.Scene {
         piece.shape.setStrokeStyle(active.strokeWidth, active.strokeColor, active.strokeAlpha);
         this.syncDetailsTransform(piece);
         
-        // If piece has a Matter body, ensure it falls back to the ground
-        const matterBody = (piece as any).matterBody;
-        if (matterBody && this.matter) {
-          // Restore to dynamic state so gravity works again
-          this.matter.body.setStatic(matterBody, false);
+        // If piece has a Matter body, clean up drag state and phantom body
+        const matterBodyDragEnd = (piece as any).matterBody;
+        if (matterBodyDragEnd && this.matter && this.useMatterPhysics) {
+          // Clear the drag flag
+          (piece as any).isBeingDragged = false;
           
-          // Update Matter body position to match the visual shape
-          if (this.useMatterPhysics) {
-            this.syncShapeWithMatterBody(piece, matterBody);
-          } else {
-            this.syncMatterBodyWithShape(piece, matterBody);
+          // Remove phantom body
+          this.removePhantomBody(piece);
+          
+          // Restore original collision settings
+          const originalIsSensor = (piece as any).originalIsSensor;
+          const originalFilter = (piece as any).originalCollisionFilter;
+          if (originalIsSensor !== undefined) {
+            matterBodyDragEnd.isSensor = originalIsSensor;
+            delete (piece as any).originalIsSensor;
+          }
+          if (originalFilter) {
+            matterBodyDragEnd.collisionFilter = originalFilter;
+            delete (piece as any).originalCollisionFilter;
           }
           
-          // Reset velocity and wake up the body so it falls due to gravity
-          this.matter.body.setVelocity(matterBody, { x: 0, y: 0 });
-          this.matter.body.setAngularVelocity(matterBody, 0);
+          // Update Matter body position to match final visual position (after rotation tween)
+          this.syncMatterBodyWithShape(piece, matterBodyDragEnd);
           
-          console.log(`[dragend] Piece ${index} body restored to dynamic at (${matterBody.position.x.toFixed(1)}, ${matterBody.position.y.toFixed(1)}), angle=${(matterBody.angle ?? 0).toFixed(3)}`);
+          // Reset velocity so it doesn't inherit any weird momentum
+          this.matter.body.setVelocity(matterBodyDragEnd, { x: 0, y: 0 });
+          this.matter.body.setAngularVelocity(matterBodyDragEnd, 0);
+          
+          // Clear any forces
+          matterBodyDragEnd.force.x = 0;
+          matterBodyDragEnd.force.y = 0;
+          matterBodyDragEnd.torque = 0;
+          
+          // Wake up the body so it immediately responds to gravity
+          (matterBodyDragEnd as any).isSleeping = false;
+          (matterBodyDragEnd as any).sleepCounter = 0;
+          
+          console.log(`[dragend] Piece ${index} drag state cleared - phantom removed, will fall with gravity`);
+        } else if (matterBodyDragEnd && this.matter) {
+          // Non-physics mode: just sync position
+          this.syncMatterBodyWithShape(piece, matterBodyDragEnd);
         }
       } else {
         this.input.setDefaultCursor('default');
@@ -2121,7 +2190,8 @@ export class PuzzleScene extends Phaser.Scene {
           this.hideDebugOutline();
         }
         
-        // Remove Matter body when piece is placed
+        // Piece was snapped - remove both phantom and original Matter bodies
+        this.removePhantomBody(piece);
         this.removeMatterBody(piece);
       }
 
@@ -2175,6 +2245,25 @@ export class PuzzleScene extends Phaser.Scene {
     piece.dragOffset = undefined;
     piece.dragPointer = undefined;
     piece.dragStartRotation = undefined;
+    
+    // CRITICAL: Clean up phantom body and drag state when piece is placed
+    this.removePhantomBody(piece);
+    (piece as any).isBeingDragged = false;
+    
+    // Restore original body settings if they were modified
+    const matterBody = (piece as any).matterBody;
+    if (matterBody) {
+      const originalIsSensor = (piece as any).originalIsSensor;
+      const originalFilter = (piece as any).originalCollisionFilter;
+      if (originalIsSensor !== undefined) {
+        matterBody.isSensor = originalIsSensor;
+        delete (piece as any).originalIsSensor;
+      }
+      if (originalFilter) {
+        matterBody.collisionFilter = originalFilter;
+        delete (piece as any).originalCollisionFilter;
+      }
+    }
 
     this.clearDragVisuals(piece);
     piece.placed = true;
@@ -2664,6 +2753,9 @@ export class PuzzleScene extends Phaser.Scene {
    * Render Matter.js collision bodies for debugging
    */
   private renderMatterDebug(): void {
+    // Temporarily disabled for testing - re-enable by removing this return
+    return;
+    
     if (!this.matter || !this.matter.world) {
       return;
     }
@@ -2699,11 +2791,35 @@ export class PuzzleScene extends Phaser.Scene {
     bodies.forEach((body: any) => {
       if (!body) return;
 
+      // Detect if this is a phantom body
+      const isPhantom = body.label && body.label.startsWith('phantom_');
       const isStatic = body.isStatic;
-      const color = isStatic ? 0xff0000 : 0x00ff00;
-      const lineColor = isStatic ? 0xff6666 : 0x66ff66;
-      const fillAlpha = isStatic ? 0.2 : 0.3;
-      const lineWidth = isStatic ? 4 : 3;
+      
+      // Color coding:
+      // - Phantom bodies: BLUE (they should follow the dragged piece)
+      // - Static bodies: RED
+      // - Regular bodies: GREEN
+      let color: number;
+      let lineColor: number;
+      let fillAlpha: number;
+      let lineWidth: number;
+      
+      if (isPhantom) {
+        color = 0x0088ff;      // Blue for phantoms
+        lineColor = 0x66ccff;  // Light blue outline
+        fillAlpha = 0.4;       // More visible
+        lineWidth = 5;         // Thick to stand out
+      } else if (isStatic) {
+        color = 0xff0000;      // Red for static
+        lineColor = 0xff6666;
+        fillAlpha = 0.2;
+        lineWidth = 4;
+      } else {
+        color = 0x00ff00;      // Green for regular
+        lineColor = 0x66ff66;
+        fillAlpha = 0.3;
+        lineWidth = 3;
+      }
 
       const hasCompoundParts = body.parts && body.parts.length > 1;
       
@@ -2953,6 +3069,217 @@ export class PuzzleScene extends Phaser.Scene {
     this.captureMatterAttachment(piece, body);
   }
 
+  /**
+   * Create a phantom sensor body that follows the dragged piece.
+   * This body is kinematic (has infinite mass) so it pushes others but isn't affected.
+   * Using isSensor:false makes it physically interactive.
+   */
+  private createPhantomBody(piece: PieceRuntime): void {
+    if (!this.matter) {
+      console.error('[createPhantomBody] Matter.js not available');
+      return;
+    }
+
+    const originalBody = (piece as any).matterBody;
+    if (!originalBody) {
+      console.error('[createPhantomBody] Original body not found');
+      return;
+    }
+
+    // CRITICAL: Use LOCAL vertices, not world vertices!
+    // The original body's vertices are in world coordinates and already rotated.
+    // We need to recreate from the piece's local points, just like convertToMatterBody does.
+    const localVertices = piece.localPoints.map((pt) => ({ x: pt.x, y: pt.y }));
+    
+    // For phantom body, create it at origin with zero rotation
+    // Then we'll position and rotate it to match the original body exactly
+    const tempVertices = localVertices.map((v) => ({ x: v.x, y: v.y }));
+
+    try {
+      // Create phantom body at origin with zero rotation
+      // We'll set correct position and angle after creation
+      const phantomBody = (this.matter.bodies as any).fromVertices(
+        0,
+        0,
+        [tempVertices],
+        {
+          isStatic: false,        // Dynamic so it can be moved
+          isSensor: false,        // NOT a sensor - we want physical interaction
+          density: 0.003,         // Same as regular bodies
+          restitution: 0.2,       // Reduced bounce
+          friction: 1.0,          // High friction to prevent phasing through
+          frictionStatic: 1.2,    // High static friction
+          frictionAir: 0.01,
+          slop: 0.02,             // Reduced slop for tighter collisions
+          angle: 0,               // Start at zero rotation
+          label: `phantom_${piece.id}`
+        },
+        false,
+        0.01,
+        10,
+        0.01
+      );
+
+      if (!phantomBody) {
+        throw new Error('fromVertices returned null');
+      }
+
+      // CRITICAL FIX: Use the same mass as the original body!
+      // This makes collisions with the phantom feel identical to regular piece collisions.
+      // We'll override position every frame to make it kinematic-like, but collisions are realistic.
+      const originalMass = originalBody.mass || 1;
+      const originalInertia = originalBody.inertia || 1;
+      this.matter.body.setMass(phantomBody, originalMass);
+      this.matter.body.setInertia(phantomBody, originalInertia);
+      
+      // CRITICAL: Set initial position AND rotation to match the original body exactly
+      // The original body's position already accounts for the matterOffset,
+      // so we can just copy it directly instead of recalculating
+      this.matter.body.setPosition(phantomBody, {
+        x: originalBody.position.x,
+        y: originalBody.position.y
+      });
+      this.matter.body.setAngle(phantomBody, originalBody.angle);
+      
+      console.log(`[createPhantomBody] ${piece.id}: Original body at (${originalBody.position.x.toFixed(1)}, ${originalBody.position.y.toFixed(1)}), angle=${(originalBody.angle * 180 / Math.PI).toFixed(1)}°`);
+      console.log(`[createPhantomBody] ${piece.id}: Phantom body at (${phantomBody.position.x.toFixed(1)}, ${phantomBody.position.y.toFixed(1)}), angle=${(phantomBody.angle * 180 / Math.PI).toFixed(1)}°`);
+      
+      // CRITICAL: Wake up the phantom and prevent sleeping
+      (phantomBody as any).isSleeping = false;
+      (phantomBody as any).sleepCounter = 0;
+      phantomBody.sleepThreshold = Infinity; // Never sleep
+
+      this.matter.world.add(phantomBody);
+      (piece as any).phantomBody = phantomBody;
+
+      console.log(`[createPhantomBody] Created phantom for ${piece.id}`);
+    } catch (error) {
+      console.error(`[createPhantomBody] Failed for ${piece.id}:`, error);
+    }
+  }
+
+  /**
+   * Remove the phantom body from the world
+   */
+  private removePhantomBody(piece: PieceRuntime): void {
+    const phantomBody = (piece as any).phantomBody;
+    if (phantomBody && this.matter) {
+      try {
+        this.matter.world.remove(phantomBody);
+        delete (piece as any).phantomBody;
+        console.log(`[removePhantomBody] Removed phantom for ${piece.id}`);
+      } catch (error) {
+        console.error(`[removePhantomBody] Failed for ${piece.id}:`, error);
+      }
+    }
+  }
+
+  /**
+   * Sync phantom body to follow the visual shape position
+   * Uses CCD-like approach: if movement is too fast, break it into smaller steps
+   */
+  private syncPhantomBodyWithShape(piece: PieceRuntime, phantomBody: any): void {
+    if (!this.matter) {
+      return;
+    }
+
+    const angleOffset = piece.matterAngleOffset ?? 0;
+    const targetAngle = piece.shape.rotation - angleOffset;
+    
+    // Debug logging for rotation issues
+    if (Math.abs(piece.shape.rotation) > 0.1 || Math.abs(targetAngle - phantomBody.angle) > 0.1) {
+      console.log(`[syncPhantom] ${piece.id}: shape.rotation=${(piece.shape.rotation * 180 / Math.PI).toFixed(1)}°, angleOffset=${(angleOffset * 180 / Math.PI).toFixed(1)}°, targetAngle=${(targetAngle * 180 / Math.PI).toFixed(1)}°, currentPhantomAngle=${(phantomBody.angle * 180 / Math.PI).toFixed(1)}°`);
+    }
+    
+    this.matter.body.setAngle(phantomBody, targetAngle);
+
+    const offset = piece.matterOffset;
+    let offsetX: number;
+    let offsetY: number;
+    if (offset) {
+      const cos = Math.cos(targetAngle);
+      const sin = Math.sin(targetAngle);
+      offsetX = offset.x * cos - offset.y * sin;
+      offsetY = offset.x * sin + offset.y * cos;
+    } else {
+      offsetX = piece.shape.displayOriginX;
+      offsetY = piece.shape.displayOriginY;
+    }
+
+    const targetX = piece.shape.x - offsetX;
+    const targetY = piece.shape.y - offsetY;
+    
+    // CRITICAL: Continuous Collision Detection (CCD) for fast movement
+    // Calculate distance moved since last frame
+    const currentX = phantomBody.position.x;
+    const currentY = phantomBody.position.y;
+    const deltaX = targetX - currentX;
+    const deltaY = targetY - currentY;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    
+    // If moving too fast (>30 pixels per frame), use multiple smaller steps
+    // This prevents tunneling through other bodies
+    const MAX_STEP = 30;
+    if (distance > MAX_STEP) {
+      const steps = Math.ceil(distance / MAX_STEP);
+      const stepX = deltaX / steps;
+      const stepY = deltaY / steps;
+      
+      // Move in smaller increments, checking collisions at each step
+      for (let i = 1; i <= steps; i++) {
+        this.matter.body.setPosition(phantomBody, {
+          x: currentX + (stepX * i),
+          y: currentY + (stepY * i)
+        });
+        
+        // Force physics engine to update at each substep
+        // This ensures collisions are detected during the path
+        if (i < steps) {
+          this.matter.world.step();
+        }
+      }
+    } else {
+      // Normal speed, just move directly
+      this.matter.body.setPosition(phantomBody, {
+        x: targetX,
+        y: targetY
+      });
+    }
+
+    // Clear all forces and velocities - phantom is kinematic (position-controlled)
+    this.matter.body.setVelocity(phantomBody, { x: 0, y: 0 });
+    this.matter.body.setAngularVelocity(phantomBody, 0);
+    phantomBody.force.x = 0;
+    phantomBody.force.y = 0;
+    phantomBody.torque = 0;
+
+    // Keep awake and wake up nearby bodies
+    (phantomBody as any).isSleeping = false;
+    (phantomBody as any).sleepCounter = 0;
+    
+    // Wake up any bodies the phantom is currently touching
+    // This ensures continuous interaction even with sleeping pieces
+    if (this.matter.world) {
+      const allBodies = (this.matter.world as any).localWorld.bodies;
+      allBodies.forEach((body: any) => {
+        if (body !== phantomBody && !body.isStatic && body.isSleeping) {
+          // Simple bounds check - if bodies overlap, wake the sleeping one
+          const boundsOverlap = !(
+            phantomBody.bounds.max.x < body.bounds.min.x ||
+            phantomBody.bounds.min.x > body.bounds.max.x ||
+            phantomBody.bounds.max.y < body.bounds.min.y ||
+            phantomBody.bounds.min.y > body.bounds.max.y
+          );
+          
+          if (boundsOverlap) {
+            body.isSleeping = false;
+            body.sleepCounter = 0;
+          }
+        }
+      });
+    }
+  }
+
   private cleanVertices(vertices: { x: number; y: number }[]): { x: number; y: number }[] {
     if (vertices.length === 0) {
       return [];
@@ -3074,18 +3401,20 @@ export class PuzzleScene extends Phaser.Scene {
         anchorY,
         [worldVertices],
         {
-          restitution: 0.3,
-          friction: 0.9,
+          restitution: 0.2,      // Reduced bounce for more solid feel
+          friction: 1.0,         // Increased friction to prevent sliding through
+          frictionStatic: 1.2,   // High static friction
           frictionAir: 0.01,
-          density: 0.002,
+          density: 0.003,        // Slightly increased density for better collision
           angle: piece.shape.rotation,
           isStatic: false,
+          slop: 0.02,            // Reduced slop for tighter collisions
           label: `piece_${piece.id}`
         },
         false,
-        0.01,
-        10,
-        0.01
+        0.01,                    // Remove collinear points threshold
+        10,                      // Decomposition threshold
+        0.01                     // Minimum area
       );
 
       if (!body || !body.position) {
