@@ -1480,9 +1480,6 @@ export class PuzzleScene extends Phaser.Scene {
     // This slows rotation without completely locking it
     body.frictionAir = 0.08; // High air friction reduces rotation
     
-    // Position the body at the start location
-    this.matter.body.setPosition(body, { x: start.x, y: start.y });
-
     // Calculate launch velocity
     const dx = piece.scatterTarget.x - piece.target.x;
     const horizontalBias = Math.sign(dx || Phaser.Math.FloatBetween(-1, 1));
@@ -1507,7 +1504,7 @@ export class PuzzleScene extends Phaser.Scene {
     piece.shape.setPosition(start.x, start.y);
     piece.shape.setRotation(launchAngle);
     piece.shape.setScale(Phaser.Math.FloatBetween(0.96, 1.04));
-    this.captureMatterAttachment(piece, body);
+    this.syncMatterBodyWithShape(piece, body);
     this.syncShapeWithMatterBody(piece, body);
     
     // Only log first 3 launches to avoid spam
@@ -2931,8 +2928,13 @@ export class PuzzleScene extends Phaser.Scene {
       return; // Silent skip if already has body
     }
 
-    // Get the actual vertices from the piece shape (relative to piece center)
+    // Get the actual vertices from the piece shape (relative to puzzle anchor)
     const localVertices = piece.localPoints.map(pt => ({ x: pt.x, y: pt.y }));
+    const anchorX = piece.shape.x - piece.shape.displayOriginX;
+    const anchorY = piece.shape.y - piece.shape.displayOriginY;
+    let centroid = { x: 0, y: 0 };
+    let centerX = anchorX;
+    let centerY = anchorY;
     
     // Simplify vertices - puzzle pieces can have 100+ points
     // Reduce to ~20 vertices for good balance between accuracy and performance
@@ -2957,25 +2959,6 @@ export class PuzzleScene extends Phaser.Scene {
       }
     }
 
-    // CRITICAL: The visual sprite has a displayOrigin that offsets it from its position.
-    // piece.localPoints are relative to the anchor point (NOT the displayOrigin).
-    // We need to position the body at: shape.position - displayOrigin
-    // This aligns the body with where the localPoints are actually defined.
-    
-    const centerX = piece.shape.x - piece.shape.displayOriginX;
-    const centerY = piece.shape.y - piece.shape.displayOriginY;
-    
-    // DEBUG: Log sprite positioning details
-    const pieceIndex = this.pieces.indexOf(piece);
-    if (pieceIndex < 3) {
-      console.log(`🔍 [ANCHOR] Piece ${pieceIndex}:`);
-      console.log(`  - shape.x/y: (${piece.shape.x.toFixed(1)}, ${piece.shape.y.toFixed(1)})`);
-      console.log(`  - displayOrigin: (${piece.shape.displayOriginX.toFixed(1)}, ${piece.shape.displayOriginY.toFixed(1)})`);
-      console.log(`  - anchor (corrected): (${centerX.toFixed(1)}, ${centerY.toFixed(1)})`);
-      console.log(`  - origin: (${piece.origin.x.toFixed(1)}, ${piece.origin.y.toFixed(1)})`);
-      console.log(`  - restPosition: (${piece.restPosition?.x.toFixed(1)}, ${piece.restPosition?.y.toFixed(1)})`);
-    }
-    
     let body: any = null;
 
     try {
@@ -2987,7 +2970,6 @@ export class PuzzleScene extends Phaser.Scene {
       // 4. Matter.js will then position the body correctly
       
       // Calculate centroid using the proper polygon centroid formula
-      let centroid = { x: 0, y: 0 };
       let signedArea = 0;
       
       for (let i = 0; i < simplifiedVertices.length; i++) {
@@ -2999,8 +2981,29 @@ export class PuzzleScene extends Phaser.Scene {
       }
       
       signedArea *= 0.5;
-      centroid.x /= (6 * signedArea);
-      centroid.y /= (6 * signedArea);
+      if (Math.abs(signedArea) < 1e-6) {
+        centroid = { x: 0, y: 0 };
+      } else {
+        centroid.x /= (6 * signedArea);
+        centroid.y /= (6 * signedArea);
+      }
+      
+      // CRITICAL: The visual polygon uses the puzzle anchor while Matter expects its own centroid as origin.
+      // Align the body by spawning it at (anchor + centroid) so the world vertices match the SVG shape.
+      centerX = anchorX + centroid.x;
+      centerY = anchorY + centroid.y;
+      
+      // DEBUG: Log sprite positioning details
+      const pieceIndex = this.pieces.indexOf(piece);
+      if (pieceIndex < 3) {
+        console.log(`🔍 [ANCHOR] Piece ${pieceIndex}:`);
+        console.log(`  - shape.x/y: (${piece.shape.x.toFixed(1)}, ${piece.shape.y.toFixed(1)})`);
+        console.log(`  - displayOrigin: (${piece.shape.displayOriginX.toFixed(1)}, ${piece.shape.displayOriginY.toFixed(1)})`);
+        console.log(`  - anchor (corrected): (${anchorX.toFixed(1)}, ${anchorY.toFixed(1)})`);
+        console.log(`  - centroid (local): (${centroid.x.toFixed(2)}, ${centroid.y.toFixed(2)})`);
+        console.log(`  - body center: (${centerX.toFixed(1)}, ${centerY.toFixed(1)})`);
+        console.log(`  - restPosition: (${piece.restPosition?.x.toFixed(1)}, ${piece.restPosition?.y.toFixed(1)})`);
+      }
       
       // Center the vertices around the centroid
       const centeredVertices = simplifiedVertices.map(v => ({
