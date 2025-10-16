@@ -2753,9 +2753,6 @@ export class PuzzleScene extends Phaser.Scene {
    * Render Matter.js collision bodies for debugging
    */
   private renderMatterDebug(): void {
-    // Temporarily disabled for testing - re-enable by removing this return
-    return;
-    
     if (!this.matter || !this.matter.world) {
       return;
     }
@@ -3091,71 +3088,50 @@ export class PuzzleScene extends Phaser.Scene {
     // We need to recreate from the piece's local points, just like convertToMatterBody does.
     const localVertices = piece.localPoints.map((pt) => ({ x: pt.x, y: pt.y }));
     
-    // For phantom body, create it at origin with zero rotation
-    // Then we'll position and rotate it to match the original body exactly
-    const tempVertices = localVertices.map((v) => ({ x: v.x, y: v.y }));
 
     try {
-      // Create phantom body at origin with zero rotation
-      // We'll set correct position and angle after creation
-      const phantomBody = (this.matter.bodies as any).fromVertices(
-        0,
-        0,
-        [tempVertices],
-        {
-          isStatic: false,        // Dynamic so it can be moved
-          isSensor: false,        // NOT a sensor - we want physical interaction
-          density: 0.003,         // Same as regular bodies
-          restitution: 0.2,       // Reduced bounce
-          friction: 1.0,          // High friction to prevent phasing through
-          frictionStatic: 1.2,    // High static friction
-          frictionAir: 0.01,
-          slop: 0.02,             // Reduced slop for tighter collisions
-          angle: 0,               // Start at zero rotation
-          label: `phantom_${piece.id}`
-        },
-        false,
-        0.01,
-        10,
-        0.01
-      );
+  const phantomBody = (this.matter.bodies as any).fromVertices(
+    0, 0,
+    [localVertices],
+    {
+      isStatic: true,       // absolut solide – keine Bewegung, keine Überschneidung
+      isSensor: false,      // echte Kollisionen, keine "ghost hits"
+      friction: 1,          // maximale Reibung
+      restitution: 0,       // kein Rückprall
+      label: `phantom_${piece.id}`
+    },
+    false,                 // flagInternal
+    0.01,                  // vertexMinimumSeparation
+    10,                    // quality
+    0.01                   // areaTolerance
+  );
 
-      if (!phantomBody) {
-        throw new Error('fromVertices returned null');
-      }
+  if (!phantomBody) {
+    throw new Error('fromVertices returned null');
+  }
+    this.matter.body.setPosition(phantomBody, {
+    x: originalBody.position.x,
+    y: originalBody.position.y
+  });
+  this.matter.body.setAngle(phantomBody, originalBody.angle);
 
-      // CRITICAL FIX: Use the same mass as the original body!
-      // This makes collisions with the phantom feel identical to regular piece collisions.
-      // We'll override position every frame to make it kinematic-like, but collisions are realistic.
-      const originalMass = originalBody.mass || 1;
-      const originalInertia = originalBody.inertia || 1;
-      this.matter.body.setMass(phantomBody, originalMass);
-      this.matter.body.setInertia(phantomBody, originalInertia);
-      
-      // CRITICAL: Set initial position AND rotation to match the original body exactly
-      // The original body's position already accounts for the matterOffset,
-      // so we can just copy it directly instead of recalculating
-      this.matter.body.setPosition(phantomBody, {
-        x: originalBody.position.x,
-        y: originalBody.position.y
-      });
-      this.matter.body.setAngle(phantomBody, originalBody.angle);
-      
-      console.log(`[createPhantomBody] ${piece.id}: Original body at (${originalBody.position.x.toFixed(1)}, ${originalBody.position.y.toFixed(1)}), angle=${(originalBody.angle * 180 / Math.PI).toFixed(1)}°`);
-      console.log(`[createPhantomBody] ${piece.id}: Phantom body at (${phantomBody.position.x.toFixed(1)}, ${phantomBody.position.y.toFixed(1)}), angle=${(phantomBody.angle * 180 / Math.PI).toFixed(1)}°`);
-      
-      // CRITICAL: Wake up the phantom and prevent sleeping
-      (phantomBody as any).isSleeping = false;
-      (phantomBody as any).sleepCounter = 0;
-      phantomBody.sleepThreshold = Infinity; // Never sleep
+  // Debug-Infos
+  const positionOffset = Math.hypot(
+    phantomBody.position.x - originalBody.position.x,
+    phantomBody.position.y - originalBody.position.y
+  );
 
-      this.matter.world.add(phantomBody);
-      (piece as any).phantomBody = phantomBody;
+  // Sicherstellen, dass er aktiv bleibt (optional)
+  (phantomBody as any).isSleeping = false;
+  (phantomBody as any).sleepCounter = 0;
+  phantomBody.sleepThreshold = Infinity;
 
-      console.log(`[createPhantomBody] Created phantom for ${piece.id}`);
-    } catch (error) {
-      console.error(`[createPhantomBody] Failed for ${piece.id}:`, error);
-    }
+  this.matter.world.add(phantomBody);
+  (piece as any).phantomBody = phantomBody;
+
+} catch (error) {
+  console.error(`[createPhantomBody] Failed for ${piece.id}:`, error);
+}
   }
 
   /**
@@ -3209,44 +3185,17 @@ export class PuzzleScene extends Phaser.Scene {
     const targetX = piece.shape.x - offsetX;
     const targetY = piece.shape.y - offsetY;
     
-    // CRITICAL: Continuous Collision Detection (CCD) for fast movement
-    // Calculate distance moved since last frame
-    const currentX = phantomBody.position.x;
-    const currentY = phantomBody.position.y;
-    const deltaX = targetX - currentX;
-    const deltaY = targetY - currentY;
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    
-    // If moving too fast (>30 pixels per frame), use multiple smaller steps
-    // This prevents tunneling through other bodies
-    const MAX_STEP = 30;
-    if (distance > MAX_STEP) {
-      const steps = Math.ceil(distance / MAX_STEP);
-      const stepX = deltaX / steps;
-      const stepY = deltaY / steps;
-      
-      // Move in smaller increments, checking collisions at each step
-      for (let i = 1; i <= steps; i++) {
-        this.matter.body.setPosition(phantomBody, {
-          x: currentX + (stepX * i),
-          y: currentY + (stepY * i)
-        });
-        
-        // Force physics engine to update at each substep
-        // This ensures collisions are detected during the path
-        if (i < steps) {
-          this.matter.world.step();
-        }
-      }
-    } else {
-      // Normal speed, just move directly
-      this.matter.body.setPosition(phantomBody, {
-        x: targetX,
-        y: targetY
-      });
-    }
+    // PSEUDO-STATIC approach: Directly set position (no CCD needed, phantom doesn't move)
+    // The phantom follows the visual shape exactly - it's "kinematic" controlled
+    this.matter.body.setPosition(phantomBody, {
+      x: targetX,
+      y: targetY
+    });
+    this.matter.body.setAngle(phantomBody, targetAngle);
 
-    // Clear all forces and velocities - phantom is kinematic (position-controlled)
+    // CRITICAL: For pseudo-static dynamic bodies, zero ALL movement EVERY frame
+    // This maintains immovability despite collisions with other bodies
+    // Dynamic bodies accumulate forces/velocities, so we must clear them constantly
     this.matter.body.setVelocity(phantomBody, { x: 0, y: 0 });
     this.matter.body.setAngularVelocity(phantomBody, 0);
     phantomBody.force.x = 0;
