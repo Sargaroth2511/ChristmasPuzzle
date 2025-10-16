@@ -1415,7 +1415,7 @@ export class PuzzleScene extends Phaser.Scene {
       
       if (world.engine && world.engine.gravity) {
         const oldGravity = world.engine.gravity.y;
-        world.engine.gravity.y = 1.2; // Moderate gravity (was 2.5, too strong initially - let's balance it)
+        world.engine.gravity.y = 2.0; // Increased gravity for more realistic falling during explosion
         console.log(`🟠 [EXPLOSION] Gravity: ${oldGravity} → ${world.engine.gravity.y}`);
         console.log(`🟠 [EXPLOSION] World enabled: ${world.enabled}, autoUpdate: ${world.autoUpdate}`);
       } else {
@@ -1574,7 +1574,7 @@ export class PuzzleScene extends Phaser.Scene {
       const world = (this.matter.world as any);
       if (world.engine && world.engine.gravity) {
         // Keep gravity enabled if using Matter.js physics, otherwise disable it
-        world.engine.gravity.y = this.useMatterPhysics ? 1 : 0;
+        world.engine.gravity.y = this.useMatterPhysics ? 1.5 : 0;
         console.log(`[preparePiecesForPuzzle] Gravity ${this.useMatterPhysics ? 'kept enabled (physics mode)' : 'disabled'}`);
       }
     }
@@ -2801,6 +2801,9 @@ export class PuzzleScene extends Phaser.Scene {
    * Render Matter.js collision bodies for debugging
    */
   private renderMatterDebug(): void {
+    // DISABLED for cleaner gameplay - re-enable by removing this return
+    return;
+    
     if (!this.matter || !this.matter.world) {
       return;
     }
@@ -3014,9 +3017,9 @@ export class PuzzleScene extends Phaser.Scene {
     if (useMatter) {
       // Enable Matter.js physics: add gravity
       if (world.engine && world.engine.gravity) {
-        world.engine.gravity.y = 1;
+        world.engine.gravity.y = 1.5;
       } else {
-        world.gravity = { x: 0, y: 1 };
+        world.gravity = { x: 0, y: 1.5 };
       }
       console.log('✅ Matter.js physics enabled - pieces will fall with realistic physics');
 
