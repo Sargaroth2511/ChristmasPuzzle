@@ -216,14 +216,16 @@ export class PuzzleScene extends Phaser.Scene {
 
   private applyDragVisuals(piece: PieceRuntime, active: boolean): void {
     if (active) {
-      piece.shape.setScale(DRAG_ACTIVE_SCALE);
-      if (!piece.dragShadow) {
-        piece.dragShadow = this.createDragShadow(piece);
-      } else {
-        this.updateDragShadowStyle(piece, piece.dragShadow);
-      }
+      // DISABLED: No scaling or shadow for cleaner drag experience
+      // piece.shape.setScale(DRAG_ACTIVE_SCALE);
+      // if (!piece.dragShadow) {
+      //   piece.dragShadow = this.createDragShadow(piece);
+      // } else {
+      //   this.updateDragShadowStyle(piece, piece.dragShadow);
+      // }
+      // this.syncDragShadow(piece);
+      
       this.syncDetailsTransform(piece);
-      this.syncDragShadow(piece);
       return;
     }
 
@@ -1655,22 +1657,30 @@ export class PuzzleScene extends Phaser.Scene {
     this.pieces.forEach((piece) => {
       const matterBody = (piece as any).matterBody;
       if (matterBody && !piece.placed) {
-        // CRITICAL: Handle dragged pieces differently
         const isBeingDragged = (piece as any).isBeingDragged;
         
         if (isBeingDragged) {
-          // Dragged piece: original body is a sensor (non-physical)
-          // Sync phantom body instead to provide kinematic pushing
-          const phantomBody = (piece as any).phantomBody;
-          if (phantomBody) {
-            this.syncPhantomBodyWithShape(piece, phantomBody);
-          }
+          // Dragged piece: body is static (immovable), manually control position
+          // Track previous position for velocity calculation
+          const prevX = matterBody.position.x;
+          const prevY = matterBody.position.y;
           
-          // Keep original body in sync visually (even though it's a sensor)
           this.syncMatterBodyWithShape(piece, matterBody);
-          this.matter!.body.setVelocity(matterBody, { x: 0, y: 0 });
-          this.matter!.body.setAngularVelocity(matterBody, 0);
+          
+          // Calculate drag velocity for momentum transfer
+          const deltaX = matterBody.position.x - prevX;
+          const deltaY = matterBody.position.y - prevY;
+          (piece as any).dragVelocity = { x: deltaX * 60, y: deltaY * 60 }; // Scale to per-second
+          
+          // Keep it awake
           (matterBody as any).isSleeping = false;
+          
+          // CRITICAL: Wake up nearby sleeping bodies so they can collide with dragged piece
+          // Sleeping bodies don't check collisions (optimization), so we must wake them manually
+          this.wakeUpNearbyBodies(matterBody, 150); // Wake bodies within 150px radius
+          
+          // Apply momentum to nearby pieces that the dragged piece is pushing
+          this.applyDragMomentum(piece, matterBody, deltaX, deltaY);
         } else {
           // Free piece: Matter body controls transform, visual shape follows
           const prevX = piece.shape.x;
@@ -1933,10 +1943,16 @@ export class PuzzleScene extends Phaser.Scene {
     if (pointer) {
       if ('worldX' in pointer) {
         pointerPosition = piece.dragPointer ?? new Phaser.Math.Vector2();
-        pointerPosition.set(pointer.worldX ?? pointer.x, pointer.worldY ?? pointer.y);
+        // Clamp pointer to game world bounds to prevent pieces from flying off-screen
+        const clampedX = Phaser.Math.Clamp(pointer.worldX ?? pointer.x, 0, this.cameras.main.width);
+        const clampedY = Phaser.Math.Clamp(pointer.worldY ?? pointer.y, 0, this.cameras.main.height);
+        pointerPosition.set(clampedX, clampedY);
       } else {
         pointerPosition = piece.dragPointer ?? new Phaser.Math.Vector2();
-        pointerPosition.set(pointer.x, pointer.y);
+        // Clamp pointer to game world bounds
+        const clampedX = Phaser.Math.Clamp(pointer.x, 0, this.cameras.main.width);
+        const clampedY = Phaser.Math.Clamp(pointer.y, 0, this.cameras.main.height);
+        pointerPosition.set(clampedX, clampedY);
       }
       piece.dragPointer = pointerPosition;
     } else if (piece.dragPointer) {
@@ -1987,37 +2003,35 @@ export class PuzzleScene extends Phaser.Scene {
 
       piece.isDragging = true;
       
-      // If piece has a Matter body, create a phantom sensor body for interactions
+      // If piece has a Matter body, make it static while dragging (acts as immovable kinematic object)
       const matterBody = (piece as any).matterBody;
       if (matterBody && this.matter && this.useMatterPhysics) {
-        console.log(`[dragstart] Piece ${index} has Matter body - creating phantom sensor`);
+        console.log(`[dragstart] Piece ${index} has Matter body - making it static for drag`);
         this.releaseDragConstraint(piece);
         
-        // PHANTOM BODY APPROACH:
-        // 1. Make the original body a non-colliding sensor (detects but doesn't react)
-        // 2. Create a phantom sensor body that follows the dragged piece
-        // 3. Phantom body is kinematic (pushes others but isn't affected)
+        // SIMPLE STATIC APPROACH:
+        // Make the dragged piece's body static (infinite mass, pushes others, immovable)
+        // Store original state to restore after drag ends
         
-        // Store original collision settings to restore later
-        (piece as any).originalIsSensor = matterBody.isSensor;
-        (piece as any).originalCollisionFilter = { ...matterBody.collisionFilter };
+        // CRITICAL: setStatic() changes friction/restitution, so store them first!
+        (piece as any).wasStatic = matterBody.isStatic;
+        (piece as any).originalRestitution = matterBody.restitution;
+        (piece as any).originalFriction = matterBody.friction;
+        (piece as any).originalFrictionStatic = matterBody.frictionStatic;
+        (piece as any).originalDensity = matterBody.density;
         
-        // Make original body non-interactive during drag
-        matterBody.isSensor = true; // Doesn't physically react
-        matterBody.collisionFilter = {
-          ...matterBody.collisionFilter,
-          mask: 0 // Don't collide with anything
-        };
+        // Make it static - this gives it infinite mass and makes it push other bodies
+        // WARNING: This also sets friction=1, frictionStatic=0.5, restitution=0
+        this.matter.body.setStatic(matterBody, true);
         
-        // Create phantom kinematic body that will push others
-        this.createPhantomBody(piece);
+        // Restore collision properties so it pushes properly during drag
+        // Static bodies with high friction push better
+        matterBody.restitution = 0.3;     // Some bounce for visible collisions
+        matterBody.friction = 1.0;        // High friction for solid feel
+        matterBody.frictionStatic = 1.5;  // Very high static friction
         
         // Mark as being dragged
         (piece as any).isBeingDragged = true;
-        
-        // Reset velocities
-        this.matter.body.setVelocity(matterBody, { x: 0, y: 0 });
-        this.matter.body.setAngularVelocity(matterBody, 0);
         
         // Prevent sleeping during drag
         (matterBody as any).isSleeping = false;
@@ -2101,10 +2115,13 @@ export class PuzzleScene extends Phaser.Scene {
 
       this.updateDraggingPieceTransform(piece, pointer);
       
-      // CRITICAL: For Matter physics, override position every frame
-      // The piece is marked as "being dragged" so update() will handle it specially
-      if (matterBody && this.matter) {
-        // Don't sync here - let the update loop handle it to avoid fighting with physics
+      // CRITICAL: For Matter physics with static dragged body, sync position every frame
+      // Static bodies need manual position updates via setPosition()
+      if (matterBody && this.matter && (piece as any).isBeingDragged) {
+        this.syncMatterBodyWithShape(piece, matterBody);
+        
+        // Wake up nearby sleeping bodies so they can collide
+        this.wakeUpNearbyBodies(matterBody, 150);
       }
     });
 
@@ -2139,25 +2156,40 @@ export class PuzzleScene extends Phaser.Scene {
         piece.shape.setStrokeStyle(active.strokeWidth, active.strokeColor, active.strokeAlpha);
         this.syncDetailsTransform(piece);
         
-        // If piece has a Matter body, clean up drag state and phantom body
+        // If piece has a Matter body, restore it to dynamic state
         const matterBodyDragEnd = (piece as any).matterBody;
         if (matterBodyDragEnd && this.matter && this.useMatterPhysics) {
           // Clear the drag flag
           (piece as any).isBeingDragged = false;
           
-          // Remove phantom body
-          this.removePhantomBody(piece);
+          // Restore original static state (should be false - was dynamic before drag)
+          const wasStatic = (piece as any).wasStatic ?? false;
+          this.matter.body.setStatic(matterBodyDragEnd, wasStatic);
+          delete (piece as any).wasStatic;
           
-          // Restore original collision settings
-          const originalIsSensor = (piece as any).originalIsSensor;
-          const originalFilter = (piece as any).originalCollisionFilter;
-          if (originalIsSensor !== undefined) {
-            matterBodyDragEnd.isSensor = originalIsSensor;
-            delete (piece as any).originalIsSensor;
+          // CRITICAL: Restore original collision properties
+          // setStatic() overwrites these, so we must restore them manually
+          const originalRestitution = (piece as any).originalRestitution;
+          const originalFriction = (piece as any).originalFriction;
+          const originalFrictionStatic = (piece as any).originalFrictionStatic;
+          const originalDensity = (piece as any).originalDensity;
+          
+          if (originalRestitution !== undefined) {
+            matterBodyDragEnd.restitution = originalRestitution;
+            delete (piece as any).originalRestitution;
           }
-          if (originalFilter) {
-            matterBodyDragEnd.collisionFilter = originalFilter;
-            delete (piece as any).originalCollisionFilter;
+          if (originalFriction !== undefined) {
+            matterBodyDragEnd.friction = originalFriction;
+            delete (piece as any).originalFriction;
+          }
+          if (originalFrictionStatic !== undefined) {
+            matterBodyDragEnd.frictionStatic = originalFrictionStatic;
+            delete (piece as any).originalFrictionStatic;
+          }
+          if (originalDensity !== undefined) {
+            // Density affects mass, so use setDensity to update properly
+            this.matter.body.setDensity(matterBodyDragEnd, originalDensity);
+            delete (piece as any).originalDensity;
           }
           
           // Update Matter body position to match final visual position (after rotation tween)
@@ -2176,7 +2208,7 @@ export class PuzzleScene extends Phaser.Scene {
           (matterBodyDragEnd as any).isSleeping = false;
           (matterBodyDragEnd as any).sleepCounter = 0;
           
-          console.log(`[dragend] Piece ${index} drag state cleared - phantom removed, will fall with gravity`);
+          console.log(`[dragend] Piece ${index} restored to dynamic - will fall with gravity`);
         } else if (matterBodyDragEnd && this.matter) {
           // Non-physics mode: just sync position
           this.syncMatterBodyWithShape(piece, matterBodyDragEnd);
@@ -2190,8 +2222,7 @@ export class PuzzleScene extends Phaser.Scene {
           this.hideDebugOutline();
         }
         
-        // Piece was snapped - remove both phantom and original Matter bodies
-        this.removePhantomBody(piece);
+        // Piece was snapped - remove Matter body entirely
         this.removeMatterBody(piece);
       }
 
@@ -2246,22 +2277,39 @@ export class PuzzleScene extends Phaser.Scene {
     piece.dragPointer = undefined;
     piece.dragStartRotation = undefined;
     
-    // CRITICAL: Clean up phantom body and drag state when piece is placed
-    this.removePhantomBody(piece);
+    // CRITICAL: Clean up drag state when piece is placed
     (piece as any).isBeingDragged = false;
     
     // Restore original body settings if they were modified
     const matterBody = (piece as any).matterBody;
     if (matterBody) {
-      const originalIsSensor = (piece as any).originalIsSensor;
-      const originalFilter = (piece as any).originalCollisionFilter;
-      if (originalIsSensor !== undefined) {
-        matterBody.isSensor = originalIsSensor;
-        delete (piece as any).originalIsSensor;
+      const wasStatic = (piece as any).wasStatic;
+      if (wasStatic !== undefined) {
+        this.matter!.body.setStatic(matterBody, wasStatic);
+        delete (piece as any).wasStatic;
       }
-      if (originalFilter) {
-        matterBody.collisionFilter = originalFilter;
-        delete (piece as any).originalCollisionFilter;
+      
+      // Restore collision properties
+      const originalRestitution = (piece as any).originalRestitution;
+      const originalFriction = (piece as any).originalFriction;
+      const originalFrictionStatic = (piece as any).originalFrictionStatic;
+      const originalDensity = (piece as any).originalDensity;
+      
+      if (originalRestitution !== undefined) {
+        matterBody.restitution = originalRestitution;
+        delete (piece as any).originalRestitution;
+      }
+      if (originalFriction !== undefined) {
+        matterBody.friction = originalFriction;
+        delete (piece as any).originalFriction;
+      }
+      if (originalFrictionStatic !== undefined) {
+        matterBody.frictionStatic = originalFrictionStatic;
+        delete (piece as any).originalFrictionStatic;
+      }
+      if (originalDensity !== undefined) {
+        this.matter!.body.setDensity(matterBody, originalDensity);
+        delete (piece as any).originalDensity;
       }
     }
 
@@ -3057,13 +3105,154 @@ export class PuzzleScene extends Phaser.Scene {
       offsetX = piece.shape.displayOriginX;
       offsetY = piece.shape.displayOriginY;
     }
+    
+    const targetX = piece.shape.x - offsetX;
+    const targetY = piece.shape.y - offsetY;
+    
+    // CRITICAL: For dragged pieces, ALWAYS sync body position exactly to visual shape
+    // The visual shape is authoritative during drag - body must follow it precisely
+    // Don't clamp velocity - the increased collision iterations will handle fast movement
     this.matter.body.setPosition(body, {
-      x: piece.shape.x - offsetX,
-      y: piece.shape.y - offsetY
+      x: targetX,
+      y: targetY
     });
+    
     (body as any).isSleeping = false;
     (body as any).sleepCounter = 0;
     this.captureMatterAttachment(piece, body);
+  }
+
+  /**
+   * Wake up sleeping bodies near the given body.
+   * Sleeping bodies don't check collisions (performance optimization),
+   * so we must wake them when a dragged piece approaches.
+   */
+  private wakeUpNearbyBodies(draggedBody: any, radius: number): void {
+    if (!this.matter || !this.matter.world) {
+      return;
+    }
+
+    const draggedX = draggedBody.position.x;
+    const draggedY = draggedBody.position.y;
+    
+    // Get all bodies in the world
+    const allBodies = (this.matter.world as any).localWorld.bodies;
+    
+    let wokenCount = 0;
+    allBodies.forEach((body: any) => {
+      // Skip the dragged body itself, static bodies, and already awake bodies
+      if (body === draggedBody || body.isStatic || !body.isSleeping) {
+        return;
+      }
+      
+      // Check distance between bodies (simple circle check)
+      const dx = body.position.x - draggedX;
+      const dy = body.position.y - draggedY;
+      const distanceSquared = dx * dx + dy * dy;
+      const radiusSquared = radius * radius;
+      
+      if (distanceSquared <= radiusSquared) {
+        // Wake up this body
+        body.isSleeping = false;
+        body.sleepCounter = 0;
+        wokenCount++;
+      }
+    });
+    
+    // Log occasionally for debugging (only when bodies were woken)
+    if (wokenCount > 0 && Math.random() < 0.02) {
+      console.log(`⏰ [WAKE] Woke up ${wokenCount} sleeping bodies near dragged piece`);
+    }
+  }
+
+  /**
+   * Apply momentum to nearby pieces when they're pushed by the dragged piece.
+   * This creates a more realistic feeling as pieces are shoved aside.
+   */
+  private applyDragMomentum(draggedPiece: PieceRuntime, draggedBody: any, deltaX: number, deltaY: number): void {
+    if (!this.matter || !this.matter.world) {
+      return;
+    }
+
+    // Only apply momentum if dragged piece is moving
+    const speed = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    if (speed < 0.05) { // Lowered threshold - respond to even slower drags
+      return; // Too slow to transfer momentum
+    }
+
+    const draggedX = draggedBody.position.x;
+    const draggedY = draggedBody.position.y;
+    
+    // Get all bodies in the world
+    const allBodies = (this.matter.world as any).localWorld.bodies;
+    
+    // Momentum transfer radius - larger for earlier response
+    const momentumRadius = 100; // pixels (increased from 80)
+    const momentumRadiusSquared = momentumRadius * momentumRadius;
+    
+    // Calculate drag direction and speed
+    const dragDirection = { x: deltaX / speed, y: deltaY / speed };
+    const dragSpeed = speed * 60; // Convert to per-second velocity
+    
+    allBodies.forEach((body: any) => {
+      // Skip the dragged body itself and static bodies
+      if (body === draggedBody || body.isStatic) {
+        return;
+      }
+      
+      // Check distance between bodies
+      const dx = body.position.x - draggedX;
+      const dy = body.position.y - draggedY;
+      const distanceSquared = dx * dx + dy * dy;
+      
+      if (distanceSquared <= momentumRadiusSquared && distanceSquared > 0) {
+        const distance = Math.sqrt(distanceSquared);
+        
+        // Calculate push direction (from dragged piece to target)
+        const pushDir = { x: dx / distance, y: dy / distance };
+        
+        // Check if target is in front of drag direction (not behind)
+        const dot = pushDir.x * dragDirection.x + pushDir.y * dragDirection.y;
+        if (dot <= 0) {
+          return; // Target is behind drag direction, don't push
+        }
+        
+        // Calculate momentum based on:
+        // 1. How fast the dragged piece is moving (speed-responsive!)
+        // 2. How close the target is (closer = more force)
+        // 3. How aligned with drag direction (more aligned = more force)
+        const proximityFactor = 1 - (distance / momentumRadius); // 1.0 at center, 0.0 at edge
+        const alignmentFactor = dot; // 0.0 to 1.0 based on alignment
+        
+        // Increased multiplier for more noticeable bounce
+        // Speed-responsive: faster drag = stronger push
+        const baseStrength = dragSpeed * proximityFactor * alignmentFactor;
+        const momentumStrength = baseStrength * 0.35; // 35% of drag speed (was 15%)
+        
+        // Apply impulse in push direction
+        const impulseX = pushDir.x * momentumStrength;
+        const impulseY = pushDir.y * momentumStrength;
+        
+        // Convert to Matter.js velocity (impulse is instantaneous change)
+        const currentVelX = body.velocity.x;
+        const currentVelY = body.velocity.y;
+        
+        // Add momentum to existing velocity (don't replace it)
+        // Increased frame scale for stronger immediate response
+        this.matter.body.setVelocity(body, {
+          x: currentVelX + impulseX * 0.025, // Increased from 0.016 for more bounce
+          y: currentVelY + impulseY * 0.025
+        });
+        
+        // Wake up the body so it responds immediately
+        body.isSleeping = false;
+        body.sleepCounter = 0;
+        
+        // Add more angular velocity for spinning effect when pushed hard
+        const angularImpulse = (pushDir.x * dragDirection.y - pushDir.y * dragDirection.x) * 0.003; // Tripled from 0.001
+        this.matter.body.setAngularVelocity(body, body.angularVelocity + angularImpulse);
+      }
+    });
   }
 
   /**
