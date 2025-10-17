@@ -784,6 +784,10 @@ export class PuzzleScene extends Phaser.Scene {
     this.textResolution = this.resolveTextResolution();
     if (typeof window !== 'undefined' && 'matchMedia' in window) {
       this.reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (this.reduceMotion) {
+        console.warn('⚙️ [ACCESSIBILITY] Reduced motion detected - explosion/shiver animation will be skipped');
+        console.warn('⚙️ To see animations, disable "prefers-reduced-motion" in your OS/browser settings');
+      }
     } else {
       this.reduceMotion = false;
     }
@@ -952,6 +956,7 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     if (this.reduceMotion) {
+      console.log('⚙️ [ACCESSIBILITY] Skipping explosion animation due to reduced motion preference');
       this.preparePiecesForPuzzle();
       return;
     }
