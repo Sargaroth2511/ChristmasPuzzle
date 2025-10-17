@@ -1,6 +1,10 @@
 import Phaser from 'phaser';
 import decomp from 'poly-decomp';
 
+// ⚠️ TESTING MODE - Set to true to skip puzzle and test video flow
+// TODO: Set to false before production deployment
+const TESTING_VIDEO_MODE = false;
+
 import {
   DEFAULT_FILL_ALPHA,
   DEFAULT_STROKE_ALPHA,
@@ -189,6 +193,7 @@ export class PuzzleScene extends Phaser.Scene {
   private readonly handleExternalCoinRequest = () => this.emitCoinTotal();
   private isTouchDragging = false; // Track if current drag is from touch input
   private timerText?: Phaser.GameObjects.Text;
+  private completionVideo?: Phaser.GameObjects.Video;
 
   private resetDragState(piece: PieceRuntime): void {
     piece.isDragging = false;
@@ -715,6 +720,12 @@ export class PuzzleScene extends Phaser.Scene {
       this.outlineGeometryMask.destroy();
       this.outlineGeometryMask = undefined;
     }
+    
+    // Clean up completion video
+    if (this.completionVideo) {
+      this.completionVideo.destroy();
+      this.completionVideo = undefined;
+    }
   }
 
   constructor() {
@@ -725,6 +736,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.load.text('puzzle-svg', 'assets/pieces/stag_with_all_lines.svg');
     this.load.image('scene-background', 'assets/background/snowy_mauntains_background.png');
     this.load.image('outline-texture', 'assets/background/greyPaper.png');
+    this.load.video('completion-video', 'assets/videos/endscene_v1.mp4', true); // true = no audio
     if (!this.textures.exists('hud-coin-spritesheet')) {
       this.load.spritesheet('hud-coin-spritesheet', 'assets/coins/oh22_coin_spin_256x256_12_refined.png', {
         frameWidth: 256,
@@ -759,6 +771,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.coinShadow = undefined;
     this.coinLabel = undefined;
     this.coinTotal = 0;
+    this.completionVideo = undefined;
     
     this.shimmerSweepDirection
       .set(-Math.abs(PLACEMENT_SHIMMER_SWEEP_VECTOR.x || 1), -Math.abs(PLACEMENT_SHIMMER_SWEEP_VECTOR.y || 1))
@@ -776,8 +789,15 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     this.emitter?.on('coin-total-request', this.handleExternalCoinRequest);
+    
+    // Listen for video playback request
+    this.emitter?.on('play-completion-video', () => {
+      this.playCompletionVideo();
+    });
+    
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.emitter?.off('coin-total-request', this.handleExternalCoinRequest);
+      this.emitter?.off('play-completion-video');
       this.cleanupScene();
     });
   }
@@ -914,6 +934,22 @@ export class PuzzleScene extends Phaser.Scene {
 
     // Emit event to notify that PuzzleScene has been created and is active
     this.emitter.emit('puzzle-scene-active');
+
+    // ⚠️ TESTING MODE - Skip intro and simulate puzzle completion for video testing
+    if (TESTING_VIDEO_MODE) {
+      console.log('⚠️ TESTING MODE: Skipping intro and simulating puzzle completion');
+      this.preparePiecesForPuzzle();
+      
+      // Mark all pieces as placed
+      this.placedCount = this.pieces.length;
+      
+      // Simulate puzzle completion after a short delay
+      this.time.delayedCall(500, () => {
+        const elapsedSeconds = 120; // 2:00 test time
+        this.emitter?.emit('puzzle-complete', { elapsedSeconds });
+      });
+      return;
+    }
 
     if (this.reduceMotion) {
       this.preparePiecesForPuzzle();
@@ -1132,6 +1168,93 @@ export class PuzzleScene extends Phaser.Scene {
     // Called when explosion modal is shown - display coin HUD and timer
     this.createCoinHud();
     this.createTimerDisplay();
+  }
+
+  private prepareCompletionVideo(): void {
+    console.log('🎬 Pre-creating completion video for instant playback');
+    
+    if (this.completionVideo) {
+      return; // Already created
+    }
+    
+    // Create video centered in the scene
+    const centerX = this.scale.width / 2;
+    const centerY = this.scale.height / 2;
+    
+    this.completionVideo = this.add.video(centerX, centerY, 'completion-video');
+    this.completionVideo.setDepth(100_000); // Above everything else
+    this.completionVideo.setOrigin(0.5, 0.5);
+    this.completionVideo.setVisible(false); // Hidden until we play it
+    
+    // Wait for video metadata to load and set proper scale
+    this.completionVideo.once('metadata', () => {
+      const videoElement = this.completionVideo?.video;
+      if (videoElement && this.completionVideo) {
+        const actualWidth = videoElement.videoWidth;
+        const actualHeight = videoElement.videoHeight;
+        
+        console.log(`📺 Video metadata loaded: ${actualWidth}x${actualHeight}`);
+        
+        // Calculate scale to fill entire scene (cover mode)
+        const scaleX = this.scale.width / actualWidth;
+        const scaleY = this.scale.height / actualHeight;
+        const scale = Math.max(scaleX, scaleY);
+        
+        this.completionVideo.setScale(scale);
+        console.log(`📏 Video pre-scaled to: ${scale}`);
+      }
+    });
+  }
+
+  private playCompletionVideo(): void {
+    console.log('🎬 Playing pre-created completion video');
+    
+    // Notify app component to hide completion overlay
+    this.emitter?.emit('video-playback-started');
+    
+    // If video wasn't pre-created (shouldn't happen), create it now
+    if (!this.completionVideo) {
+      console.warn('⚠️ Video not pre-created, creating now...');
+      this.prepareCompletionVideo();
+    }
+    
+    if (!this.completionVideo) {
+      console.error('❌ Failed to create video');
+      return;
+    }
+    
+    // Make video visible
+    this.completionVideo.setVisible(true);
+
+    // Hide HUD elements during video
+    if (this.coinContainer) {
+      this.coinContainer.setVisible(false);
+    }
+    if (this.timerText) {
+      this.timerText.setVisible(false);
+    }
+
+    // Hide all puzzle pieces
+    this.pieces.forEach(piece => {
+      piece.shape.setVisible(false);
+      if (piece.detailsOverlay) {
+        piece.detailsOverlay.setVisible(false);
+      }
+    });
+
+    // Play video
+    this.completionVideo.play();
+
+    // When video ends, emit event to show thank you modal
+    this.completionVideo.once('complete', () => {
+      console.log('✅ Completion video finished - keeping last frame visible');
+      
+      // DON'T hide the video - keep the last frame visible
+      // It will be cleaned up when the scene restarts
+      
+      // Emit event to app component to show thank you modal
+      this.emitter?.emit('completion-video-ended');
+    });
   }
 
   startTimer(): void {
@@ -2424,6 +2547,9 @@ export class PuzzleScene extends Phaser.Scene {
     if (this.placedCount === this.pieces.length) {
       const elapsedSeconds = (this.time.now - this.startTime) / 1000;
       this.emitter?.emit('puzzle-complete', { elapsedSeconds });
+      
+      // Pre-create and prepare the completion video now for instant playback later
+      this.prepareCompletionVideo();
     }
   }
 

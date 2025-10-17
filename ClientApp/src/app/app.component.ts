@@ -8,6 +8,10 @@ import { InitialScene } from '../game/initial.scene';
 import { PuzzleScene } from '../game/puzzle.scene';
 import { UserService, UserData, Language, Salutation, RecordPieceSnapRequest, StartGameSessionResponse, CompleteGameSessionResponse } from './user.service';
 
+// ⚠️ TESTING MODE - Set to true to skip InitialScene and go directly to PuzzleScene
+// TODO: Set to false before production deployment
+const TESTING_VIDEO_MODE = false;
+
 type PuzzlePiecePlacedPayload = {
   pieceId: string;
   placedCount: number;
@@ -309,13 +313,27 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     const emitter = new Phaser.Events.EventEmitter();
     this.sceneEvents = emitter;
 
-    this.game.scene.add('InitialScene', InitialScene, true, {
-      emitter,
-      showDebug: this.showDebug,
-      useGlassStyle: this.useGlassStyle
-    });
-
-    this.game.scene.add('PuzzleScene', PuzzleScene, false);
+    // ⚠️ TESTING MODE - Skip InitialScene and start PuzzleScene directly
+    if (TESTING_VIDEO_MODE) {
+      console.log('🧪 TESTING MODE: Starting PuzzleScene directly, skipping InitialScene');
+      this.game.scene.add('InitialScene', InitialScene, false, {
+        emitter,
+        showDebug: this.showDebug,
+        useGlassStyle: this.useGlassStyle
+      });
+      this.game.scene.add('PuzzleScene', PuzzleScene, true, {
+        emitter,
+        showDebug: this.showDebug,
+        useGlassStyle: this.useGlassStyle
+      });
+    } else {
+      this.game.scene.add('InitialScene', InitialScene, true, {
+        emitter,
+        showDebug: this.showDebug,
+        useGlassStyle: this.useGlassStyle
+      });
+      this.game.scene.add('PuzzleScene', PuzzleScene, false);
+    }
 
     const handleSceneStart = (scene: Phaser.Scene) => {
       if (!this.game) {
@@ -352,10 +370,19 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         this.exitImmersiveMode();
       }
       
-      this.completionOverlayTimer = setTimeout(() => {
+      // In testing mode, don't show the completion overlay
+      // The video will play when user clicks "Münzen senden"
+      // After video, the thank you modal shows instead
+      if (!TESTING_VIDEO_MODE) {
+        this.completionOverlayTimer = setTimeout(() => {
+          this.puzzleComplete = true;
+          this.cdr.markForCheck();
+        }, 1000);
+      } else {
+        console.log('🧪 TESTING MODE: Skipping completion overlay, will show after video');
+        // In testing mode, show the overlay immediately so user can click "Münzen senden"
         this.puzzleComplete = true;
-        this.cdr.markForCheck();
-      }, 1000);
+      }
       this.cdr.markForCheck();
     });
 
@@ -389,6 +416,18 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         puzzleScene.showHudElements();
       }
       this.cdr.markForCheck();
+    });
+
+    emitter.on('video-playback-started', () => {
+      // Hide completion overlay when video starts playing
+      console.log('🎬 Video started - hiding completion overlay');
+      this.puzzleComplete = false;
+      this.cdr.markForCheck();
+    });
+
+    emitter.on('completion-video-ended', () => {
+      // Video has finished playing, now show the thank you modal
+      this.openThankYouModal();
     });
 
     emitter.on('puzzle-piece-placed', (payload: PuzzlePiecePlacedPayload) => {
@@ -592,11 +631,16 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
   donateCoins(): void {
     this.hideRestartButton = true;
+    
+    // Immediately hide the completion overlay
+    this.puzzleComplete = false;
+    this.cdr.markForCheck();
 
     if (!this.userValidated || !this.userGuid || !this.completionTime) {
       this.sessionErrorMessage = undefined;
       const message = this.translate.instant(this.getSalutationKey('completion.thankYouNotStored'));
-      this.openThankYouModal(message);
+      // Play video even without valid session (testing mode)
+      this.playCompletionVideoThenShowModal(message);
       return;
     }
 
@@ -604,7 +648,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       console.warn('⚠️ No active session to complete.');
       const message = this.translate.instant(this.getSalutationKey('completion.thankYouNoSession'));
       this.sessionErrorMessage = message;
-      this.openThankYouModal(message);
+      // Play video even without active session (testing mode)
+      this.playCompletionVideoThenShowModal(message);
       return;
     }
 
@@ -613,7 +658,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       this.flushPendingSnaps();
       const message = this.translate.instant(this.getSalutationKey('completion.thankYouSyncing'));
       this.sessionErrorMessage = message;
-      this.openThankYouModal(message);
+      // Play video even while syncing
+      this.playCompletionVideoThenShowModal(message);
       return;
     }
 
@@ -631,15 +677,25 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         this.activeSessionId = undefined;
         this.sessionPuzzleVersion = undefined;
 
-        this.openThankYouModal();
+        // Play completion video in the game scene (success case)
+        this.sceneEvents?.emit('play-completion-video');
       },
       error: (error) => {
         console.error('❌ Failed to complete game session:', error);
         const message = this.translate.instant(this.getSalutationKey('completion.thankYouError'));
         this.sessionErrorMessage = message;
-        this.openThankYouModal(message);
+        // Play video even on error
+        this.playCompletionVideoThenShowModal(message);
       }
     });
+  }
+
+  private playCompletionVideoThenShowModal(errorMessage?: string): void {
+    // Store the error message to show after video
+    this.thankYouErrorMessage = errorMessage;
+    
+    // Play the video
+    this.sceneEvents?.emit('play-completion-video');
   }
 
   private openThankYouModal(message?: string): void {
