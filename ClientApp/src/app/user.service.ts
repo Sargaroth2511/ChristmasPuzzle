@@ -31,6 +31,48 @@ export interface UpdateStatsRequest {
   puzzleCompleted: boolean;
 }
 
+export interface StartGameSessionRequest {
+  forceRestart?: boolean;
+}
+
+export interface StartGameSessionResponse {
+  success: boolean;
+  sessionId?: string;
+  puzzleVersion?: string;
+  startedAtUtc?: string;
+  totalPieces?: number;
+  activeSessionId?: string;
+  message?: string;
+}
+
+export interface RecordPieceSnapRequest {
+  pieceId: string;
+  anchorX: number;
+  anchorY: number;
+  clientDistance?: number;
+  clientTolerance?: number;
+}
+
+export interface RecordPieceSnapResponse {
+  status: string;
+  distance: number;
+  allowedDistance: number;
+  totalPieces: number;
+  placedPieces: number;
+  message?: string;
+}
+
+export interface CompleteGameSessionResponse {
+  sessionId?: string;
+  startedAtUtc?: string;
+  completedAtUtc?: string;
+  durationSeconds?: number;
+  totalPieces?: number;
+  placedPieces?: number;
+  message?: string;
+  userData?: UserData;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -60,11 +102,44 @@ export class UserService {
       );
   }
 
+  /**
+   * Start a backend-validated game session to track progress.
+   */
+  startGameSession(uid: string, request?: StartGameSessionRequest): Observable<StartGameSessionResponse> {
+    return this.http.post<StartGameSessionResponse>(`${this.apiBaseUrl}/${uid}/sessions`, request ?? {})
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Report a piece placement event so the backend can validate it.
+   */
+  recordPieceSnap(uid: string, sessionId: string, request: RecordPieceSnapRequest): Observable<RecordPieceSnapResponse> {
+    return this.http.post<RecordPieceSnapResponse>(`${this.apiBaseUrl}/${uid}/sessions/${sessionId}/snaps`, request)
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Complete the current game session and obtain the verified stats.
+   */
+  completeGameSession(uid: string, sessionId: string): Observable<CompleteGameSessionResponse> {
+    return this.http.post<CompleteGameSessionResponse>(`${this.apiBaseUrl}/${uid}/sessions/${sessionId}/complete`, {})
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
   private handleError(error: HttpErrorResponse) {
     if (error.status === 404) {
       return throwError(() => new Error('User not found. Please check your invitation link.'));
     } else if (error.status === 400) {
       return throwError(() => new Error('Invalid request. Please check your data.'));
+    } else if (error.status === 409 || error.status === 422) {
+      const message = (error.error && (error.error.message || error.error.error)) || 'Request could not be processed.';
+      return throwError(() => new Error(message));
     }
     return throwError(() => new Error('An error occurred. Please try again later.'));
   }

@@ -145,6 +145,13 @@ const calculateSnapTolerance = (shape: Phaser.GameObjects.Polygon, multiplier = 
   return Phaser.Math.Clamp(dynamicTolerance, min, max);
 };
 
+type SnapValidationInfo = {
+  anchorX: number;
+  anchorY: number;
+  distance: number;
+  tolerance: number;
+};
+
 export class PuzzleScene extends Phaser.Scene {
   private config?: PuzzleConfig;
   private emitter?: Phaser.Events.EventEmitter;
@@ -2263,11 +2270,18 @@ export class PuzzleScene extends Phaser.Scene {
       return false;
     }
 
-    this.placePiece(piece);
+    const snapInfo: SnapValidationInfo = {
+      anchorX,
+      anchorY,
+      distance,
+      tolerance: piece.snapTolerance
+    };
+
+    this.placePiece(piece, snapInfo);
     return true;
   }
 
-  private placePiece(piece: PieceRuntime): void {
+  private placePiece(piece: PieceRuntime, snapInfo?: SnapValidationInfo): void {
     if (piece.placed) {
       return;
     }
@@ -2354,7 +2368,11 @@ export class PuzzleScene extends Phaser.Scene {
     this.emitter?.emit('puzzle-piece-placed', {
       pieceId: piece.id,
       placedCount: this.placedCount,
-      totalPieces: this.pieces.length
+      totalPieces: this.pieces.length,
+      anchorX: snapInfo?.anchorX ?? piece.target.x,
+      anchorY: snapInfo?.anchorY ?? piece.target.y,
+      distance: snapInfo?.distance ?? 0,
+      tolerance: snapInfo?.tolerance ?? piece.snapTolerance
     });
 
     if (this.placedCount === this.pieces.length) {

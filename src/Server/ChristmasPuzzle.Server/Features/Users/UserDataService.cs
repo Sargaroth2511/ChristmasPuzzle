@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ChristmasPuzzle.Server.Features.GameSessions;
 
 namespace ChristmasPuzzle.Server.Features.Users;
 
@@ -16,6 +17,11 @@ public interface IUserDataService
     /// Update user statistics based on game progress
     /// </summary>
     Task<UserData> UpdateUserStatsAsync(Guid uid, UpdateUserStatsRequest request);
+
+    /// <summary>
+    /// Apply a validated game session result produced by the backend to the user's statistics.
+    /// </summary>
+    Task<UserData> ApplyGameSessionResultAsync(Guid uid, GameSessionOutcome outcome);
 }
 
 public class UserDataService : IUserDataService
@@ -214,6 +220,18 @@ public class UserDataService : IUserDataService
         {
             _fileLock.Release();
         }
+    }
+
+    public Task<UserData> ApplyGameSessionResultAsync(Guid uid, GameSessionOutcome outcome)
+    {
+        var sanitizedRequest = new UpdateUserStatsRequest
+        {
+            PiecesAchieved = outcome.PiecesPlaced,
+            CompletionTimeSeconds = outcome.DurationSeconds,
+            PuzzleCompleted = true
+        };
+
+        return UpdateUserStatsAsync(uid, sanitizedRequest);
     }
 
     private async Task<UsersDataStore> ReadDataStoreAsync()

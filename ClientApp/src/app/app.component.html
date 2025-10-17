@@ -4,7 +4,7 @@
     <img src="assets/logos/oh22_Logo_weiss_CMYK.png" alt="OH22 Logo">
   </div>
 
-  <!-- User Info Box (visible during initial scene, only if user data exists) -->
+  <!-- User Info Box (visible after puzzle start, only if user data exists) -->
   <div class="user-info-box" *ngIf="showUserInfo && !puzzleComplete && userData">
     <div class="info-card">
       <h3>{{ getUserDisplayName() }}</h3>
@@ -18,8 +18,16 @@
   </div>
 
   <header class="hero">
-    <h1>{{ 'app.title' | translate }}</h1>
-    <p [class.visible]="showInstructions">{{ 'instructions.drag' | translate }}</p>
+    <h1 *ngIf="showGreetingHeader; else standardTitle">
+      <span class="greeting-name">{{ greetingNamePart }}</span><br>
+      <span class="greeting-message">{{ greetingMessagePart }}</span>
+    </h1>
+    <ng-template #standardTitle>
+      <h1>{{ ('app.title.' + salutationVariant) | translate }}</h1>
+    </ng-template>
+    <h1 *ngIf="showInstructions" class="instruction-heading">
+      <span class="greeting-message">{{ ('instructions.drag.' + salutationVariant) | translate }}</span>
+    </h1>
   </header>
 
   <section class="board">
@@ -53,40 +61,45 @@
 
       <div class="intro-overlay" *ngIf="showIntroOverlay">
         <div class="intro-card">
-          <h1>{{ 'app.title' | translate }}</h1>
-          <p>{{ 'hero.description' | translate }}</p>
+          <h1>{{ ('app.title.' + salutationVariant) | translate }}</h1>
+          <p>{{ ('hero.description.' + salutationVariant) | translate }}</p>
           <button type="button" (click)="startPuzzle()">{{ 'buttons.startPuzzle' | translate }}</button>
         </div>
       </div>
 
       <!-- Completion Modal -->
       <app-modal [isVisible]="puzzleComplete" [wide]="true">
-        <h1 [innerHTML]="'completion.perfect' | translate: { time: formatTime(completionTime) }"></h1>
-        <p [innerHTML]="'completion.perfectDescription' | translate"></p>
+        <h1 [innerHTML]="('completion.perfect.' + salutationVariant) | translate: { time: formatTime(completionTime) }"></h1>
+        <p [innerHTML]="('completion.perfectDescription.' + salutationVariant) | translate"></p>
         <div class="modal-actions">
           <button type="button" *ngIf="!hideRestartButton" (click)="restartPuzzle()">{{ 'buttons.newGame' | translate }}</button>
           <button type="button" (click)="donateCoins()">{{ 'buttons.submitTime' | translate }}</button>
-        </div>
-        <div class="donation-message" *ngIf="donationMessageVisible">
-          <span>{{ 'completion.donationMessage' | translate }}</span>
         </div>
       </app-modal>
 
       <!-- Stag Modal -->
       <app-modal [isVisible]="showInitialContinueButton && !puzzleComplete" [wide]="true">
-        <h1>
-          {{ greetingNamePart }}<br>
-          {{ greetingMessagePart }}
-        </h1>
-        <p>{{ 'modals.stagProblem' | translate }}</p>
+        <h1>{{ 'modals.stagTitle' | translate }}</h1>
+        <p>{{ ('modals.stagProblem.' + salutationVariant) | translate }}</p>
         <button type="button" (click)="continueToPuzzle()">{{ 'buttons.continue' | translate }}</button>
       </app-modal>
 
       <!-- Explosion Modal -->
       <app-modal [isVisible]="showExplosionModal && !puzzleComplete" [wide]="true">
         <h1>{{ 'modals.explosionTitle' | translate }}</h1>
-        <p>{{ 'modals.explosionDescription' | translate }}</p>
+        <p>{{ ('modals.explosionDescription.' + salutationVariant) | translate }}</p>
         <button type="button" (click)="closeExplosionModal()">{{ 'buttons.letsGo' | translate }}</button>
+      </app-modal>
+
+      <!-- Thank You Modal -->
+      <app-modal [isVisible]="showThankYouModal" [wide]="true">
+        <h1>{{ ('completion.thankYouTitle.' + salutationVariant) | translate }}</h1>
+        <p [innerHTML]="('completion.thankYouBody.' + salutationVariant) | translate"></p>
+        <p *ngIf="thankYouErrorMessage" class="thank-you-error">{{ thankYouErrorMessage }}</p>
+        <div class="modal-actions">
+          <button type="button" (click)="startNextRound()">{{ 'buttons.nextRound' | translate }}</button>
+          <button type="button" (click)="closeThankYouModal()">{{ 'buttons.close' | translate }}</button>
+        </div>
       </app-modal>
       
       <!-- Physics Toggle Button -->

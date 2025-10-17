@@ -59,7 +59,10 @@ validateUser(uid) {
 ```json
 {
   "app": {
-    "title": "Weihnachtspuzzle"
+    "title": {
+      "informal": "Weihnachtspuzzle",
+      "formal": "Weihnachtspuzzle"
+    }
   }
 }
 ```
@@ -68,7 +71,10 @@ validateUser(uid) {
 ```json
 {
   "app": {
-    "title": "Christmas Puzzle"
+    "title": {
+      "informal": "Christmas Puzzle",
+      "formal": "Christmas Puzzle"
+    }
   }
 }
 ```
@@ -79,7 +85,7 @@ validateUser(uid) {
 <h1>{{ title }}</h1>
 
 <!-- AFTER -->
-<h1>{{ 'app.title' | translate }}</h1>
+<h1>{{ ('app.title.' + salutationVariant) | translate }}</h1>
 ```
 
 **Result**:
@@ -140,15 +146,15 @@ getLanguageText(): string {
    - Updated `getLanguageText()` to use `translate.instant()` instead of hardcoded strings
 
 2. **`ClientApp/src/app/app.component.html`**
-   - Changed `{{ title }}` to `{{ 'app.title' | translate }}` (2 occurrences)
+   - Changed `{{ title }}` to `{{ ('app.title.' + salutationVariant) | translate }}` (2 occurrences)
 
 3. **`ClientApp/src/assets/i18n/de.json`**
-   - Added `app.title`: "Weihnachtspuzzle"
+   - Added `app.title.informal` / `formal` variants: "Weihnachtspuzzle"
    - Added `language.german`: "Deutsch"
    - Added `language.english`: "Englisch"
 
 4. **`ClientApp/src/assets/i18n/en.json`**
-   - Added `app.title`: "Christmas Puzzle"
+   - Added `app.title.informal` / `formal` variants: "Christmas Puzzle"
    - Added `language.german`: "German"
    - Added `language.english`: "English"
 

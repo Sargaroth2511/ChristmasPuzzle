@@ -76,19 +76,12 @@
 
 }
 
-/* Donation message styling */
-.modal-card .donation-message {
+.modal-card .thank-you-error {
   margin-top: 1.5rem;
-  padding: 1rem;
-  background: rgba(76, 175, 80, 0.2);
-  border-radius: 12px;
-  
-  span {
-    font-family: var(--font-lausanne);
-    font-weight: 300;
-    font-size: 1rem;
-    color: #4caf50;
-  }
+  font-family: var(--font-lausanne);
+  font-weight: 300;
+  font-size: 1rem;
+  color: #c0392b;
 }
 
 @media (max-width: 768px) {
