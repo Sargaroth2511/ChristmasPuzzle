@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
+import { Observable, throwError, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
 export enum Language {
@@ -108,7 +108,13 @@ export class UserService {
   startGameSession(uid: string, request?: StartGameSessionRequest): Observable<StartGameSessionResponse> {
     return this.http.post<StartGameSessionResponse>(`${this.apiBaseUrl}/${uid}/sessions`, request ?? {})
       .pipe(
-        catchError(this.handleError)
+        catchError((error: HttpErrorResponse) => {
+          // Special handling for 409 Conflict - return the response body with activeSessionId
+          if (error.status === 409 && error.error) {
+            return of(error.error as StartGameSessionResponse);
+          }
+          return this.handleError(error);
+        })
       );
   }
 

@@ -4,8 +4,7 @@
     [class.matter-mode]="useMatterPhysics"
     [class.arcade-mode]="!useMatterPhysics"
     [disabled]="disabled"
-    (click)="onToggle()"
-    [attr.aria-label]="'Toggle physics mode: Currently ' + modeText">
+    (click)="onToggle()">
     <div class="toggle-content">
       <div class="mode-icon">
         <svg *ngIf="!useMatterPhysics" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -25,8 +24,9 @@
         </svg>
       </div>
       <div class="mode-text">
-        <div class="mode-name">{{ modeText }}</div>
-        <div class="mode-description">{{ modeDescription }}</div>
+        <div class="mode-name">
+          {{ (useMatterPhysics ? 'menu.realisticPhysics' : 'menu.simplePhysics') | translate }}
+        </div>
       </div>
     </div>
   </button>

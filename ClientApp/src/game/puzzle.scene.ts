@@ -167,6 +167,7 @@ export class PuzzleScene extends Phaser.Scene {
   private explosionActive = false;
   private explosionComplete = false;
   private useMatterPhysics = false; // Track if Matter.js physics is enabled
+  private userPrefersMatterPhysics = false; // User's toggle preference (separate from explosion forcing)
   private shiverTweens: Phaser.Tweens.Tween[] = [];
   private shiverStartTime = 0;
   private glassMode = false;
@@ -848,6 +849,16 @@ export class PuzzleScene extends Phaser.Scene {
       
       console.log(`✅ Matter.js boundaries created (floor at Y=${floorY})`);
       
+      // Add visible floor line (greenish color to match app style)
+      const floorLine = this.add.graphics();
+      floorLine.lineStyle(3, 0x848d6b, 0.8); // Greenish color with slight transparency
+      floorLine.beginPath();
+      floorLine.moveTo(0, floorY);
+      floorLine.lineTo(worldWidth, floorY);
+      floorLine.strokePath();
+      floorLine.setDepth(5); // Above background but below pieces
+      console.log(`✅ Visible floor line drawn at Y=${floorY}`);
+      
       // Add collision event handler to wake up sleeping bodies when phantom touches them
       this.matter.world.on('collisionstart', (event: any) => {
         event.pairs.forEach((pair: any) => {
@@ -900,6 +911,9 @@ export class PuzzleScene extends Phaser.Scene {
     this.drawGuide();
     this.setupDragHandlers();
     this.initializePiecesAtTarget();
+
+    // Emit event to notify that PuzzleScene has been created and is active
+    this.emitter.emit('puzzle-scene-active');
 
     if (this.reduceMotion) {
       this.preparePiecesForPuzzle();
@@ -1409,6 +1423,8 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     // Enable Matter.js physics for explosion with collisions
+    // Always force Matter.js ON during explosion for visual effect
+    // User preference (userPrefersMatterPhysics) is preserved and applied after explosion
     this.useMatterPhysics = true;
     
     if (this.matter && this.matter.world) {
@@ -1576,6 +1592,10 @@ export class PuzzleScene extends Phaser.Scene {
     console.log('[preparePiecesForPuzzle] Starting puzzle preparation');
     this.stopShiverTweens();
     
+    // Restore user's physics preference after explosion
+    this.useMatterPhysics = this.userPrefersMatterPhysics;
+    console.log(`[preparePiecesForPuzzle] Restored user physics preference: ${this.useMatterPhysics ? 'Matter.js' : 'Arcade'}`);
+    
     // Gravity handling based on physics mode
     if (this.matter && this.matter.world) {
       const world = (this.matter.world as any);
@@ -1587,12 +1607,22 @@ export class PuzzleScene extends Phaser.Scene {
     }
     
     this.pieces.forEach((piece, index) => {
-      // Only remove Matter body if physics mode is disabled
-      // If physics mode is enabled, keep bodies for collision during puzzle phase
-      if (!this.useMatterPhysics) {
-        this.removeMatterBody(piece);
+      // Handle Matter bodies based on physics mode
+      const matterBody = (piece as any).matterBody;
+      
+      if (this.useMatterPhysics) {
+        // Matter physics enabled - ensure body exists
+        if (!matterBody) {
+          console.log(`[preparePiecesForPuzzle] Creating Matter body for piece ${index} (physics mode enabled)`);
+          this.convertToMatterBody(piece);
+        } else {
+          console.log(`[preparePiecesForPuzzle] Keeping Matter body for piece ${index} (physics mode enabled)`);
+        }
       } else {
-        console.log(`[preparePiecesForPuzzle] Keeping Matter body for piece ${index} (physics mode enabled)`);
+        // Matter physics disabled - remove body if it exists
+        if (matterBody) {
+          this.removeMatterBody(piece);
+        }
       }
       
       const restPosition = piece.restPosition ?? new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
@@ -1602,12 +1632,12 @@ export class PuzzleScene extends Phaser.Scene {
       
       // CRITICAL: Sync Matter body to match visual position after settling
       // Use the corrected anchor position (shape.position - displayOrigin)
-      const matterBody = (piece as any).matterBody;
-      if (matterBody && this.matter) {
-        this.syncMatterBodyWithShape(piece, matterBody);
-        this.matter.body.setVelocity(matterBody, { x: 0, y: 0 });
-        this.matter.body.setAngularVelocity(matterBody, 0);
-        console.log(`[preparePiecesForPuzzle] Synced Matter body ${index} to visual transform, bodyPos=(${matterBody.position.x.toFixed(1)}, ${matterBody.position.y.toFixed(1)}), angle=${(matterBody.angle ?? 0).toFixed(3)}`);
+      const updatedMatterBody = (piece as any).matterBody;
+      if (updatedMatterBody && this.matter) {
+        this.syncMatterBodyWithShape(piece, updatedMatterBody);
+        this.matter.body.setVelocity(updatedMatterBody, { x: 0, y: 0 });
+        this.matter.body.setAngularVelocity(updatedMatterBody, 0);
+        console.log(`[preparePiecesForPuzzle] Synced Matter body ${index} to visual transform, bodyPos=(${updatedMatterBody.position.x.toFixed(1)}, ${updatedMatterBody.position.y.toFixed(1)}), angle=${(updatedMatterBody.angle ?? 0).toFixed(3)}`);
       }
       
       this.recordRestingState(piece);
@@ -1637,7 +1667,10 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   private refreshSnapToleranceForAll(): void {
-    const multiplier = this.debugEnabled ? SNAP_DEBUG_MULTIPLIER : 1;
+    // Always use base tolerance (no multiplier for guidelines)
+    // Server validates with: baseTolerance * 1.15 + 4
+    // Client must use the same calculation to avoid mismatches
+    const multiplier = 1;
     this.pieces.forEach((piece) => {
       if (piece.placed) {
         return;
@@ -2266,7 +2299,16 @@ export class PuzzleScene extends Phaser.Scene {
     const anchorX = piece.shape.x - piece.origin.x;
     const anchorY = piece.shape.y - piece.origin.y;
     const distance = Phaser.Math.Distance.Between(anchorX, anchorY, piece.target.x, piece.target.y);
-    if (distance > piece.snapTolerance) {
+    
+    // Apply the same validation formula as the server to prevent snap rejection
+    // Server formula: allowed = snapTolerance * 1.15 + 4
+    const serverAllowedDistance = piece.snapTolerance * 1.15 + 4;
+    
+    const willSnap = distance <= serverAllowedDistance;
+    console.log(`🔍 [trySnapPiece] ${piece.id}: distance=${distance.toFixed(2)}, snapTolerance=${piece.snapTolerance}, serverAllowed=${serverAllowedDistance.toFixed(2)}, willSnap=${willSnap}`);
+    
+    if (!willSnap) {
+      console.warn(`⚠️ [trySnapPiece] REJECTING ${piece.id} - too far from target!`);
       return false;
     }
 
@@ -2365,7 +2407,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.placedCount += 1;
     this.incrementCoinTotal(1);
 
-    this.emitter?.emit('puzzle-piece-placed', {
+    const eventPayload = {
       pieceId: piece.id,
       placedCount: this.placedCount,
       totalPieces: this.pieces.length,
@@ -2373,7 +2415,11 @@ export class PuzzleScene extends Phaser.Scene {
       anchorY: snapInfo?.anchorY ?? piece.target.y,
       distance: snapInfo?.distance ?? 0,
       tolerance: snapInfo?.tolerance ?? piece.snapTolerance
-    });
+    };
+    
+    console.log(`📤 [placePiece] Emitting placement event for ${piece.id}: anchorX=${eventPayload.anchorX.toFixed(2)}, anchorY=${eventPayload.anchorY.toFixed(2)}, distance=${eventPayload.distance.toFixed(2)}, tolerance=${eventPayload.tolerance.toFixed(2)}, serverAllowed=${(eventPayload.tolerance * 1.15 + 4).toFixed(2)}`);
+    
+    this.emitter?.emit('puzzle-piece-placed', eventPayload);
 
     if (this.placedCount === this.pieces.length) {
       const elapsedSeconds = (this.time.now - this.startTime) / 1000;
@@ -3026,8 +3072,9 @@ export class PuzzleScene extends Phaser.Scene {
       return;
     }
 
-    // Update physics mode flag
+    // Update physics mode flag and save user preference
     this.useMatterPhysics = useMatter;
+    this.userPrefersMatterPhysics = useMatter;
 
     // Access the Matter.js gravity directly
     const world = (this.matter.world as any);

@@ -14,6 +14,7 @@ public sealed class GameSessionService : IGameSessionService
 {
     private const double DistanceSlackMultiplier = 1.15;
     private const double DistanceSlackPixels = 4;
+    private const double GuidelineToleranceMultiplier = 2.6; // Same as SNAP_DEBUG_MULTIPLIER in client
     private static readonly TimeSpan SessionInactivityTimeout = TimeSpan.FromMinutes(45);
     private static readonly TimeSpan CompletedRetention = TimeSpan.FromMinutes(10);
 
@@ -105,13 +106,16 @@ public sealed class GameSessionService : IGameSessionService
         var reportedAnchor = new Vector2D(request.AnchorX, request.AnchorY);
         var target = new Vector2D(piece.TargetX, piece.TargetY);
         var distance = reportedAnchor.Distance(target);
-        var allowed = piece.SnapTolerance * DistanceSlackMultiplier + DistanceSlackPixels;
+        
+        // Use client-reported tolerance if available (includes guideline multiplier), otherwise use base tolerance
+        var baseTolerance = request.ClientTolerance ?? piece.SnapTolerance;
+        var allowed = baseTolerance * DistanceSlackMultiplier + DistanceSlackPixels;
 
         if (distance > allowed)
         {
             _logger.LogInformation(
-                "Rejecting snap for user {UserId}, session {SessionId}, piece {PieceId}. Distance {Distance:0.##} exceeded allowed {Allowed:0.##}.",
-                userId, sessionId, request.PieceId, distance, allowed);
+                "Rejecting snap for user {UserId}, session {SessionId}, piece {PieceId}. Distance {Distance:0.##} exceeded allowed {Allowed:0.##}. (ClientTolerance: {ClientTolerance:0.##}, BaseTolerance: {BaseTolerance:0.##})",
+                userId, sessionId, request.PieceId, distance, allowed, request.ClientTolerance, piece.SnapTolerance);
             return Task.FromResult(RecordPieceSnapResult.TooFar(distance, allowed));
         }
 
@@ -233,6 +237,7 @@ public sealed record RecordPieceSnapRequest
     public double AnchorY { get; init; }
     public double? ClientDistance { get; init; }
     public double? ClientTolerance { get; init; }
+    public bool GuidelinesEnabled { get; init; } = false; // Whether debug guidelines are active
 }
 
 public enum RecordPieceSnapStatus

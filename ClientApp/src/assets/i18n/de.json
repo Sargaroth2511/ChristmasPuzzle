@@ -22,6 +22,8 @@
         "showGuides": "Hilfslinien anzeigen",
         "opaquePieces": "Undurchsichtige Teile",
         "glassPieces": "Glas-Teile",
+        "realisticPhysics": "Realistische Physik",
+        "simplePhysics": "Einfache Physik",
         "close": "Menü schließen"
     },
     "buttons": {
@@ -42,6 +44,7 @@
             "informal": "Damit hast Du nicht nur unseren Hirsch gerettet, sondern gleichzeitig eine gute Tat vollbracht – Denn wir wandeln das Ganze in echte Münzen um und spenden den Betrag an eine Hilfsorganisation.<br>Möchtest Du Deine Zeit einreichen, oder schaffst Du es vielleicht noch schneller?",
             "formal": "Damit haben Sie nicht nur unseren Hirsch gerettet, sondern gleichzeitig eine gute Tat vollbracht – Denn wir wandeln das Ganze in echte Münzen um und spenden den Betrag an eine Hilfsorganisation.<br>Möchten Sie Ihre Zeit einreichen, oder schaffen Sie es vielleicht noch schneller?"
         },
+        "errorTitle": "Hinweis",
         "thankYouTitle": {
             "informal": "Danke, dass Du mitgepuzzelt hast!",
             "formal": "Danke, dass Sie mitgepuzzelt haben!"

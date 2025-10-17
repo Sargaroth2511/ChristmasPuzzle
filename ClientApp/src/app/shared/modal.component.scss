@@ -10,6 +10,7 @@
   background: rgba(0, 0, 0, 0.65);
   z-index: 999;
   padding: 1rem;
+  pointer-events: none; /* Allow clicks to pass through the overlay to controls beneath */
 }
 
 .modal-card {
@@ -21,6 +22,7 @@
   max-width: 90%;
   width: 400px;
   backdrop-filter: blur(10px);
+  pointer-events: auto; /* Re-enable clicks on the modal card itself */
 }
 
 .modal-wide {

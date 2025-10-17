@@ -151,7 +151,7 @@
 }
 
 .hero h1 {
-  font-size: clamp(2.4rem, 5vw, 2rem);
+  font-size: clamp(2.2rem, 5vw, 2rem);
   margin: 0;
   padding: 0 1rem;
 }
@@ -274,6 +274,8 @@
     font-size: 1rem;
     cursor: pointer;
     transition: background 0.2s ease;
+    min-width: 200px; /* Ensures all buttons have consistent width based on longest text */
+    white-space: nowrap; /* Prevents text from wrapping */
   }
 
   button:hover {
@@ -287,6 +289,11 @@
   justify-content: center;
   gap: 0.75rem;
   flex-wrap: wrap;
+  
+  /* Physics toggle button should also match the width */
+  app-physics-toggle {
+    min-width: 200px;
+  }
 }
 
 .desktop-controls-wrapper {
@@ -296,6 +303,8 @@
   gap: 1.5rem;
   width: 100%;
   margin-top: 1rem;
+  position: relative;
+  z-index: 1000; /* Above modal overlay (999) so buttons aren't darkened */
 }
 
 .desktop-language-switcher {
@@ -320,6 +329,7 @@
   text-align: center;
   padding: 2rem;
   box-sizing: border-box;
+  pointer-events: none; /* Allow clicks to pass through the overlay */
 }
 
 .intro-card {
@@ -330,6 +340,7 @@
   border-radius: 18px;
   color: #f7fbff;
   max-width: min(90vw, 420px);
+  pointer-events: auto; /* Re-enable clicks on the card itself */
 }
 
 .intro-card h1 {

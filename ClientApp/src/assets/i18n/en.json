@@ -22,6 +22,8 @@
         "showGuides": "Show Guides",
         "opaquePieces": "Opaque Pieces",
         "glassPieces": "Glass Pieces",
+        "realisticPhysics": "Realistic Physics",
+        "simplePhysics": "Simple Physics",
         "close": "Close Menu"
     },
     "buttons": {
@@ -42,6 +44,7 @@
             "informal": "You didn't just save our stag, but also did a good deed – We'll convert this into real coins and donate the amount to a charity organization.<br>Would you like to submit your time, or do you think you can do it even faster?",
             "formal": "You didn't just save our stag, but also did a good deed – We'll convert this into real coins and donate the amount to a charity organization.<br>Would you like to submit your time, or do you think you can do it even faster?"
         },
+        "errorTitle": "Notice",
         "thankYouTitle": {
             "informal": "Thank you for puzzling with us!",
             "formal": "Thank you for puzzling with us!"

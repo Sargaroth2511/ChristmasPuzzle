@@ -107,6 +107,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     });
   }
 
+  // Physics toggle should only be enabled when InitialScene is active
+  get isPhysicsToggleDisabled(): boolean {
+    if (!this.game) {
+      return true; // Disabled if game not initialized
+    }
+    return this.game.scene.isActive('PuzzleScene') || this.puzzleComplete;
+  }
+
   formatTime(seconds?: number): string {
     if (seconds === undefined || seconds === null) {
       return '0:00';
@@ -316,14 +324,17 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       if (scene.scene.key === 'PuzzleScene') {
         if (!this.showUserInfo) {
           this.showUserInfo = true;
-          this.cdr.markForCheck();
         }
         this.requestCoinTotal();
+        this.cdr.markForCheck();
       }
     };
     this.game.events.on(Phaser.Scenes.Events.START, handleSceneStart);
     this.sceneStartHandler = handleSceneStart;
 
+    emitter.on('puzzle-scene-active', () => {
+      this.cdr.markForCheck();
+    });
 
     emitter.on('puzzle-complete', (payload?: { elapsedSeconds?: number }) => {
       this.clearCompletionOverlayTimer();
@@ -462,17 +473,16 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       return;
     }
 
-    if (this.game.scene.isActive('PuzzleScene')) {
-      const scene = this.game.scene.getScene('PuzzleScene') as any;
-      console.log(`[AppComponent.togglePhysicsMode] PuzzleScene found:`, scene ? 'YES' : 'NO');
-      if (scene && typeof scene.togglePhysicsMode === 'function') {
-        console.log(`[AppComponent.togglePhysicsMode] Calling scene.togglePhysicsMode(${useMatter})`);
-        scene.togglePhysicsMode(useMatter);
-      } else {
-        console.error('[AppComponent.togglePhysicsMode] togglePhysicsMode method not found on scene');
-      }
+    // Get the scene regardless of whether it's "active" - it might be running but not "active" in Phaser terms
+    const scene = this.game.scene.getScene('PuzzleScene') as any;
+    console.log(`[AppComponent.togglePhysicsMode] PuzzleScene found:`, scene ? 'YES' : 'NO');
+    if (scene && typeof scene.togglePhysicsMode === 'function') {
+      console.log(`[AppComponent.togglePhysicsMode] Calling scene.togglePhysicsMode(${useMatter})`);
+      scene.togglePhysicsMode(useMatter);
+    } else if (scene) {
+      console.error('[AppComponent.togglePhysicsMode] togglePhysicsMode method not found on scene');
     } else {
-      console.warn('[AppComponent.togglePhysicsMode] PuzzleScene not active');
+      console.warn('[AppComponent.togglePhysicsMode] PuzzleScene not found');
     }
     this.cdr.markForCheck();
   }
@@ -513,11 +523,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       return;
     }
 
-    // Start the puzzle
-    console.log('🎮 Starting puzzle from stag modal');
     this.showInitialContinueButton = false;
     this.sceneEvents.emit('initial-go-on');
-    this.cdr.markForCheck();
   }
 
   closeExplosionModal(): void {

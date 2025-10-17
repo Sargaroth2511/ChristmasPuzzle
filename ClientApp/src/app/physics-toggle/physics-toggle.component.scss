@@ -1,139 +1,90 @@
+// Physics toggle styled to match desktop controls buttons
 .physics-toggle-container {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  pointer-events: none;
+  display: inline-block;
+  width: 100%; /* Take full width of parent */
 }
 
 .physics-toggle-button {
-  pointer-events: all;
-  padding: 12px 24px;
-  border: 2px solid #fff;
-  border-radius: 12px;
-  background: rgba(11, 23, 36, 0.9);
-  color: #fff;
+  padding: 0.65rem 1.3rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(233, 233, 235);
+  color: #000000;
+  font-family: var(--font-lausanne);
+  font-weight: 300;
+  font-size: 1rem;
   cursor: pointer;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
+  transition: background 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%; /* Full width to match other buttons */
+  justify-content: center; /* Center content */
+  min-width: 200px; /* Match other control buttons */
+  white-space: nowrap; /* Prevents text from wrapping */
 
   &:hover:not(:disabled) {
-    background: rgba(11, 23, 36, 0.95);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-    border-color: #4CAF50;
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    background: rgba(199, 201, 204);
   }
 
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  &.arcade-mode {
-    border-color: #2196F3;
-
-    &:hover:not(:disabled) {
-      border-color: #1976D2;
-      background: rgba(33, 150, 243, 0.1);
-    }
-
-    .mode-icon svg {
-      color: #2196F3;
-    }
-  }
-
-  &.matter-mode {
-    border-color: #FF9800;
-
-    &:hover:not(:disabled) {
-      border-color: #F57C00;
-      background: rgba(255, 152, 0, 0.1);
-    }
-
-    .mode-icon svg {
-      color: #FF9800;
-    }
+    background: rgba(233, 233, 235, 0.6);
   }
 }
 
 .toggle-content {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .mode-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 20px;
+  height: 20px;
   
   svg {
-    transition: all 0.3s ease;
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
   }
 }
 
 .mode-text {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   text-align: left;
+  white-space: nowrap;
 }
 
 .mode-name {
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-size: 1rem;
+  font-weight: 300;
+  font-family: var(--font-lausanne);
 }
 
 .mode-description {
-  font-size: 11px;
-  font-weight: 400;
-  opacity: 0.8;
-  letter-spacing: 0.3px;
+  display: none; // Hide description to keep button compact like other controls
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .physics-toggle-container {
-    bottom: 15px;
-  }
-
   .physics-toggle-button {
-    padding: 10px 20px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
   }
-
-  .mode-name {
-    font-size: 14px;
+  
+  .mode-icon {
+    width: 18px;
+    height: 18px;
+    
+    svg {
+      width: 14px;
+      height: 14px;
+    }
   }
-
-  .mode-description {
-    font-size: 10px;
-  }
-}
-
-/* Animation on mode change */
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-}
-
-.physics-toggle-button.arcade-mode,
-.physics-toggle-button.matter-mode {
-  animation: pulse 0.5s ease;
 }

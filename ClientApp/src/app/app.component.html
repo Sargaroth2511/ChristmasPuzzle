@@ -93,8 +93,9 @@
 
       <!-- Thank You Modal -->
       <app-modal [isVisible]="showThankYouModal" [wide]="true">
-        <h1>{{ ('completion.thankYouTitle.' + salutationVariant) | translate }}</h1>
-        <p [innerHTML]="('completion.thankYouBody.' + salutationVariant) | translate"></p>
+        <h1 *ngIf="!thankYouErrorMessage">{{ ('completion.thankYouTitle.' + salutationVariant) | translate }}</h1>
+        <h1 *ngIf="thankYouErrorMessage">{{ 'completion.errorTitle' | translate }}</h1>
+        <p *ngIf="!thankYouErrorMessage" [innerHTML]="('completion.thankYouBody.' + salutationVariant) | translate"></p>
         <p *ngIf="thankYouErrorMessage" class="thank-you-error">{{ thankYouErrorMessage }}</p>
         <div class="modal-actions">
           <button type="button" (click)="startNextRound()">{{ 'buttons.nextRound' | translate }}</button>
@@ -102,18 +103,18 @@
         </div>
       </app-modal>
       
-      <!-- Physics Toggle Button -->
-      <app-physics-toggle
-        [useMatterPhysics]="useMatterPhysics"
-        [disabled]="puzzleComplete || showInitialContinueButton || showExplosionModal"
-        (togglePhysics)="togglePhysicsMode($event)">
-      </app-physics-toggle>
-      
     </div>
     
     <div class="desktop-controls-wrapper">
       
       <div class="desktop-controls">
+        <!-- Physics Toggle Button -->
+        <app-physics-toggle
+          [useMatterPhysics]="useMatterPhysics"
+          [disabled]="isPhysicsToggleDisabled"
+          (togglePhysics)="togglePhysicsMode($event)">
+        </app-physics-toggle>
+        
         <button type="button" (click)="toggleDebug()">
           {{ showDebug ? ('menu.hideGuides' | translate) : ('menu.showGuides' | translate) }}
         </button>
