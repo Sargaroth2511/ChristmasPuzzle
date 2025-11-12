@@ -94,6 +94,31 @@
           <button type="button" (click)="closeThankYouModal()">{{ 'buttons.close' | translate }}</button>
         </div>
       </app-modal>
+
+      <!-- Performance Warning Modal -->
+      <app-modal [isVisible]="showPerformanceWarning" [wide]="true">
+        <h1>{{ 'modals.performanceWarningTitle' | translate }}</h1>
+        <p>{{ 'modals.performanceWarningMessage' | translate }}</p>
+        <p><strong>{{ 'modals.performanceWarningSteps' | translate: { browser: getBrowserName() } }}</strong></p>
+        
+        <!-- Browser-specific instructions (Safari, Firefox, Opera) -->
+        <ol class="performance-steps" *ngIf="usesBrowserSpecificInstructions()">
+          <li *ngFor="let instruction of getBrowserSpecificInstructions()" [innerHTML]="instruction"></li>
+        </ol>
+        
+        <!-- Default instructions (Chrome, Edge, Brave) -->
+        <ol class="performance-steps" *ngIf="!usesBrowserSpecificInstructions()">
+          <li [innerHTML]="'modals.performanceWarningStep1' | translate: { url: getSettingsUrl() }"></li>
+          <li [innerHTML]="'modals.performanceWarningStep2' | translate"></li>
+          <li [innerHTML]="'modals.performanceWarningStep3' | translate"></li>
+          <li [innerHTML]="'modals.performanceWarningStep4' | translate"></li>
+        </ol>
+        
+        <div class="modal-actions">
+          <button type="button" (click)="dismissPerformanceWarning()">{{ 'modals.performanceWarningDismiss' | translate }}</button>
+          <button type="button" (click)="closePerformanceWarning()">{{ 'buttons.close' | translate }}</button>
+        </div>
+      </app-modal>
       
     </div>
     

@@ -74,7 +74,15 @@
         "explosionDescription": {
             "informal": "Hilf uns dabei, die 22 verstreuten Teile wieder zusammenzusetzen, damit unser Hirsch alle Weihnachtsgeschenke rechtzeitig verteilen kann.",
             "formal": "Helfen Sie uns dabei, die 22 verstreuten Teile wieder zusammenzusetzen, damit unser Hirsch alle Weihnachtsgeschenke rechtzeitig verteilen kann."
-        }
+        },
+        "performanceWarningTitle": "Hinweis zur Leistung",
+        "performanceWarningMessage": "Ihr Browser verwendet derzeit Software-Rendering anstelle Ihrer Grafikkarte. Dies kann dazu führen, dass das Spiel langsam läuft.",
+        "performanceWarningSteps": "So aktivieren Sie die Hardwarebeschleunigung in {{browser}}:",
+        "performanceWarningStep1": "Kopieren Sie diese Adresse: <strong>{{url}}</strong>",
+        "performanceWarningStep2": "Fügen Sie sie in die Adressleiste Ihres Browsers ein",
+        "performanceWarningStep3": "Aktivieren Sie die Option \"Hardwarebeschleunigung verwenden, falls verfügbar\"",
+        "performanceWarningStep4": "Starten Sie Ihren Browser neu",
+        "performanceWarningDismiss": "Nicht mehr anzeigen"
     },
     "instructions": {
         "drag": {

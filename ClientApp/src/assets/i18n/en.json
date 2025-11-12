@@ -74,7 +74,15 @@
         "explosionDescription": {
             "informal": "Help us put the 22 scattered pieces back together so our stag can deliver all the Christmas presents on time.",
             "formal": "Help us put the 22 scattered pieces back together so our stag can deliver all the Christmas presents on time."
-        }
+        },
+        "performanceWarningTitle": "Performance Notice",
+        "performanceWarningMessage": "Your browser is currently using software rendering instead of your graphics card. This may cause the game to run slowly.",
+        "performanceWarningSteps": "To enable hardware acceleration in {{browser}}:",
+        "performanceWarningStep1": "Copy this address: <strong>{{url}}</strong>",
+        "performanceWarningStep2": "Paste it into your browser's address bar",
+        "performanceWarningStep3": "Enable the \"Use hardware acceleration when available\" option",
+        "performanceWarningStep4": "Restart your browser",
+        "performanceWarningDismiss": "Don't show again"
     },
     "instructions": {
         "drag": {

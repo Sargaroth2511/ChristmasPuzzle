@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import { InitialScene } from '../game/initial.scene';
 import { PuzzleScene } from '../game/puzzle.scene';
 import { UserService, UserData, Language, Salutation, RecordPieceSnapRequest, StartGameSessionResponse, CompleteGameSessionResponse } from './user.service';
+import { GpuDetectionService, GpuDetectionResult } from './services/gpu-detection.service';
 
 // ⚠️ TESTING MODE - Set to true to skip InitialScene and go directly to PuzzleScene
 // TODO: Set to false before production deployment
@@ -73,6 +74,10 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   thankYouErrorMessage?: string;
   salutationVariant: 'informal' | 'formal' = 'informal';
 
+  // GPU Performance Detection
+  showPerformanceWarning = false;
+  performanceIssue?: GpuDetectionResult;
+
   private pendingSnapQueue: RecordPieceSnapRequest[] = [];
   private processingSnap = false;
 
@@ -89,7 +94,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   constructor(
     private readonly cdr: ChangeDetectorRef,
     private readonly userService: UserService,
-    private readonly translate: TranslateService
+    private readonly translate: TranslateService,
+    private readonly gpuDetection: GpuDetectionService
   ) {
     // Setup available languages
     this.translate.addLangs(['de', 'en']);
@@ -129,6 +135,41 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       this.setGreetingMessage(false);
     }
     // If no UID, user can still play but won't have stats saved
+
+    // Silently detect GPU/performance issues (but don't show modal yet)
+    this.detectPerformanceIssues();
+
+    // Debug: Add test function to window for manual testing
+    if (typeof window !== 'undefined') {
+      (window as any).testPerformanceWarning = () => {
+        console.log('🧪 Manually triggering performance warning modal');
+        this.performanceIssue = {
+          hasIssue: true,
+          issueType: 'software-renderer',
+          renderer: 'Test Renderer',
+          vendor: 'Test Vendor',
+          message: 'Test message',
+          settingsUrl: 'chrome://settings/system'
+        };
+        this.showPerformanceWarning = true;
+        this.cdr.markForCheck();
+      };
+    }
+  }
+
+  private async detectPerformanceIssues(): Promise<void> {
+    try {
+      const result = await this.gpuDetection.detectPerformanceIssues();
+      
+      if (result.hasIssue) {
+        console.warn('🔴 Performance issue detected:', result);
+        this.performanceIssue = result;
+        // Don't show modal yet - wait until puzzle scene starts
+      }
+    } catch (error) {
+      console.error('GPU detection failed:', error);
+      // Silently fail - don't show false positives
+    }
   }
 
   private validateUser(uid: string): void {
@@ -492,6 +533,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
     this.showInitialContinueButton = false;
     this.sceneEvents.emit('initial-go-on');
+
+    // Show performance warning modal AFTER user continues to puzzle (if issue was detected)
+    if (this.performanceIssue && !this.showPerformanceWarning) {
+      setTimeout(() => {
+        this.showPerformanceWarning = true;
+        this.cdr.markForCheck();
+      }, 2000); // 2 second delay after scene transition
+    }
   }
 
   closeExplosionModal(): void {
@@ -850,5 +899,32 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         /* ignore orientation errors */
       }
     }
+  }
+
+  closePerformanceWarning(): void {
+    this.showPerformanceWarning = false;
+    this.cdr.markForCheck();
+  }
+
+  dismissPerformanceWarning(): void {
+    this.gpuDetection.dismissWarning();
+    this.showPerformanceWarning = false;
+    this.cdr.markForCheck();
+  }
+
+  getBrowserName(): string {
+    return this.gpuDetection.getBrowserName();
+  }
+
+  getSettingsUrl(): string {
+    return this.performanceIssue?.settingsUrl || 'chrome://settings/system';
+  }
+
+  getBrowserSpecificInstructions(): string[] {
+    return this.gpuDetection.getBrowserInstructions();
+  }
+
+  usesBrowserSpecificInstructions(): boolean {
+    return this.getBrowserSpecificInstructions().length > 0;
   }
 }
