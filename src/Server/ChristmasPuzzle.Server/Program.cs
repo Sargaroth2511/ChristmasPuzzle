@@ -65,6 +65,10 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Force UserDataService to initialize at startup (runs merge logic)
+var userDataService = app.Services.GetRequiredService<IUserDataService>();
+app.Logger.LogInformation("UserDataService initialized - seed data merge completed");
+
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
