@@ -1,9 +1,9 @@
 .language-switcher {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   background: rgba(143, 147, 153, 0.00);
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
 }
@@ -12,61 +12,64 @@
   border: 2px solid transparent;
   background: transparent;
   cursor: pointer;
-  padding: 0;
+  padding: 6px 12px;
   border-radius: 6px;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  min-width: 40px;
 }
 
-.flag-icon {
-  width: 32px;
-  height: 22px;
-  display: block;
-  border-radius: 3px;
-  transition: all 0.3s ease;
+/* Inactive button - dimmed white text */
+.lang-btn:not(.active) {
+  opacity: 0.5;
+  filter: brightness(0.8);
 }
 
-/* Inactive flag - darker and less visible */
-.lang-btn:not(.active) .flag-icon {
-  opacity: 0.4;
-  filter: brightness(0.6) saturate(0.5);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-/* Hover on inactive flag */
-.lang-btn:not(.active):hover .flag-icon {
-  opacity: 0.7;
-  filter: brightness(0.8) saturate(0.7);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+/* Hover on inactive button */
+.lang-btn:not(.active):hover {
+  opacity: 0.8;
+  filter: brightness(1);
   transform: scale(1.05);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
 }
 
-/* Active flag - glowing effect */
-.lang-btn.active .flag-icon {
+/* Active button - highlighted with subtle glow */
+.lang-btn.active {
   opacity: 1;
-  filter: brightness(1.1) saturate(1.2);
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.25);
+  text-shadow: 
+    0 0 6px rgba(255, 255, 255, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.3);
   box-shadow: 
-    0 0 12px rgba(255, 255, 255, 0.7),
-    0 0 24px rgba(255, 255, 255, 0.5),
-    0 2px 10px rgba(0, 0, 0, 0.3);
+    0 0 8px rgba(255, 255, 255, 0.3),
+    inset 0 0 8px rgba(255, 255, 255, 0.1);
 }
 
-/* Hover on active flag */
-.lang-btn.active:hover .flag-icon {
+/* Hover on active button */
+.lang-btn.active:hover {
   transform: scale(1.05);
+  box-shadow: 
+    0 0 12px rgba(255, 255, 255, 0.4),
+    inset 0 0 10px rgba(255, 255, 255, 0.12);
 }
 
 @media (max-width: 768px) {
   .language-switcher {
-    padding: 8px 10px;
-    gap: 8px;
+    padding: 6px 8px;
+    gap: 6px;
   }
 
-  .flag-icon {
-    width: 28px;
-    height: 19px;
+  .lang-btn {
+    padding: 5px 10px;
+    font-size: 13px;
+    min-width: 36px;
   }
 }

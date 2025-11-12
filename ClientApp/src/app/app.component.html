@@ -9,9 +9,7 @@
     <div class="info-card">
       <h3>{{ getUserDisplayName() }}</h3>
       <div class="user-stats">
-        <p><strong>{{ 'userInfo.language' | translate }}</strong> {{ getLanguageText() }}</p>
         <p><strong>{{ 'userInfo.bestTime' | translate }}</strong> {{ formatTime(userData.fastestTimeSeconds) }}</p>
-        <p><strong>{{ 'userInfo.maxPieces' | translate }}</strong> {{ userData.maxPiecesAchieved ?? '-' }}</p>
         <p><strong>{{ 'userInfo.completed' | translate }}</strong> {{ userData.totalPuzzlesCompleted ?? 0 }}</p>
       </div>
     </div>
