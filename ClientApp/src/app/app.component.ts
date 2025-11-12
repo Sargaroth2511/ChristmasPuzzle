@@ -23,12 +23,11 @@ type PuzzlePiecePlacedPayload = {
 };
 import { LanguageSwitcherComponent } from './language-switcher/language-switcher.component';
 import { ModalComponent } from './shared/modal.component';
-import { PhysicsToggleComponent } from './physics-toggle/physics-toggle.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, HttpClientModule, TranslateModule, LanguageSwitcherComponent, ModalComponent, PhysicsToggleComponent],
+  imports: [CommonModule, HttpClientModule, TranslateModule, LanguageSwitcherComponent, ModalComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -40,7 +39,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   readonly title = 'Christmas Puzzle';
 
   puzzleComplete = false;
-  useMatterPhysics = false;
   menuOpen = false;
   showIntroOverlay = false;
   showInitialContinueButton = false;
@@ -107,14 +105,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         this.setGreetingMessage(false);
       }
     });
-  }
-
-  // Physics toggle should only be enabled when InitialScene is active
-  get isPhysicsToggleDisabled(): boolean {
-    if (!this.game) {
-      return true; // Disabled if game not initialized
-    }
-    return this.game.scene.isActive('PuzzleScene') || this.puzzleComplete;
   }
 
   formatTime(seconds?: number): string {
@@ -462,28 +452,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     window.removeEventListener('orientationchange', this.handleViewportResize);
 
     this.exitImmersiveMode();
-  }
-
-  togglePhysicsMode(useMatter: boolean): void {
-    console.log(`[AppComponent.togglePhysicsMode] Called with useMatter: ${useMatter}`);
-    this.useMatterPhysics = useMatter;
-    if (!this.game) {
-      console.warn('[AppComponent.togglePhysicsMode] Game not initialized');
-      return;
-    }
-
-    // Get the scene regardless of whether it's "active" - it might be running but not "active" in Phaser terms
-    const scene = this.game.scene.getScene('PuzzleScene') as any;
-    console.log(`[AppComponent.togglePhysicsMode] PuzzleScene found:`, scene ? 'YES' : 'NO');
-    if (scene && typeof scene.togglePhysicsMode === 'function') {
-      console.log(`[AppComponent.togglePhysicsMode] Calling scene.togglePhysicsMode(${useMatter})`);
-      scene.togglePhysicsMode(useMatter);
-    } else if (scene) {
-      console.error('[AppComponent.togglePhysicsMode] togglePhysicsMode method not found on scene');
-    } else {
-      console.warn('[AppComponent.togglePhysicsMode] PuzzleScene not found');
-    }
-    this.cdr.markForCheck();
   }
 
   toggleMenu(): void {

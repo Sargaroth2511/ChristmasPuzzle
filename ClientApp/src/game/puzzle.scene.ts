@@ -167,8 +167,6 @@ export class PuzzleScene extends Phaser.Scene {
   private outlineGeometryMask?: Phaser.Display.Masks.GeometryMask;
   private explosionActive = false;
   private explosionComplete = false;
-  private useMatterPhysics = false; // Track if Matter.js physics is enabled
-  private userPrefersMatterPhysics = false; // User's toggle preference (separate from explosion forcing)
   private shiverTweens: Phaser.Tweens.Tween[] = [];
   private shiverStartTime = 0;
   private nextDropDepth = 0;
@@ -1526,9 +1524,6 @@ export class PuzzleScene extends Phaser.Scene {
     }
 
     // Enable Matter.js physics for explosion with collisions
-    // Always force Matter.js ON during explosion for visual effect
-    // User preference (userPrefersMatterPhysics) is preserved and applied after explosion
-    this.useMatterPhysics = true;
     
     if (this.matter && this.matter.world) {
       const world = (this.matter.world as any);
@@ -1695,37 +1690,24 @@ export class PuzzleScene extends Phaser.Scene {
     console.log('[preparePiecesForPuzzle] Starting puzzle preparation');
     this.stopShiverTweens();
     
-    // Restore user's physics preference after explosion
-    this.useMatterPhysics = this.userPrefersMatterPhysics;
-    console.log(`[preparePiecesForPuzzle] Restored user physics preference: ${this.useMatterPhysics ? 'Matter.js' : 'Arcade'}`);
-    
-    // Gravity handling based on physics mode
+    // Set gravity for Matter.js physics
     if (this.matter && this.matter.world) {
       const world = (this.matter.world as any);
       if (world.engine && world.engine.gravity) {
-        // Keep gravity enabled if using Matter.js physics, otherwise disable it
-        world.engine.gravity.y = this.useMatterPhysics ? 1.5 : 0;
-        console.log(`[preparePiecesForPuzzle] Gravity ${this.useMatterPhysics ? 'kept enabled (physics mode)' : 'disabled'}`);
+        world.engine.gravity.y = 1.5;
+        console.log('[preparePiecesForPuzzle] Gravity enabled for Matter.js physics');
       }
     }
     
     this.pieces.forEach((piece, index) => {
-      // Handle Matter bodies based on physics mode
+      // Ensure all pieces have Matter bodies
       const matterBody = (piece as any).matterBody;
       
-      if (this.useMatterPhysics) {
-        // Matter physics enabled - ensure body exists
-        if (!matterBody) {
-          console.log(`[preparePiecesForPuzzle] Creating Matter body for piece ${index} (physics mode enabled)`);
-          this.convertToMatterBody(piece);
-        } else {
-          console.log(`[preparePiecesForPuzzle] Keeping Matter body for piece ${index} (physics mode enabled)`);
-        }
+      if (!matterBody) {
+        console.log(`[preparePiecesForPuzzle] Creating Matter body for piece ${index}`);
+        this.convertToMatterBody(piece);
       } else {
-        // Matter physics disabled - remove body if it exists
-        if (matterBody) {
-          this.removeMatterBody(piece);
-        }
+        console.log(`[preparePiecesForPuzzle] Keeping Matter body for piece ${index}`);
       }
       
       const restPosition = piece.restPosition ?? new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
@@ -2148,7 +2130,7 @@ export class PuzzleScene extends Phaser.Scene {
       
       // If piece has a Matter body, make it static while dragging (acts as immovable kinematic object)
       const matterBody = (piece as any).matterBody;
-      if (matterBody && this.matter && this.useMatterPhysics) {
+      if (matterBody && this.matter) {
         console.log(`[dragstart] Piece ${index} has Matter body - making it static for drag`);
         this.releaseDragConstraint(piece);
         
@@ -2240,16 +2222,8 @@ export class PuzzleScene extends Phaser.Scene {
       }
 
       const matterBody = (piece as any).matterBody;
-      const usingMatterDrag = !!(matterBody && this.matter && this.useMatterPhysics);
 
       if (!piece.dragOffset) {
-        if (!usingMatterDrag) {
-          piece.shape.setPosition(dragX, dragY);
-          this.syncDetailsTransform(piece);
-          if (matterBody && this.matter) {
-            this.syncMatterBodyWithShape(piece, matterBody);
-          }
-        }
         return;
       }
 
@@ -2298,7 +2272,7 @@ export class PuzzleScene extends Phaser.Scene {
         
         // If piece has a Matter body, restore it to dynamic state
         const matterBodyDragEnd = (piece as any).matterBody;
-        if (matterBodyDragEnd && this.matter && this.useMatterPhysics) {
+        if (matterBodyDragEnd && this.matter) {
           // Clear the drag flag
           (piece as any).isBeingDragged = false;
           
@@ -3073,62 +3047,6 @@ export class PuzzleScene extends Phaser.Scene {
     const alphaBoost = 0.06; // Always use solid/opaque style
     const alpha = Phaser.Math.Clamp(base.strokeAlpha + alphaBoost, 0, 1);
     return { width, color: base.strokeColor, alpha };
-  }
-
-  /**
-   * Toggle between simple drag-and-drop and Matter.js physics mode
-   */
-  togglePhysicsMode(useMatter: boolean): void {
-    console.log(`[togglePhysicsMode] Switching to ${useMatter ? 'Matter.js' : 'Simple'} mode`);
-    if (!this.matter || !this.matter.world) {
-      console.warn('Matter physics not initialized');
-      return;
-    }
-
-    // Update physics mode flag and save user preference
-    this.useMatterPhysics = useMatter;
-    this.userPrefersMatterPhysics = useMatter;
-
-    // Access the Matter.js gravity directly
-    const world = (this.matter.world as any);
-    
-    if (useMatter) {
-      // Enable Matter.js physics: add gravity
-      if (world.engine && world.engine.gravity) {
-        world.engine.gravity.y = 1.5;
-      } else {
-        world.gravity = { x: 0, y: 1.5 };
-      }
-      console.log('✅ Matter.js physics enabled - pieces will fall with realistic physics');
-
-      // Convert all non-placed pieces to Matter bodies
-      let converted = 0;
-      this.pieces.forEach((piece) => {
-        if (!piece.placed && !piece.isDragging) {
-          this.convertToMatterBody(piece);
-          converted++;
-        }
-      });
-      console.log(`[togglePhysicsMode] Converted ${converted} pieces to Matter bodies`);
-    } else {
-      // Disable physics: remove gravity
-      if (world.engine && world.engine.gravity) {
-        world.engine.gravity.y = 0;
-      } else {
-        world.gravity = { x: 0, y: 0 };
-      }
-      console.log('✅ Physics disabled - back to simple drag-and-drop');
-
-      // Remove Matter bodies from all pieces
-      let removed = 0;
-      this.pieces.forEach((piece) => {
-        if (!piece.placed) {
-          this.removeMatterBody(piece);
-          removed++;
-        }
-      });
-      console.log(`[togglePhysicsMode] Removed ${removed} Matter bodies`);
-    }
   }
 
   private captureMatterAttachment(piece: PieceRuntime, body: any): void {
