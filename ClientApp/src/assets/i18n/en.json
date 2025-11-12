@@ -18,10 +18,6 @@
         }
     },
     "menu": {
-        "hideGuides": "Hide Guides",
-        "showGuides": "Show Guides",
-        "opaquePieces": "Opaque Pieces",
-        "glassPieces": "Glass Pieces",
         "realisticPhysics": "Realistic Physics",
         "simplePhysics": "Simple Physics",
         "close": "Close Menu"

@@ -18,10 +18,6 @@
         }
     },
     "menu": {
-        "hideGuides": "Hilfslinien ausblenden",
-        "showGuides": "Hilfslinien anzeigen",
-        "opaquePieces": "Undurchsichtige Teile",
-        "glassPieces": "Glas-Teile",
         "realisticPhysics": "Realistische Physik",
         "simplePhysics": "Einfache Physik",
         "close": "Menü schließen"

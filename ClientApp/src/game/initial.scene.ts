@@ -44,9 +44,7 @@ export class InitialScene extends Phaser.Scene {
   init(data: SceneData): void {
     this.emitter = data?.emitter;
     this.scenePreferences = {
-      emitter: data?.emitter,
-      showDebug: data?.showDebug,
-      useGlassStyle: data?.useGlassStyle
+      emitter: data?.emitter
     };
   }
 
@@ -194,16 +192,7 @@ export class InitialScene extends Phaser.Scene {
     this.zoomTargetPoint = undefined;
 
     this.scene.start('PuzzleScene', {
-      emitter: this.emitter,
-      showDebug: this.scenePreferences.showDebug,
-      useGlassStyle: this.scenePreferences.useGlassStyle
+      emitter: this.emitter
     });
-  }
-
-  updatePreferences(preferences: Pick<SceneData, 'showDebug' | 'useGlassStyle'>): void {
-    this.scenePreferences = {
-      ...this.scenePreferences,
-      ...preferences
-    };
   }
 }

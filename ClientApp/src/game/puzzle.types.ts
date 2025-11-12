@@ -2,8 +2,6 @@ import Phaser from 'phaser';
 
 export type SceneData = {
   emitter?: Phaser.Events.EventEmitter;
-  showDebug?: boolean;
-  useGlassStyle?: boolean;
 };
 
 export type PuzzlePoint = {

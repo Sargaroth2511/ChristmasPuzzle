@@ -46,12 +46,6 @@
       </button>
 
       <nav *ngIf="menuOpen" class="mobile-menu" aria-label="Puzzle options">
-        <button type="button" (click)="toggleDebug()">
-          {{ showDebug ? ('menu.hideGuides' | translate) : ('menu.showGuides' | translate) }}
-        </button>
-        <button type="button" (click)="toggleGlassMode()">
-          {{ useGlassStyle ? ('menu.opaquePieces' | translate) : ('menu.glassPieces' | translate) }}
-        </button>
         <!-- Language switcher in mobile menu -->
         <div class="mobile-language-switcher">
           <app-language-switcher></app-language-switcher>
@@ -114,13 +108,6 @@
           [disabled]="isPhysicsToggleDisabled"
           (togglePhysics)="togglePhysicsMode($event)">
         </app-physics-toggle>
-        
-        <button type="button" (click)="toggleDebug()">
-          {{ showDebug ? ('menu.hideGuides' | translate) : ('menu.showGuides' | translate) }}
-        </button>
-        <button type="button" (click)="toggleGlassMode()">
-          {{ useGlassStyle ? ('menu.opaquePieces' | translate) : ('menu.glassPieces' | translate) }}
-        </button>
       </div>
       <div class="desktop-language-switcher">
         <app-language-switcher></app-language-switcher>

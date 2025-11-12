@@ -40,8 +40,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   readonly title = 'Christmas Puzzle';
 
   puzzleComplete = false;
-  showDebug = false;
-  useGlassStyle = false;
   useMatterPhysics = false;
   menuOpen = false;
   showIntroOverlay = false;
@@ -317,20 +315,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     if (TESTING_VIDEO_MODE) {
       console.log('🧪 TESTING MODE: Starting PuzzleScene directly, skipping InitialScene');
       this.game.scene.add('InitialScene', InitialScene, false, {
-        emitter,
-        showDebug: this.showDebug,
-        useGlassStyle: this.useGlassStyle
+        emitter
       });
       this.game.scene.add('PuzzleScene', PuzzleScene, true, {
-        emitter,
-        showDebug: this.showDebug,
-        useGlassStyle: this.useGlassStyle
+        emitter
       });
     } else {
       this.game.scene.add('InitialScene', InitialScene, true, {
-        emitter,
-        showDebug: this.showDebug,
-        useGlassStyle: this.useGlassStyle
+        emitter
       });
       this.game.scene.add('PuzzleScene', PuzzleScene, false);
     }
@@ -472,38 +464,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.exitImmersiveMode();
   }
 
-  toggleDebug(): void {
-    this.showDebug = !this.showDebug;
-    if (!this.game) {
-      return;
-    }
-
-    if (this.game.scene.isActive('PuzzleScene')) {
-      const scene = this.game.scene.getScene('PuzzleScene') as PuzzleScene | undefined;
-      scene?.setDebugVisible(this.showDebug);
-    } else {
-      const initialScene = this.game.scene.getScene('InitialScene') as InitialScene | undefined;
-      initialScene?.updatePreferences({ showDebug: this.showDebug });
-    }
-    this.menuOpen = false;
-  }
-
-  toggleGlassMode(): void {
-    this.useGlassStyle = !this.useGlassStyle;
-    if (!this.game) {
-      return;
-    }
-
-    if (this.game.scene.isActive('PuzzleScene')) {
-      const scene = this.game.scene.getScene('PuzzleScene') as PuzzleScene | undefined;
-      scene?.setGlassMode(this.useGlassStyle);
-    } else {
-      const initialScene = this.game.scene.getScene('InitialScene') as InitialScene | undefined;
-      initialScene?.updatePreferences({ useGlassStyle: this.useGlassStyle });
-    }
-    this.menuOpen = false;
-  }
-
   togglePhysicsMode(useMatter: boolean): void {
     console.log(`[AppComponent.togglePhysicsMode] Called with useMatter: ${useMatter}`);
     this.useMatterPhysics = useMatter;
@@ -621,9 +581,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     sceneManager.stop('PuzzleScene');
     sceneManager.stop('InitialScene');
     sceneManager.start('PuzzleScene', {
-      emitter: this.sceneEvents,
-      showDebug: this.showDebug,
-      useGlassStyle: this.useGlassStyle
+      emitter: this.sceneEvents
     });
     this.requestCoinTotal();
     this.cdr.markForCheck();

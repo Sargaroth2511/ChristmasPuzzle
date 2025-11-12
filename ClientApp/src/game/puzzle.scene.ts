@@ -32,7 +32,6 @@ import {
   PIECE_STROKE_WIDTH,
   SNAP_ANIMATION_DURATION,
   SNAP_BASE_FACTOR,
-  SNAP_DEBUG_MULTIPLIER,
   SNAP_TOLERANCE_LIMITS,
   STAG_BASE_COLOR,
   PLACEMENT_SHIMMER_DURATION,
@@ -162,8 +161,6 @@ export class PuzzleScene extends Phaser.Scene {
   private pieces: PieceRuntime[] = [];
   private placedCount = 0;
   private startTime = 0;
-  private debugOverlay?: Phaser.GameObjects.Graphics;
-  private debugEnabled = false;
   private guideOverlay?: Phaser.GameObjects.Graphics;
   private outlineTexture?: Phaser.GameObjects.TileSprite;
   private outlineMaskShape?: Phaser.GameObjects.Graphics;
@@ -174,7 +171,6 @@ export class PuzzleScene extends Phaser.Scene {
   private userPrefersMatterPhysics = false; // User's toggle preference (separate from explosion forcing)
   private shiverTweens: Phaser.Tweens.Tween[] = [];
   private shiverStartTime = 0;
-  private glassMode = false;
   private nextDropDepth = 0;
   private svgDoc?: Document;
   private svgClassStyleMap?: Map<string, SvgStrokeStyle>;
@@ -287,11 +283,8 @@ export class PuzzleScene extends Phaser.Scene {
     if (!shadow) {
       return;
     }
-    if (this.glassMode) {
-      shadow.setFillStyle(DRAG_SHADOW_GLASS_COLOR, DRAG_SHADOW_GLASS_ALPHA);
-    } else {
-      shadow.setFillStyle(DRAG_SHADOW_COLOR, DRAG_SHADOW_ALPHA);
-    }
+    // Always use opaque/solid style
+    shadow.setFillStyle(DRAG_SHADOW_COLOR, DRAG_SHADOW_ALPHA);
   }
 
   private addDetailsForPiece(piece: PieceRuntime, doc: Document): void {
@@ -314,7 +307,7 @@ export class PuzzleScene extends Phaser.Scene {
 
     const overlay = this.add.graphics();
     overlay.setDepth(piece.shape.depth + 0.1);
-    overlay.setAlpha(this.glassMode ? 0.6 : 1);
+    overlay.setAlpha(1); // Always use solid/opaque style
     overlay.setVisible(true);
     overlay.setPosition(basePosition.x, basePosition.y);
 
@@ -623,7 +616,7 @@ export class PuzzleScene extends Phaser.Scene {
 
     if (piece.detailsOverlay) {
       piece.detailsOverlay.setVisible(true);
-      const overlayAlpha = this.glassMode ? 0.45 : 0.75;
+      const overlayAlpha = 0.75; // Always use solid/opaque style
       piece.detailsOverlay.setAlpha(overlayAlpha);
     }
     if (piece.detailsMaskGfx) {
@@ -653,7 +646,7 @@ export class PuzzleScene extends Phaser.Scene {
 
     if (piece.detailsOverlay) {
       piece.detailsOverlay.setVisible(true);
-      const overlayAlpha = this.glassMode ? 0.5 : 0.9;
+      const overlayAlpha = 0.9; // Always use solid/opaque style
       piece.detailsOverlay.setAlpha(overlayAlpha);
     }
     if (piece.detailsMaskGfx) {
@@ -700,10 +693,6 @@ export class PuzzleScene extends Phaser.Scene {
     this.coinLabel = undefined;
     
     // Clean up overlays
-    if (this.debugOverlay) {
-      this.debugOverlay.destroy();
-      this.debugOverlay = undefined;
-    }
     if (this.guideOverlay) {
       this.guideOverlay.destroy();
       this.guideOverlay = undefined;
@@ -752,8 +741,6 @@ export class PuzzleScene extends Phaser.Scene {
     this.pieces = [];
     this.placedCount = 0;
     this.startTime = 0;
-    this.debugOverlay = undefined;
-    this.debugEnabled = data.showDebug ?? false;
     this.guideOverlay = undefined;
     this.outlineTexture = undefined;
     this.outlineMaskShape = undefined;
@@ -762,7 +749,6 @@ export class PuzzleScene extends Phaser.Scene {
     this.explosionComplete = false;
     this.shiverTweens = [];
     this.shiverStartTime = 0;
-    this.glassMode = data.useGlassStyle ?? false;
     this.nextDropDepth = 0;
     this.svgDoc = undefined;
     this.svgClassStyleMap = undefined;
@@ -2237,9 +2223,6 @@ export class PuzzleScene extends Phaser.Scene {
 
       // piece.shape.setDepth(50 + index);
       piece.shape.input!.cursor = 'grabbing';
-      if (this.debugEnabled) {
-        this.showDebugOutline(piece);
-      }
 
       // Note: Don't sync shape with Matter body here - let the rotation tween control the visual
       // The drag handler will sync the Matter body to follow the visual shape
@@ -2375,9 +2358,6 @@ export class PuzzleScene extends Phaser.Scene {
         if (this.input.manager?.canvas) {
           this.input.manager.canvas.style.cursor = 'default';
         }
-        if (this.debugEnabled) {
-          this.hideDebugOutline();
-        }
         
         // Piece was snapped - remove Matter body entirely
         this.removeMatterBody(piece);
@@ -2394,9 +2374,6 @@ export class PuzzleScene extends Phaser.Scene {
           this.input.manager.canvas.style.cursor = 'default';
         }
       }
-      if (this.debugEnabled) {
-        this.hideDebugOutline();
-      }
     });
     this.input.on('pointerupoutside', () => {
       const hit = this.input.hitTestPointer(this.input.activePointer);
@@ -2405,9 +2382,6 @@ export class PuzzleScene extends Phaser.Scene {
         if (this.input.manager?.canvas) {
           this.input.manager.canvas.style.cursor = 'default';
         }
-      }
-      if (this.debugEnabled) {
-        this.hideDebugOutline();
       }
     });
   }
@@ -2945,42 +2919,6 @@ export class PuzzleScene extends Phaser.Scene {
     return { coords, hitArea, target: anchor.clone(), localPoints };
   }
 
-  private showDebugOutline(piece: PieceRuntime): void {
-    if (!this.debugOverlay) {
-      this.debugOverlay = this.add.graphics();
-      this.debugOverlay.setDepth(150);
-    }
-
-    const overlay = this.debugOverlay;
-    overlay.clear();
-    overlay.setVisible(true);
-    overlay.lineStyle(4, 0x9efcff, 0.9);
-    overlay.fillStyle(0x9efcff, 0.12);
-
-    const points = piece.footprint;
-    if (points.length === 0) {
-      return;
-    }
-
-    overlay.beginPath();
-    overlay.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) {
-      overlay.lineTo(points[i].x, points[i].y);
-    }
-    overlay.closePath();
-    overlay.strokePath();
-    overlay.fillPath();
-  }
-
-  private hideDebugOutline(): void {
-    if (!this.debugOverlay) {
-      return;
-    }
-
-    this.debugOverlay.clear();
-    this.debugOverlay.setVisible(false);
-  }
-
   /**
    * Render Matter.js collision bodies for debugging
    */
@@ -3106,58 +3044,13 @@ export class PuzzleScene extends Phaser.Scene {
     graphics.fillCircle(part.position.x, part.position.y, 6);
   }
 
-  setDebugVisible(show: boolean): void {
-    this.debugEnabled = show;
-
-    if (!show) {
-      this.hideDebugOutline();
-    }
-
-    this.refreshSnapToleranceForAll();
-  }
-
-  setGlassMode(enabled: boolean): void {
-    if (this.glassMode === enabled) {
-      return;
-    }
-
-    this.glassMode = enabled;
-
-    this.pieces.forEach((piece) => {
-      if (piece.placed) {
-        piece.shape.setFillStyle(piece.fillColor, piece.fillAlpha);
-        const strokeWidth = piece.strokeWidth;
-        if (this.glassMode) {
-          piece.shape.setStrokeStyle(strokeWidth, 0x142031, 0.6);
-        } else {
-          piece.shape.setStrokeStyle(strokeWidth, piece.strokeColor, piece.strokeAlpha);
-        }
-      } else {
-        const active = this.getActiveStyle(piece);
-        piece.shape.setFillStyle(active.fillColor, active.fillAlpha);
-        piece.shape.setStrokeStyle(active.strokeWidth, active.strokeColor, active.strokeAlpha);
-      }
-
-      if (piece.detailsOverlay) {
-        const overlayAlpha = this.glassMode ? 0.5 : 0.9;
-        piece.detailsOverlay.setAlpha(overlayAlpha);
-      }
-
-      if (piece.dragShadow) {
-        this.updateDragShadowStyle(piece, piece.dragShadow);
-      }
-
-      this.syncDetailsTransform(piece);
-    });
-  }
-
   private getActiveStyle(piece: PieceRuntime): PieceStyling {
     const strokeWidth = piece.strokeSourceWidth
       ? this.toCanvasStrokeWidth(piece.strokeSourceWidth)
       : piece.strokeWidth;
-    const isGlass = this.glassMode && !piece.placed;
-    const fillAlpha = isGlass ? piece.fillAlpha * 0.25 : piece.fillAlpha;
-    const strokeAlpha = isGlass ? piece.strokeAlpha * 0.7 : piece.strokeAlpha;
+    // Always use solid/opaque style
+    const fillAlpha = piece.fillAlpha;
+    const strokeAlpha = piece.strokeAlpha;
 
     const clampedFillAlpha = Phaser.Math.Clamp(fillAlpha, 0, 1);
     const clampedStrokeAlpha = Phaser.Math.Clamp(strokeAlpha, 0, 1);
@@ -3177,7 +3070,7 @@ export class PuzzleScene extends Phaser.Scene {
   private getHoverStrokeStyle(piece: PieceRuntime): { width: number; color: number; alpha: number } {
     const base = this.getActiveStyle(piece);
     const width = Math.max(base.strokeWidth * PIECE_HOVER_STROKE_RATIO, base.strokeWidth + HOVER_STROKE_DELTA);
-    const alphaBoost = this.glassMode ? 0.08 : 0.06;
+    const alphaBoost = 0.06; // Always use solid/opaque style
     const alpha = Phaser.Math.Clamp(base.strokeAlpha + alphaBoost, 0, 1);
     return { width, color: base.strokeColor, alpha };
   }
