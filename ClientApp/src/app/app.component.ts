@@ -81,6 +81,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   private pendingSnapQueue: RecordPieceSnapRequest[] = [];
   private processingSnap = false;
 
+  private readonly STORAGE_KEY_USER_GUID = 'userGuid';
+
   private game?: Phaser.Game;
   private sceneEvents?: Phaser.Events.EventEmitter;
   private sceneStartHandler?: (scene: Phaser.Scene) => void;
@@ -125,11 +127,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   ngOnInit(): void {
     // Parse GUID from URL query parameter
     const urlParams = new URLSearchParams(window.location.search);
-    const uid = urlParams.get('uid');
+    const uidFromUrl = urlParams.get('uid');
+    
+    // Priority: URL parameter > localStorage
+    const uid = uidFromUrl || this.getStoredUserGuid();
 
     if (uid) {
       this.userGuid = uid;
-      this.validateUser(uid);
+      this.validateUser(uid, !!uidFromUrl);
     } else {
       // Set default greeting for users without UID
       this.setGreetingMessage(false);
@@ -172,13 +177,19 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     }
   }
 
-  private validateUser(uid: string): void {
-    console.log('Validating user with UID:', uid);
+  private validateUser(uid: string, fromUrl: boolean = false): void {
+    console.log('Validating user with UID:', uid, fromUrl ? '(from URL)' : '(from localStorage)');
     this.userService.getUserByGuid(uid).subscribe({
       next: (userData) => {
         console.log('✅ User data loaded successfully:', userData);
         this.userData = userData;
         this.userValidated = true;
+        
+        // Save GUID to localStorage on successful validation (if it came from URL)
+        if (fromUrl) {
+          this.saveUserGuidToStorage(uid);
+          this.cleanUrlFromGuid();
+        }
         
         // Set language based on user preference
         const userLang = userData.language === Language.English ? 'en' : 'de';
@@ -197,11 +208,57 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         console.log('ℹ️ User not found, using generic greeting');
         this.userValidated = false;
         this.userData = undefined;
+        
+        // If validation fails and this was from localStorage, clear it
+        if (!fromUrl && this.getStoredUserGuid() === uid) {
+          console.log('🧹 Clearing invalid GUID from localStorage');
+          this.clearStoredUserGuid();
+        }
+        
         // Silently fall back to generic greeting
         this.setGreetingMessage(false);
         this.cdr.markForCheck();
       }
     });
+  }
+
+  private getStoredUserGuid(): string | null {
+    try {
+      return localStorage.getItem(this.STORAGE_KEY_USER_GUID);
+    } catch (error) {
+      console.warn('Failed to read from localStorage:', error);
+      return null;
+    }
+  }
+
+  private saveUserGuidToStorage(uid: string): void {
+    try {
+      localStorage.setItem(this.STORAGE_KEY_USER_GUID, uid);
+      console.log('💾 Saved user GUID to localStorage:', uid);
+    } catch (error) {
+      console.warn('Failed to save to localStorage:', error);
+    }
+  }
+
+  private clearStoredUserGuid(): void {
+    try {
+      localStorage.removeItem(this.STORAGE_KEY_USER_GUID);
+      console.log('🧹 Cleared user GUID from localStorage');
+    } catch (error) {
+      console.warn('Failed to clear localStorage:', error);
+    }
+  }
+
+  private cleanUrlFromGuid(): void {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('uid');
+      const cleanUrl = url.pathname + (url.search ? url.search : '') + (url.hash ? url.hash : '');
+      window.history.replaceState({}, '', cleanUrl);
+      console.log('🧹 Cleaned GUID from URL');
+    } catch (error) {
+      console.warn('Failed to clean URL:', error);
+    }
   }
 
   private setGreetingMessage(userFound: boolean): void {
