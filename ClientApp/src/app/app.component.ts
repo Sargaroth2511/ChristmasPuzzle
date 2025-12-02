@@ -82,6 +82,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   private processingSnap = false;
 
   private readonly STORAGE_KEY_USER_GUID = 'userGuid';
+  private readonly COOKIE_KEY_USER_GUID = 'oh22_user_guid';
+  private readonly COOKIE_MAX_AGE_DAYS = 365; // 1 year
 
   private game?: Phaser.Game;
   private sceneEvents?: Phaser.Events.EventEmitter;
@@ -223,15 +225,38 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   }
 
   private getStoredUserGuid(): string | null {
+    // Priority: localStorage > cookie (for cross-device sync support)
     try {
-      return localStorage.getItem(this.STORAGE_KEY_USER_GUID);
+      const localValue = localStorage.getItem(this.STORAGE_KEY_USER_GUID);
+      if (localValue) {
+        return localValue;
+      }
     } catch (error) {
       console.warn('Failed to read from localStorage:', error);
-      return null;
     }
+    
+    // Fallback to cookie (may be synced across devices by browser)
+    try {
+      const cookieValue = this.getCookie(this.COOKIE_KEY_USER_GUID);
+      if (cookieValue) {
+        console.log('🍪 Found user GUID in cookie (may be synced from another device)');
+        // Also save to localStorage for faster future access
+        this.saveToLocalStorage(cookieValue);
+        return cookieValue;
+      }
+    } catch (error) {
+      console.warn('Failed to read cookie:', error);
+    }
+    
+    return null;
   }
 
   private saveUserGuidToStorage(uid: string): void {
+    this.saveToLocalStorage(uid);
+    this.saveToCookie(uid);
+  }
+
+  private saveToLocalStorage(uid: string): void {
     try {
       localStorage.setItem(this.STORAGE_KEY_USER_GUID, uid);
       console.log('💾 Saved user GUID to localStorage:', uid);
@@ -240,12 +265,44 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     }
   }
 
+  private saveToCookie(uid: string): void {
+    try {
+      const maxAge = this.COOKIE_MAX_AGE_DAYS * 24 * 60 * 60; // Convert days to seconds
+      // Use SameSite=Lax to allow the cookie to be sent with top-level navigations
+      // Secure flag is set if we're on HTTPS
+      const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = `${this.COOKIE_KEY_USER_GUID}=${encodeURIComponent(uid)}; max-age=${maxAge}; path=/; SameSite=Lax${secure}`;
+      console.log('🍪 Saved user GUID to cookie (may sync across devices):', uid);
+    } catch (error) {
+      console.warn('Failed to save cookie:', error);
+    }
+  }
+
+  private getCookie(name: string): string | null {
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const [cookieName, cookieValue] = cookie.trim().split('=');
+      if (cookieName === name) {
+        return decodeURIComponent(cookieValue);
+      }
+    }
+    return null;
+  }
+
   private clearStoredUserGuid(): void {
     try {
       localStorage.removeItem(this.STORAGE_KEY_USER_GUID);
       console.log('🧹 Cleared user GUID from localStorage');
     } catch (error) {
       console.warn('Failed to clear localStorage:', error);
+    }
+    
+    // Also clear the cookie
+    try {
+      document.cookie = `${this.COOKIE_KEY_USER_GUID}=; max-age=0; path=/`;
+      console.log('🧹 Cleared user GUID cookie');
+    } catch (error) {
+      console.warn('Failed to clear cookie:', error);
     }
   }
 
