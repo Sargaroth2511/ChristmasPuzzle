@@ -723,7 +723,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.load.text('puzzle-svg', 'assets/pieces/stag_with_all_lines.svg');
     this.load.image('scene-background', 'assets/background/snowy_mauntains_background.png');
     this.load.image('outline-texture', 'assets/background/greyPaper.png');
-    this.load.video('completion-video', 'assets/videos/endscene_v1.mp4', true); // true = no audio
+    this.load.video('completion-video', `assets/videos/endscene_v2.mp4`, true); // true = no audio, cache buster added
     if (!this.textures.exists('hud-coin-spritesheet')) {
       this.load.spritesheet('hud-coin-spritesheet', 'assets/coins/oh22_coin_spin_256x256_12_refined.png', {
         frameWidth: 256,
@@ -788,7 +788,6 @@ export class PuzzleScene extends Phaser.Scene {
     // Register poly-decomp with Matter.js for accurate polygon collision
     if (typeof window !== 'undefined') {
       (window as any).decomp = decomp;
-      console.log('✅ poly-decomp registered with Matter.js');
     }
     
     const svgText = this.cache.text.get('puzzle-svg');
@@ -849,8 +848,6 @@ export class PuzzleScene extends Phaser.Scene {
         { isStatic: true, friction: 0.8, restitution: 0.2, label: 'rightWall' }
       );
       
-      console.log(`✅ Matter.js boundaries created (floor at Y=${floorY})`);
-      
       // Add visible floor line (greenish color to match app style)
       const floorLine = this.add.graphics();
       floorLine.lineStyle(3, 0x848d6b, 0.8); // Greenish color with slight transparency
@@ -859,7 +856,6 @@ export class PuzzleScene extends Phaser.Scene {
       floorLine.lineTo(worldWidth, floorY);
       floorLine.strokePath();
       floorLine.setDepth(5); // Above background but below pieces
-      console.log(`✅ Visible floor line drawn at Y=${floorY}`);
       
       // Add collision event handler to wake up sleeping bodies when phantom touches them
       this.matter.world.on('collisionstart', (event: any) => {
@@ -881,8 +877,6 @@ export class PuzzleScene extends Phaser.Scene {
           }
         });
       });
-      
-      console.log(`✅ Phantom collision wake-up handler registered`);
       
       // Disable Matter.js debug rendering (can be re-enabled later if needed)
       if (this.matter.world) {
@@ -919,7 +913,6 @@ export class PuzzleScene extends Phaser.Scene {
 
     // ⚠️ TESTING MODE - Skip intro and simulate puzzle completion for video testing
     if (TESTING_VIDEO_MODE) {
-      console.log('⚠️ TESTING MODE: Skipping intro and simulating puzzle completion');
       this.preparePiecesForPuzzle();
       
       // Mark all pieces as placed
@@ -1149,7 +1142,6 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   private prepareCompletionVideo(): void {
-    console.log('🎬 Pre-creating completion video for instant playback');
     
     if (this.completionVideo) {
       return; // Already created
@@ -1171,33 +1163,27 @@ export class PuzzleScene extends Phaser.Scene {
         const actualWidth = videoElement.videoWidth;
         const actualHeight = videoElement.videoHeight;
         
-        console.log(`📺 Video metadata loaded: ${actualWidth}x${actualHeight}`);
-        
         // Calculate scale to fill entire scene (cover mode)
         const scaleX = this.scale.width / actualWidth;
         const scaleY = this.scale.height / actualHeight;
         const scale = Math.max(scaleX, scaleY);
         
         this.completionVideo.setScale(scale);
-        console.log(`📏 Video pre-scaled to: ${scale}`);
       }
     });
   }
 
   private playCompletionVideo(): void {
-    console.log('🎬 Playing pre-created completion video');
     
     // Notify app component to hide completion overlay
     this.emitter?.emit('video-playback-started');
     
     // If video wasn't pre-created (shouldn't happen), create it now
     if (!this.completionVideo) {
-      console.warn('⚠️ Video not pre-created, creating now...');
       this.prepareCompletionVideo();
     }
     
     if (!this.completionVideo) {
-      console.error('❌ Failed to create video');
       return;
     }
     
@@ -1225,8 +1211,6 @@ export class PuzzleScene extends Phaser.Scene {
 
     // When video ends, emit event to show thank you modal
     this.completionVideo.once('complete', () => {
-      console.log('✅ Completion video finished - keeping last frame visible');
-      
       // DON'T hide the video - keep the last frame visible
       // It will be cleaned up when the scene restarts
       
@@ -1416,10 +1400,8 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   private beginIntroShiver(): void {
-    console.log(`🔵 [SHIMMER] Starting shimmer phase with ${this.pieces.length} pieces, duration: ${EXPLOSION_SHIVER_DURATION}ms`);
     
     if (this.pieces.length === 0) {
-      console.warn(`🔵 [SHIMMER] No pieces found, skipping to puzzle phase`);
       this.preparePiecesForPuzzle();
       return;
     }
@@ -1435,7 +1417,6 @@ export class PuzzleScene extends Phaser.Scene {
       this.shiverTweens.push(this.createPieceShiverTween(piece, rest));
     });
 
-    console.log(`🔵 [SHIMMER] Created ${this.shiverTweens.length} shimmer tweens, will end in ${EXPLOSION_SHIVER_DURATION}ms`);
     this.time.delayedCall(EXPLOSION_SHIVER_DURATION, () => this.endIntroShiver());
   }
 
@@ -1470,7 +1451,6 @@ export class PuzzleScene extends Phaser.Scene {
 
   private endIntroShiver(): void {
     const elapsed = this.time.now - this.shiverStartTime;
-    console.log(`🟢 [SHIMMER→EXPLOSION] Shimmer phase ended after ${elapsed}ms, transitioning to explosion...`);
     
     this.stopShiverTweens();
 
@@ -1481,7 +1461,6 @@ export class PuzzleScene extends Phaser.Scene {
       this.syncDetailsTransform(piece);
     });
 
-    console.log(`🟢 [SHIMMER→EXPLOSION] All ${this.pieces.length} pieces reset to rest position, calling beginIntroExplosion()...`);
     this.beginIntroExplosion();
   }
 
@@ -1490,19 +1469,11 @@ export class PuzzleScene extends Phaser.Scene {
     this.shiverTweens.forEach((tween) => tween.remove());
     this.shiverTweens = [];
     this.shiverStartTime = 0;
-    if (count > 0) {
-      console.log(`🔴 [SHIMMER] Stopped ${count} shimmer tweens`);
-    }
   }
 
   private beginIntroExplosion(): void {
-    console.log(`🟠 [EXPLOSION] Starting explosion phase`);
-    console.log(`🟠 [EXPLOSION] - Pieces: ${this.pieces.length}`);
-    console.log(`🟠 [EXPLOSION] - Matter.js: ${!!this.matter ? 'Available' : 'NOT AVAILABLE'}`);
-    console.log(`🟠 [EXPLOSION] - Matter.world: ${!!this.matter?.world ? 'Available' : 'NOT AVAILABLE'}`);
     
     if (this.pieces.length === 0) {
-      console.error(`🟠 [EXPLOSION] ❌ No pieces found, aborting explosion`);
       this.preparePiecesForPuzzle();
       return;
     }
@@ -1519,10 +1490,7 @@ export class PuzzleScene extends Phaser.Scene {
         removedCount++;
       }
     });
-    if (removedCount > 0) {
-      console.log(`🟠 [EXPLOSION] Removed ${removedCount} old Matter bodies`);
-    }
-
+    
     // Enable Matter.js physics for explosion with collisions
     
     if (this.matter && this.matter.world) {
@@ -1531,19 +1499,12 @@ export class PuzzleScene extends Phaser.Scene {
       // Ensure Matter.js world is running
       if (world.enabled === false) {
         world.enabled = true;
-        console.log(`🟠 [EXPLOSION] Enabled Matter.js world`);
       }
       
       if (world.engine && world.engine.gravity) {
         const oldGravity = world.engine.gravity.y;
         world.engine.gravity.y = 2.0; // Increased gravity for more realistic falling during explosion
-        console.log(`🟠 [EXPLOSION] Gravity: ${oldGravity} → ${world.engine.gravity.y}`);
-        console.log(`🟠 [EXPLOSION] World enabled: ${world.enabled}, autoUpdate: ${world.autoUpdate}`);
-      } else {
-        console.error(`🟠 [EXPLOSION] ❌ Matter engine/gravity not found!`);
       }
-    } else {
-      console.error(`🟠 [EXPLOSION] ❌ Matter.js not available!`);
     }
 
     // Schedule all pieces to launch
@@ -1557,8 +1518,6 @@ export class PuzzleScene extends Phaser.Scene {
       const launchDelay = index * EXPLOSION_STAGGER;
       this.time.delayedCall(launchDelay, () => this.launchPieceExplosionWithMatter(piece));
     });
-    
-    console.log(`🟠 [EXPLOSION] ${this.pieces.length} pieces scheduled, first launches immediately, last in ${(this.pieces.length - 1) * EXPLOSION_STAGGER}ms`);
   }
 
   private launchPieceExplosion(piece: PieceRuntime): void {
@@ -1598,7 +1557,6 @@ export class PuzzleScene extends Phaser.Scene {
     const start = new Phaser.Math.Vector2(piece.target.x + piece.origin.x, piece.target.y + piece.origin.y);
     
     if (!this.matter) {
-      console.warn(`🚀 [LAUNCH] ${piece.id}: Matter.js not available, using tween fallback`);
       this.launchPieceExplosion(piece);
       return;
     }
@@ -1608,7 +1566,6 @@ export class PuzzleScene extends Phaser.Scene {
     
     const body = (piece as any).matterBody;
     if (!body) {
-      console.error(`🚀 [LAUNCH] ${piece.id}: ❌ Body creation failed, using tween fallback`);
       this.launchPieceExplosion(piece);
       return;
     }
@@ -1653,11 +1610,6 @@ export class PuzzleScene extends Phaser.Scene {
     piece.shape.setScale(Phaser.Math.FloatBetween(0.96, 1.04));
     this.syncMatterBodyWithShape(piece, body);
     this.syncShapeWithMatterBody(piece, body);
-    
-    // Only log first 3 launches to avoid spam
-    if (this.pieces.filter(p => p.hasLaunched).length <= 3) {
-      console.log(`🚀 [LAUNCH] ${piece.id}: Body created, velocity=(${velocityX.toFixed(2)}, ${velocityY.toFixed(2)})`);
-    }
   }
 
   private generateGroundScatterPosition(existing: Phaser.Math.Vector2[]): Phaser.Math.Vector2 {
@@ -1687,7 +1639,6 @@ export class PuzzleScene extends Phaser.Scene {
   }
 
   private preparePiecesForPuzzle(): void {
-    console.log('[preparePiecesForPuzzle] Starting puzzle preparation');
     this.stopShiverTweens();
     
     // Set gravity for Matter.js physics
@@ -1695,7 +1646,6 @@ export class PuzzleScene extends Phaser.Scene {
       const world = (this.matter.world as any);
       if (world.engine && world.engine.gravity) {
         world.engine.gravity.y = 1.5;
-        console.log('[preparePiecesForPuzzle] Gravity enabled for Matter.js physics');
       }
     }
     
@@ -1704,10 +1654,7 @@ export class PuzzleScene extends Phaser.Scene {
       const matterBody = (piece as any).matterBody;
       
       if (!matterBody) {
-        console.log(`[preparePiecesForPuzzle] Creating Matter body for piece ${index}`);
         this.convertToMatterBody(piece);
-      } else {
-        console.log(`[preparePiecesForPuzzle] Keeping Matter body for piece ${index}`);
       }
       
       const restPosition = piece.restPosition ?? new Phaser.Math.Vector2(piece.shape.x, piece.shape.y);
@@ -1722,7 +1669,6 @@ export class PuzzleScene extends Phaser.Scene {
         this.syncMatterBodyWithShape(piece, updatedMatterBody);
         this.matter.body.setVelocity(updatedMatterBody, { x: 0, y: 0 });
         this.matter.body.setAngularVelocity(updatedMatterBody, 0);
-        console.log(`[preparePiecesForPuzzle] Synced Matter body ${index} to visual transform, bodyPos=(${updatedMatterBody.position.x.toFixed(1)}, ${updatedMatterBody.position.y.toFixed(1)}), angle=${(updatedMatterBody.angle ?? 0).toFixed(3)}`);
       }
       
       this.recordRestingState(piece);
@@ -1731,7 +1677,6 @@ export class PuzzleScene extends Phaser.Scene {
       this.clearDragVisuals(piece);
       this.stylePieceForPuzzle(piece);
       this.input.setDraggable(piece.shape);
-      console.log(`[preparePiecesForPuzzle] Piece ${index} made draggable, interactive: ${piece.shape.input?.enabled}, draggable: ${piece.shape.input?.draggable}`);
       this.syncDetailsTransform(piece);
     });
 
@@ -1741,7 +1686,6 @@ export class PuzzleScene extends Phaser.Scene {
     this.emitter?.emit('puzzle-reset');
     this.explosionComplete = true;
     this.explosionActive = false;
-    console.log(`[preparePiecesForPuzzle] Puzzle ready - explosionComplete: ${this.explosionComplete}, explosionActive: ${this.explosionActive}, total pieces: ${this.pieces.length}`);
 
     this.resetCoinHud();
 
@@ -1812,7 +1756,6 @@ export class PuzzleScene extends Phaser.Scene {
           const prevY = piece.shape.y;
           this.syncShapeWithMatterBody(piece, matterBody);
           if ((Math.abs(piece.shape.x - prevX) > 5 || Math.abs(piece.shape.y - prevY) > 5) && Math.random() < 0.05) {
-            console.log(`⚠️ [SYNC] ${piece.id}: Adjusted visual to follow Matter body (Δx=${(piece.shape.x - prevX).toFixed(1)}, Δy=${(piece.shape.y - prevY).toFixed(1)})`);
           }
         }
       }
@@ -1863,7 +1806,6 @@ export class PuzzleScene extends Phaser.Scene {
       const prevY = piece.shape.y;
       this.syncShapeWithMatterBody(piece, matterBody);
       if ((Math.abs(piece.shape.x - prevX) > 5 || Math.abs(piece.shape.y - prevY) > 5) && Math.random() < 0.02) {
-        console.log(`⚠️ [OFFSET] ${piece.id}: Visual adjusted by Δx=${(piece.shape.x - prevX).toFixed(1)}, Δy=${(piece.shape.y - prevY).toFixed(1)} to stay aligned with Matter body`);
       }
       
       // Check if piece has settled (very low velocity)
@@ -1894,7 +1836,6 @@ export class PuzzleScene extends Phaser.Scene {
       const gravityY = (this.matter?.world as any)?.engine?.gravity?.y || 0;
       const worldEnabled = (this.matter?.world as any)?.enabled;
       const autoUpdate = (this.matter?.world as any)?.autoUpdate;
-      console.log(`⏳ [EXPLOSION] ${settledCount}/${launchedCount} settled, ${matterBodyCount} with bodies, gravity=${gravityY}, enabled=${worldEnabled}, autoUpdate=${autoUpdate}`);
       
       // Sample one piece for detailed info
       const samplePiece = this.pieces.find(p => p.hasLaunched && p.exploding);
@@ -1904,14 +1845,12 @@ export class PuzzleScene extends Phaser.Scene {
           const visualAngle = samplePiece.shape.rotation;
           const bodyAngle = sampleBody.angle;
           const angularVel = sampleBody.angularVelocity;
-          console.log(`📊 [SAMPLE] ${samplePiece.id}: Y=${sampleBody.position.y.toFixed(1)}, velY=${sampleBody.velocity.y.toFixed(2)}, angle=${bodyAngle.toFixed(3)} (visual=${visualAngle.toFixed(3)}), angVel=${angularVel.toFixed(4)}, sleeping=${sampleBody.isSleeping}, inWorld=${!!sampleBody.world}`);
         }
       }
     }
 
     // When all pieces have settled, transition to puzzle phase
     if (launchedCount > 0 && settledCount === launchedCount) {
-      console.log(`✅ [EXPLOSION→PUZZLE] All ${launchedCount} pieces settled, transitioning to puzzle...`);
       this.explosionComplete = true;
       this.explosionActive = false;
       this.time.delayedCall(EXPLOSION_REST_DELAY, () => this.preparePiecesForPuzzle());
@@ -2107,20 +2046,16 @@ export class PuzzleScene extends Phaser.Scene {
 
   private setupDragHandlers(): void {
     this.input.on('dragstart', (pointer: Phaser.Input.Pointer, gameObject: Phaser.GameObjects.GameObject) => {
-      console.log('[dragstart] Drag started on object');
       const index = gameObject.getData('pieceIndex');
       if (index == null) {
-        console.log('[dragstart] No pieceIndex found on object');
         return;
       }
 
       const piece = this.pieces[index as number];
       if (!piece || piece.placed) {
-        console.log(`[dragstart] Piece ${index} not draggable - placed: ${piece?.placed}`);
         return;
       }
 
-      console.log(`[dragstart] Piece ${index} drag started successfully`);
       // Detect if this is touch input: touch pointers don't have mouse button properties
       // pointer.event is the native DOM event which has 'touches' for touch events
       const nativeEvent = pointer.event as any;
@@ -2131,7 +2066,6 @@ export class PuzzleScene extends Phaser.Scene {
       // If piece has a Matter body, make it static while dragging (acts as immovable kinematic object)
       const matterBody = (piece as any).matterBody;
       if (matterBody && this.matter) {
-        console.log(`[dragstart] Piece ${index} has Matter body - making it static for drag`);
         this.releaseDragConstraint(piece);
         
         // SIMPLE STATIC APPROACH:
@@ -2322,7 +2256,6 @@ export class PuzzleScene extends Phaser.Scene {
           (matterBodyDragEnd as any).isSleeping = false;
           (matterBodyDragEnd as any).sleepCounter = 0;
           
-          console.log(`[dragend] Piece ${index} restored to dynamic - will fall with gravity`);
         } else if (matterBodyDragEnd && this.matter) {
           // Non-physics mode: just sync position
           this.syncMatterBodyWithShape(piece, matterBodyDragEnd);
@@ -2370,10 +2303,8 @@ export class PuzzleScene extends Phaser.Scene {
     const serverAllowedDistance = piece.snapTolerance * 1.15 + 4;
     
     const willSnap = distance <= serverAllowedDistance;
-    console.log(`🔍 [trySnapPiece] ${piece.id}: distance=${distance.toFixed(2)}, snapTolerance=${piece.snapTolerance}, serverAllowed=${serverAllowedDistance.toFixed(2)}, willSnap=${willSnap}`);
     
     if (!willSnap) {
-      console.warn(`⚠️ [trySnapPiece] REJECTING ${piece.id} - too far from target!`);
       return false;
     }
 
@@ -2482,7 +2413,6 @@ export class PuzzleScene extends Phaser.Scene {
       tolerance: snapInfo?.tolerance ?? piece.snapTolerance
     };
     
-    console.log(`📤 [placePiece] Emitting placement event for ${piece.id}: anchorX=${eventPayload.anchorX.toFixed(2)}, anchorY=${eventPayload.anchorY.toFixed(2)}, distance=${eventPayload.distance.toFixed(2)}, tolerance=${eventPayload.tolerance.toFixed(2)}, serverAllowed=${(eventPayload.tolerance * 1.15 + 4).toFixed(2)}`);
     
     this.emitter?.emit('puzzle-piece-placed', eventPayload);
 
@@ -3160,7 +3090,6 @@ export class PuzzleScene extends Phaser.Scene {
     
     // Log occasionally for debugging (only when bodies were woken)
     if (wokenCount > 0 && Math.random() < 0.02) {
-      console.log(`⏰ [WAKE] Woke up ${wokenCount} sleeping bodies near dragged piece`);
     }
   }
 
@@ -3261,13 +3190,11 @@ export class PuzzleScene extends Phaser.Scene {
    */
   private createPhantomBody(piece: PieceRuntime): void {
     if (!this.matter) {
-      console.error('[createPhantomBody] Matter.js not available');
       return;
     }
 
     const originalBody = (piece as any).matterBody;
     if (!originalBody) {
-      console.error('[createPhantomBody] Original body not found');
       return;
     }
 
@@ -3318,7 +3245,6 @@ export class PuzzleScene extends Phaser.Scene {
   (piece as any).phantomBody = phantomBody;
 
 } catch (error) {
-  console.error(`[createPhantomBody] Failed for ${piece.id}:`, error);
 }
   }
 
@@ -3331,9 +3257,7 @@ export class PuzzleScene extends Phaser.Scene {
       try {
         this.matter.world.remove(phantomBody);
         delete (piece as any).phantomBody;
-        console.log(`[removePhantomBody] Removed phantom for ${piece.id}`);
       } catch (error) {
-        console.error(`[removePhantomBody] Failed for ${piece.id}:`, error);
       }
     }
   }
@@ -3352,7 +3276,6 @@ export class PuzzleScene extends Phaser.Scene {
     
     // Debug logging for rotation issues
     if (Math.abs(piece.shape.rotation) > 0.1 || Math.abs(targetAngle - phantomBody.angle) > 0.1) {
-      console.log(`[syncPhantom] ${piece.id}: shape.rotation=${(piece.shape.rotation * 180 / Math.PI).toFixed(1)}°, angleOffset=${(angleOffset * 180 / Math.PI).toFixed(1)}°, targetAngle=${(targetAngle * 180 / Math.PI).toFixed(1)}°, currentPhantomAngle=${(phantomBody.angle * 180 / Math.PI).toFixed(1)}°`);
     }
     
     this.matter.body.setAngle(phantomBody, targetAngle);
@@ -3478,7 +3401,6 @@ export class PuzzleScene extends Phaser.Scene {
       try {
         this.matter.world.removeConstraint(piece.dragConstraint);
       } catch (error) {
-        console.warn('[releaseDragConstraint] Failed to remove constraint', error);
       }
       piece.dragConstraint = undefined;
     }
@@ -3489,7 +3411,6 @@ export class PuzzleScene extends Phaser.Scene {
    */
   private convertToMatterBody(piece: PieceRuntime): void {
     if (!this.matter) {
-      console.error(`⚙️ [CONVERT] ${piece.id}: ❌ Matter.js not available!`);
       return;
     }
     
@@ -3506,17 +3427,14 @@ export class PuzzleScene extends Phaser.Scene {
     try {
       let usableVertices = this.cleanVertices(localVertices);
       if (piece.id === 'piece_7') {
-        console.log(`🟢 [piece_7] raw vertices=${localVertices.length}`);
       }
       if (usableVertices.length < 3) {
-        console.warn(`⚠️ [CONVERT] ${piece.id}: Cleaned vertex count ${usableVertices.length}, falling back to raw outline (${localVertices.length})`);
         usableVertices = [...localVertices];
       }
       if (usableVertices.length < 3) {
         throw new Error(`Not enough usable vertices (${usableVertices.length})`);
       }
       if (piece.id === 'piece_7') {
-        console.log(`🟢 [piece_7] usable vertices=${usableVertices.length}`);
       }
 
       const worldVertices = usableVertices.map((v) => ({
@@ -3526,11 +3444,6 @@ export class PuzzleScene extends Phaser.Scene {
 
       const pieceIndex = this.pieces.indexOf(piece);
       if (pieceIndex < 3 || piece.id === 'piece_7') {
-        console.log(`🔍 [ANCHOR] Piece ${pieceIndex}:`);
-        console.log(`  - shape.x/y: (${piece.shape.x.toFixed(1)}, ${piece.shape.y.toFixed(1)})`);
-        console.log(`  - displayOrigin: (${piece.shape.displayOriginX.toFixed(1)}, ${piece.shape.displayOriginY.toFixed(1)})`);
-        console.log(`  - anchor (corrected): (${anchorX.toFixed(1)}, ${anchorY.toFixed(1)})`);
-        console.log(`  - restPosition: (${piece.restPosition?.x.toFixed(1)}, ${piece.restPosition?.y.toFixed(1)})`);
       }
 
       body = (this.matter.bodies as any).fromVertices(
@@ -3564,19 +3477,9 @@ export class PuzzleScene extends Phaser.Scene {
       const actualBodyY = body.position.y;
       const partCount = body.parts ? body.parts.length - 1 : 0;
 
-      if (this.pieces.filter(p => (p as any).matterBody).length < 3 || piece.id === 'piece_7') {
-        console.log(`⚙️ [BODY] ${piece.id}: ✅ ${localVertices.length}→${usableVertices.length} vertices, ${partCount} parts`);
-        console.log(`⚙️ [BODY] ${piece.id}: Anchor=(${anchorX.toFixed(1)}, ${anchorY.toFixed(1)}), Body=(${actualBodyX.toFixed(1)}, ${actualBodyY.toFixed(1)})`);
-
-        if (body.vertices && body.vertices.length > 0) {
-          console.log(`⚙️ [BODY] ${piece.id}: Body has ${body.vertices.length} vertices, first 3:`,
-            body.vertices.slice(0, 3).map((v: any) => `(${v.x.toFixed(1)}, ${v.y.toFixed(1)})`).join(', ')
-          );
-        }
-      }
+      // Debug logging removed for production
       
     } catch (error) {
-      console.error(`⚙️ [CONVERT] ${piece.id}: ❌ fromVertices failed:`, error);
       
       const bounds = piece.shape.getBounds();
       body = this.matter.add.rectangle(
@@ -3595,7 +3498,6 @@ export class PuzzleScene extends Phaser.Scene {
         }
       );
       
-      console.log(`⚙️ [CONVERT] ${piece.id}: Using rectangle fallback`);
     }
 
     if (body) {

@@ -127,8 +127,6 @@ export class PhysicsManager {
     this.bodies.forEach((body) => {
       this.enablePhysics(body, newMode);
     });
-
-    console.log(`Physics mode switched to: ${newMode}`);
   }
 
   /**
@@ -164,7 +162,6 @@ export class PhysicsManager {
    */
   private enableArcadePhysics(body: PhysicsBody): void {
     if (!this.scene.physics || !this.scene.physics.world) {
-      console.warn('Arcade physics world not initialized');
       return;
     }
 
@@ -188,7 +185,6 @@ export class PhysicsManager {
    */
   private enableMatterPhysics(body: PhysicsBody): void {
     if (!this.scene.matter || !this.scene.matter.world) {
-      console.warn('Matter physics world not initialized');
       return;
     }
 
@@ -218,8 +214,6 @@ export class PhysicsManager {
     } as any;
 
     body.matterBody = matterBody;
-    
-    console.log(`Matter physics enabled for body at (${body.originalX}, ${body.originalY})`);
   }
 
   /**

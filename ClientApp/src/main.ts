@@ -28,4 +28,6 @@ bootstrapApplication(AppComponent, {
       })
     )
   ]
-}).catch((err) => console.error(err));
+}).catch((err) => {
+  // Bootstrap error - silent fail in production
+});

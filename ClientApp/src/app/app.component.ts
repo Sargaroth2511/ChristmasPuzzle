@@ -149,7 +149,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     // Debug: Add test function to window for manual testing
     if (typeof window !== 'undefined') {
       (window as any).testPerformanceWarning = () => {
-        console.log('🧪 Manually triggering performance warning modal');
         this.performanceIssue = {
           hasIssue: true,
           issueType: 'software-renderer',
@@ -169,21 +168,17 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       const result = await this.gpuDetection.detectPerformanceIssues();
       
       if (result.hasIssue) {
-        console.warn('🔴 Performance issue detected:', result);
         this.performanceIssue = result;
         // Don't show modal yet - wait until puzzle scene starts
       }
     } catch (error) {
-      console.error('GPU detection failed:', error);
       // Silently fail - don't show false positives
     }
   }
 
   private validateUser(uid: string, fromUrl: boolean = false): void {
-    console.log('Validating user with UID:', uid, fromUrl ? '(from URL)' : '(from localStorage)');
     this.userService.getUserByGuid(uid).subscribe({
       next: (userData) => {
-        console.log('✅ User data loaded successfully:', userData);
         this.userData = userData;
         this.userValidated = true;
         
@@ -201,19 +196,16 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         const langToUse = savedLang || userLang;
         
         this.translate.use(langToUse);
-        console.log(`🌍 Language set to: ${langToUse} (user preference: ${userLang}, saved: ${savedLang})`);
         
         // Set greeting AFTER language is changed (will be called by onLangChange subscription)
         this.cdr.markForCheck();
       },
       error: (error) => {
-        console.log('ℹ️ User not found, using generic greeting');
         this.userValidated = false;
         this.userData = undefined;
         
         // If validation fails and this was from localStorage, clear it
         if (!fromUrl && this.getStoredUserGuid() === uid) {
-          console.log('🧹 Clearing invalid GUID from localStorage');
           this.clearStoredUserGuid();
         }
         
@@ -232,20 +224,19 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         return localValue;
       }
     } catch (error) {
-      console.warn('Failed to read from localStorage:', error);
+      // Silently handle storage error
     }
     
     // Fallback to cookie (may be synced across devices by browser)
     try {
       const cookieValue = this.getCookie(this.COOKIE_KEY_USER_GUID);
       if (cookieValue) {
-        console.log('🍪 Found user GUID in cookie (may be synced from another device)');
         // Also save to localStorage for faster future access
         this.saveToLocalStorage(cookieValue);
         return cookieValue;
       }
     } catch (error) {
-      console.warn('Failed to read cookie:', error);
+      // Silently handle cookie error
     }
     
     return null;
@@ -259,9 +250,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   private saveToLocalStorage(uid: string): void {
     try {
       localStorage.setItem(this.STORAGE_KEY_USER_GUID, uid);
-      console.log('💾 Saved user GUID to localStorage:', uid);
     } catch (error) {
-      console.warn('Failed to save to localStorage:', error);
+      // Silently handle storage error
     }
   }
 
@@ -272,9 +262,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       // Secure flag is set if we're on HTTPS
       const secure = window.location.protocol === 'https:' ? '; Secure' : '';
       document.cookie = `${this.COOKIE_KEY_USER_GUID}=${encodeURIComponent(uid)}; max-age=${maxAge}; path=/; SameSite=Lax${secure}`;
-      console.log('🍪 Saved user GUID to cookie (may sync across devices):', uid);
     } catch (error) {
-      console.warn('Failed to save cookie:', error);
+      // Silently handle cookie error
     }
   }
 
@@ -292,17 +281,15 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   private clearStoredUserGuid(): void {
     try {
       localStorage.removeItem(this.STORAGE_KEY_USER_GUID);
-      console.log('🧹 Cleared user GUID from localStorage');
     } catch (error) {
-      console.warn('Failed to clear localStorage:', error);
+      // Silently handle storage error
     }
     
     // Also clear the cookie
     try {
       document.cookie = `${this.COOKIE_KEY_USER_GUID}=; max-age=0; path=/`;
-      console.log('🧹 Cleared user GUID cookie');
     } catch (error) {
-      console.warn('Failed to clear cookie:', error);
+      // Silently handle cookie error
     }
   }
 
@@ -312,9 +299,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       url.searchParams.delete('uid');
       const cleanUrl = url.pathname + (url.search ? url.search : '') + (url.hash ? url.hash : '');
       window.history.replaceState({}, '', cleanUrl);
-      console.log('🧹 Cleaned GUID from URL');
     } catch (error) {
-      console.warn('Failed to clean URL:', error);
+      // Silently handle URL error
     }
   }
 
@@ -342,7 +328,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       const key = isFormal ? 'greeting.personalFormal' : 'greeting.personalInformal';
       this.translate.get(key, { name: fullName }).subscribe(translation => {
         this.greetingHeadline = translation;
-        console.log('✅ Personalized greeting set:', this.greetingHeadline);
         this.cdr.markForCheck();
       });
     } else {
@@ -363,7 +348,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
           }
           
           this.greetingHeadline = fullGreeting;
-          console.log('ℹ️ Generic greeting set:', this.greetingHeadline);
           this.cdr.markForCheck();
         });
       });
@@ -458,7 +442,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
     // ⚠️ TESTING MODE - Skip InitialScene and start PuzzleScene directly
     if (TESTING_VIDEO_MODE) {
-      console.log('🧪 TESTING MODE: Starting PuzzleScene directly, skipping InitialScene');
       this.game.scene.add('InitialScene', InitialScene, false, {
         emitter
       });
@@ -516,7 +499,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
           this.cdr.markForCheck();
         }, 1000);
       } else {
-        console.log('🧪 TESTING MODE: Skipping completion overlay, will show after video');
         // In testing mode, show the overlay immediately so user can click "Münzen senden"
         this.puzzleComplete = true;
       }
@@ -540,7 +522,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     });
 
     emitter.on('initial-zoom-complete', () => {
-      console.log('🎬 Initial zoom complete - showing stag modal with greeting');
       this.showInitialContinueButton = true;
       this.cdr.markForCheck();
     });
@@ -557,7 +538,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
     emitter.on('video-playback-started', () => {
       // Hide completion overlay when video starts playing
-      console.log('🎬 Video started - hiding completion overlay');
       this.puzzleComplete = false;
       this.cdr.markForCheck();
     });
@@ -641,7 +621,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
   continueToPuzzle(): void {
     if (!this.sceneEvents) {
-      console.warn('⚠️ sceneEvents not available');
       return;
     }
 
@@ -734,7 +713,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     }
 
     if (!this.activeSessionId) {
-      console.warn('⚠️ No active session to complete.');
       const message = this.translate.instant(this.getSalutationKey('completion.thankYouNoSession'));
       this.sessionErrorMessage = message;
       // Play video even without active session (testing mode)
@@ -743,7 +721,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     }
 
     if (this.pendingSnapQueue.length > 0 || this.processingSnap) {
-      console.warn('⏳ Waiting for backend validation to finish before completing the session.');
       this.flushPendingSnaps();
       const message = this.translate.instant(this.getSalutationKey('completion.thankYouSyncing'));
       this.sessionErrorMessage = message;
@@ -751,8 +728,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       this.playCompletionVideoThenShowModal(message);
       return;
     }
-
-    console.log('💰 Completing validated session:', this.activeSessionId, 'coins:', this.coinTotal, 'Time:', this.completionTime);
 
     this.userService.completeGameSession(this.userGuid, this.activeSessionId).subscribe({
       next: (response: CompleteGameSessionResponse) => {
@@ -770,7 +745,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         this.sceneEvents?.emit('play-completion-video');
       },
       error: (error) => {
-        console.error('❌ Failed to complete game session:', error);
         const message = this.translate.instant(this.getSalutationKey('completion.thankYouError'));
         this.sessionErrorMessage = message;
         // Play video even on error
@@ -885,7 +859,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       error: (error) => {
         this.sessionStartInFlight = false;
         this.sessionErrorMessage = error?.message ?? 'Fehler beim Starten der Spielsitzung.';
-        console.error('❌ Failed to start game session:', error);
         this.cdr.markForCheck();
       }
     });
@@ -922,7 +895,6 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         this.cdr.markForCheck();
       },
       error: (error) => {
-        console.error('❌ Failed to record piece snap:', error);
         this.sessionErrorMessage = error?.message ?? 'Fehler bei der Validierung des Puzzleteils.';
         this.processingSnap = false;
         this.flushPendingSnaps();

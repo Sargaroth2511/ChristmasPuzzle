@@ -27,7 +27,5 @@ export class LanguageSwitcherComponent {
     
     // Save preference to localStorage
     localStorage.setItem('preferredLanguage', lang);
-    
-    console.log(`🌍 Language switched to: ${lang}`);
   }
 }

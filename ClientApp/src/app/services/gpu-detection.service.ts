@@ -60,8 +60,6 @@ export class GpuDetectionService {
     const rendererLower = renderer.toLowerCase();
     const combined = `${vendorLower} ${rendererLower}`.trim();
 
-    console.log('GPU Detection - Vendor:', vendor, 'Renderer:', renderer);
-
     // Check for software rendering (the most common cause of poor performance)
     const softwareIndicators = [
       'swiftshader',
@@ -86,7 +84,6 @@ export class GpuDetectionService {
     // Performance benchmark fallback: If we can't get renderer info, test actual performance
     let slowPerformance = false;
     if (!renderer || renderer === 'webgl' || renderer === 'webkit webgl' || renderer === 'moz webgl') {
-      console.log('⚠️ Renderer info unavailable (privacy settings?), running performance test...');
       slowPerformance = await this.testWebGLPerformance(gl);
     }
     
@@ -100,7 +97,6 @@ export class GpuDetectionService {
     );
 
     if (isSoftwareRenderer || isFirefoxSoftware || slowPerformance) {
-      console.warn('🔴 Software renderer detected:', renderer || '(unknown)', '(vendor:', vendor || '(unknown)', ')');
       return {
         hasIssue: true,
         issueType: 'software-renderer',
@@ -114,7 +110,6 @@ export class GpuDetectionService {
     // Check if GPU is blocked or blacklisted
     const isBlocked = combined.includes('angle') && combined.includes('d3d11');
     if (isBlocked && !combined.includes('nvidia') && !combined.includes('amd') && !combined.includes('intel')) {
-      console.warn('🟡 Possible GPU block detected:', renderer);
       return {
         hasIssue: true,
         issueType: 'blocked-gpu',
@@ -126,7 +121,6 @@ export class GpuDetectionService {
     }
 
     // No issues detected - GPU is working properly
-    console.log('✅ GPU detection passed:', renderer);
     return { 
       hasIssue: false,
       renderer,
@@ -199,20 +193,13 @@ export class GpuDetectionService {
       gl.deleteProgram(program);
       gl.deleteBuffer(buffer);
 
-      console.log(`WebGL Performance Test: ${iterations} draws in ${duration.toFixed(2)}ms`);
-
       // If it takes more than 100ms for 1000 simple draws, it's likely software rendering
       // Hardware GPU should complete this in <10ms
       const isSlow = duration > 100;
-      
-      if (isSlow) {
-        console.warn(`⚠️ Slow performance detected (${duration.toFixed(2)}ms) - likely software rendering`);
-      }
 
       return isSlow;
     } catch (error) {
-      console.error('Performance test failed:', error);
-      return false; // Don't show warning if test fails
+      // Fail silently - assume hardware acceleration is available
     }
   }
 
