@@ -1166,7 +1166,7 @@ export class PuzzleScene extends Phaser.Scene {
         // Calculate scale to fill entire scene (cover mode)
         const scaleX = this.scale.width / actualWidth;
         const scaleY = this.scale.height / actualHeight;
-        const scale = Math.max(scaleX, scaleY);
+        const scale = Math.max(scaleX, scaleY) * 1.05;
         
         this.completionVideo.setScale(scale);
       }

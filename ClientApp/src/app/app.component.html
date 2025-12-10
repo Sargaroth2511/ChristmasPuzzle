@@ -15,7 +15,7 @@
     </div>
   </div>
 
-  <header class="hero">
+  <header class="hero" [style.visibility]="hasCompletedPuzzle ? 'hidden' : 'visible'">
     <h1 *ngIf="showGreetingHeader; else standardTitle">
       <span class="greeting-name">{{ greetingNamePart }}</span><br>
       <span class="greeting-message">{{ greetingMessagePart }}</span>

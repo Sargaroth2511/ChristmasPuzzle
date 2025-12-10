@@ -40,6 +40,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   readonly title = 'Christmas Puzzle';
 
   puzzleComplete = false;
+  hasCompletedPuzzle = false; // Track if user has completed and closed the thank you modal
   menuOpen = false;
   showIntroOverlay = false;
   showInitialContinueButton = false;
@@ -668,6 +669,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.clearCompletionOverlayTimer();
     this.hideRestartButton = false;
     this.puzzleComplete = false;
+    this.hasCompletedPuzzle = false;
     this.showInitialContinueButton = false;
     this.showExplosionModal = false;
     this.showInstructions = false;
@@ -699,6 +701,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
   donateCoins(): void {
     this.hideRestartButton = true;
+    this.hasCompletedPuzzle = true; // Hide header when starting video
     
     // Immediately hide the completion overlay
     this.puzzleComplete = false;
@@ -770,6 +773,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   closeThankYouModal(): void {
     this.showThankYouModal = false;
     this.puzzleComplete = false; // Hide the completion modal so user can see finished puzzle
+    this.showInstructions = false; // Hide instructions - puzzle is complete
+    this.showUserInfo = false; // Hide user info box
     this.thankYouErrorMessage = undefined;
     this.cdr.markForCheck();
   }
