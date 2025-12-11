@@ -72,7 +72,7 @@ public class UserDataService : IUserDataService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error reading seed users file");
+                _logger.LogInformation(ex, "Error reading seed users file");
             }
         }
         else
@@ -93,7 +93,7 @@ public class UserDataService : IUserDataService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error reading existing users file");
+                _logger.LogInformation(ex, "Error reading existing users file");
             }
         }
 
@@ -244,7 +244,7 @@ public class UserDataService : IUserDataService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error reading user data file");
+            _logger.LogInformation(ex, "Error reading user data file");
             return new UsersDataStore { Users = new List<UserData>() };
         }
     }
@@ -261,7 +261,7 @@ public class UserDataService : IUserDataService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error writing user data file");
+            _logger.LogInformation(ex, "Error writing user data file");
             throw;
         }
     }

@@ -3,7 +3,7 @@ import decomp from 'poly-decomp';
 
 // ⚠️ TESTING MODE - Set to true to skip puzzle and test video flow
 // TODO: Set to false before production deployment
-const TESTING_VIDEO_MODE = false;
+const TESTING_VIDEO_MODE = true;
 
 import {
   DEFAULT_FILL_ALPHA,
@@ -723,7 +723,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.load.text('puzzle-svg', 'assets/pieces/stag_with_all_lines.svg');
     this.load.image('scene-background', 'assets/background/snowy_mauntains_background.png');
     this.load.image('outline-texture', 'assets/background/greyPaper.png');
-    this.load.video('completion-video', `assets/videos/endscene_v2.mp4`, true); // true = no audio, cache buster added
+    this.load.video('completion-video', `assets/videos/endscene_v3.mp4`, true); // true = no audio, cache buster added
     if (!this.textures.exists('hud-coin-spritesheet')) {
       this.load.spritesheet('hud-coin-spritesheet', 'assets/coins/oh22_coin_spin_256x256_12_refined.png', {
         frameWidth: 256,
@@ -1166,7 +1166,7 @@ export class PuzzleScene extends Phaser.Scene {
         // Calculate scale to fill entire scene (cover mode)
         const scaleX = this.scale.width / actualWidth;
         const scaleY = this.scale.height / actualHeight;
-        const scale = Math.max(scaleX, scaleY) * 1.05;
+        const scale = Math.max(scaleX, scaleY) * 1.02;
         
         this.completionVideo.setScale(scale);
       }

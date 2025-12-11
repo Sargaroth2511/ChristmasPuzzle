@@ -1,0 +1,198 @@
+<!-- Key Prompt Modal -->
+<app-modal [isVisible]="showKeyPrompt" [wide]="true">
+    <h1>Statistics Access</h1>
+    <p>Please enter your access key to view the statistics</p>
+
+    <div class="key-input-container">
+        <input type="password" [(ngModel)]="accessKey" placeholder="Enter access key" (keyup.enter)="submitKey()"
+            [disabled]="isLoading" />
+    </div>
+
+    <p *ngIf="errorMessage" class="error-message">{{ errorMessage }}</p>
+
+    <div class="modal-actions">
+        <button type="button" (click)="submitKey()" [disabled]="isLoading">
+            {{ isLoading ? 'Loading...' : 'Submit' }}
+        </button>
+    </div>
+</app-modal>
+
+<!-- Statistics Display -->
+<div class="statistics-container" *ngIf="!showKeyPrompt && data">
+    <div class="statistics-header">
+        <h1>Statistics Dashboard</h1>
+        <div class="header-buttons">
+            <button type="button" class="back-btn" (click)="goBack()">← Back</button>
+            <button type="button" class="logout-btn" (click)="clearStoredKey()">Logout</button>
+        </div>
+    </div>
+
+    <!-- Overview Statistics -->
+    <div *ngIf="statisticsType === 'overview'" class="stats-overview">
+        <div class="stat-card highlight">
+            <h3>Collected Donations</h3>
+            <p class="stat-value">{{ formatCurrency(data.collectedDonations) }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>Total Users</h3>
+            <p class="stat-value">{{ data.totalUsers }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>Users Who Played</h3>
+            <p class="stat-value">{{ data.usersWhoPlayed }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>Users Who Completed</h3>
+            <p class="stat-value">{{ data.usersWhoCompleted }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>Completion Rate</h3>
+            <p class="stat-value">{{ data.completionRate?.toFixed(1) }}%</p>
+        </div>
+        <div class="stat-card">
+            <h3>Average Time</h3>
+            <p class="stat-value">{{ formatTime(data.averageCompletionTimeSeconds) }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>Median Time</h3>
+            <p class="stat-value">{{ formatTime(data.medianCompletionTimeSeconds) }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>Fastest Time</h3>
+            <p class="stat-value">{{ formatTime(data.fastestTimeSeconds) }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>Total Games Played</h3>
+            <p class="stat-value">{{ data.totalGamesPlayed }}</p>
+        </div>
+
+
+        <div class="stat-card">
+            <h3>Language Distribution</h3>
+            <div class="stat-breakdown">
+                <div class="breakdown-item">
+                    <span>German:</span>
+                    <strong>{{ data.languages?.german || 0 }}</strong>
+                </div>
+                <div class="breakdown-item">
+                    <span>English:</span>
+                    <strong>{{ data.languages?.english || 0 }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <h3>Salutation Distribution</h3>
+            <div class="stat-breakdown">
+                <div class="breakdown-item">
+                    <span>Informal (Du):</span>
+                    <strong>{{ data.salutations?.informal || 0 }}</strong>
+                </div>
+                <div class="breakdown-item">
+                    <span>Formal (Sie):</span>
+                    <strong>{{ data.salutations?.formal || 0 }}</strong>
+                </div>
+            </div>
+        </div>
+
+        <p class="generated-at">Generated at: {{ formatDate(data.generatedAt) }}</p>
+    </div>
+
+    <!-- Leaderboard -->
+    <div *ngIf="statisticsType === 'leaderboard'" class="leaderboard">
+        <h2>{{ data.type }}</h2>
+        <p class="total-entries">Showing {{ data.totalEntries }} entries</p>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Type:</label>
+                <select [(ngModel)]="leaderboardType" (change)="refreshData()">
+                    <option value="fastest">Fastest Times</option>
+                    <option value="mostPlayed">Most Played</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Limit:</label>
+                <select [(ngModel)]="leaderboardLimit" (change)="refreshData()">
+                    <option [value]="10">Top 10</option>
+                    <option [value]="25">Top 25</option>
+                    <option [value]="50">Top 50</option>
+                    <option [value]="100">Top 100</option>
+                </select>
+            </div>
+        </div>
+
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Name</th>
+                    <th>Time</th>
+                    <th>Games Played</th>
+                    <th>Last Accessed</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let entry of data.entries">
+                    <td class="rank">{{ entry.rank }}</td>
+                    <td class="name">{{ entry.name }}</td>
+                    <td class="time">{{ entry.timeFormatted || formatTime(entry.timeSeconds) }}</td>
+                    <td>{{ entry.totalGamesPlayed }}</td>
+                    <td>{{ formatDate(entry.lastAccessed) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="generated-at">Generated at: {{ formatDate(data.generatedAt) }}</p>
+
+    <!-- User List -->
+    <div *ngIf="statisticsType === 'users'" class="user-list">
+        <h2>{{ getFilterDisplayName(data.filter) }}</h2>
+        <p class="total-entries">{{ data.totalUsers }} users</p>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Filter:</label>
+                <select [(ngModel)]="usersFilter" (change)="refreshData()">
+                    <option value="all">All Users</option>
+                    <option value="played">Played</option>
+                    <option value="completed">Completed</option>
+                    <option value="notPlayed">Not Played</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Sort By:</label>
+                <select [(ngModel)]="usersSortBy" (change)="refreshData()">
+                    <option value="name">Name</option>
+                    <option value="fastestTime">Fastest Time</option>
+                    <option value="totalGames">Total Games</option>
+                    <option value="lastPlayed">Last Accessed</option>
+                </select>
+            </div>
+        </div>
+
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Language</th>
+                    <th>Salutation</th>
+                    <th>Fastest Time</th>
+                    <th>Games Played</th>
+                    <th>Last Accessed</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let user of data.users">
+                    <td class="name">{{ getUserFullName(user) }}</td>
+                    <td>{{ getLanguageName(user.language) }}</td>
+                    <td>{{ getSalutationName(user.salutation) }}</td>
+                    <td class="time">{{ formatTime(user.fastestTimeSeconds) }}</td>
+                    <td>{{ user.totalPuzzlesCompleted }}</td>
+                    <td>{{ formatDate(user.lastAccessedUtc) }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="generated-at">Generated at: {{ formatDate(data.generatedAt) }}</p>
+</div>

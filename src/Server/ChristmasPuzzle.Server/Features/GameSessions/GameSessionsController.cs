@@ -107,7 +107,7 @@ public sealed class GameSessionsController : ControllerBase
             case CompleteGameSessionStatus.Completed:
                 if (result.Outcome is null)
                 {
-                    _logger.LogError("Session {SessionId} completed without outcome metadata.", result.SessionId);
+                    _logger.LogInformation("Session {SessionId} completed without outcome metadata.", result.SessionId);
                     return StatusCode(500, new { error = "Session outcome unavailable." });
                 }
 

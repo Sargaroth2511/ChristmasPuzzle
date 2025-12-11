@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.FileProviders;
 using ChristmasPuzzle.Server.Features.Users;
 using ChristmasPuzzle.Server.Features.GameSessions;
+using ChristmasPuzzle.Server.Features.Statistics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +30,7 @@ if (Directory.Exists(wwwrootPath))
 builder.Services.AddSingleton<IUserDataService, UserDataService>();
 builder.Services.AddSingleton<IPuzzleDefinitionProvider, SvgPuzzleDefinitionProvider>();
 builder.Services.AddSingleton<IGameSessionService, GameSessionService>();
+builder.Services.AddSingleton<ChristmasPuzzle.Server.Features.Statistics.IStatisticsService, ChristmasPuzzle.Server.Features.Statistics.StatisticsService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -103,6 +105,9 @@ else
 
 app.UseRouting();
 app.UseCors("ClientOrigin");
+
+// Statistics authentication middleware (protects /api/statistics/*)
+app.UseStatisticsAuth();
 
 app.MapControllers();
 

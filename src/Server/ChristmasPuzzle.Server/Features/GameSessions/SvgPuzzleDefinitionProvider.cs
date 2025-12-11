@@ -163,7 +163,7 @@ public sealed class SvgPuzzleDefinitionProvider : IPuzzleDefinitionProvider
             }
         }
 
-        logger.LogError("Puzzle SVG could not be located using known search paths.");
+        logger.LogInformation("Puzzle SVG could not be located using known search paths.");
         return null;
     }
 

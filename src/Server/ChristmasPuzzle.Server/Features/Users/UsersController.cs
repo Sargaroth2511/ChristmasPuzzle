@@ -44,7 +44,7 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting user data for UID: {Uid}", uid);
+            _logger.LogInformation(ex, "Error getting user data for UID: {Uid}", uid);
             return StatusCode(500, new { error = "Internal server error" });
         }
     }
@@ -85,7 +85,7 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating user stats for UID: {Uid}", uid);
+            _logger.LogInformation(ex, "Error updating user stats for UID: {Uid}", uid);
             return StatusCode(500, new { error = "Internal server error" });
         }
     }

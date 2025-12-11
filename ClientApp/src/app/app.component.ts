@@ -11,7 +11,7 @@ import { GpuDetectionService, GpuDetectionResult } from './services/gpu-detectio
 
 // ⚠️ TESTING MODE - Set to true to skip InitialScene and go directly to PuzzleScene
 // TODO: Set to false before production deployment
-const TESTING_VIDEO_MODE = false;
+const TESTING_VIDEO_MODE = true;
 
 type PuzzlePiecePlacedPayload = {
   pieceId: string;
@@ -26,7 +26,7 @@ import { LanguageSwitcherComponent } from './language-switcher/language-switcher
 import { ModalComponent } from './shared/modal.component';
 
 @Component({
-  selector: 'app-root',
+  selector: 'app-puzzle',
   standalone: true,
   imports: [CommonModule, HttpClientModule, TranslateModule, LanguageSwitcherComponent, ModalComponent],
   templateUrl: './app.component.html',
@@ -37,7 +37,7 @@ import { ModalComponent } from './shared/modal.component';
 export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   @ViewChild('gameHost', { static: true }) private readonly gameHost?: ElementRef<HTMLDivElement>;
 
-  readonly title = 'Christmas Puzzle';
+  readonly title = 'oh22 Xmas';
 
   puzzleComplete = false;
   hasCompletedPuzzle = false; // Track if user has completed and closed the thank you modal

@@ -1,0 +1,51 @@
+<!-- Key Prompt Modal -->
+<app-modal [isVisible]="showKeyPrompt" [wide]="true">
+  <h1>Statistics Access</h1>
+  <p>Please enter your access key to view the statistics</p>
+  
+  <div class="key-input-container">
+    <input 
+      type="password" 
+      [(ngModel)]="accessKey" 
+      placeholder="Enter access key"
+      (keyup.enter)="submitKey()"
+      [disabled]="isLoading"
+    />
+  </div>
+
+  <p *ngIf="errorMessage" class="error-message">{{ errorMessage }}</p>
+
+  <div class="modal-actions">
+    <button type="button" (click)="submitKey()" [disabled]="isLoading">
+      {{ isLoading ? 'Validating...' : 'Submit' }}
+    </button>
+  </div>
+</app-modal>
+
+<!-- Statistics Home -->
+<div class="statistics-home" *ngIf="!showKeyPrompt">
+  <div class="home-header">
+    <h1>Statistics Dashboard</h1>
+    <button type="button" class="logout-btn" (click)="logout()">Logout</button>
+  </div>
+
+  <div class="navigation-cards">
+    <div class="nav-card" (click)="navigateTo('overview')">
+      <div class="card-icon">📊</div>
+      <h2>Overview</h2>
+      <p>View summary statistics, completion rates, and user distributions</p>
+    </div>
+
+    <div class="nav-card" (click)="navigateTo('leaderboard')">
+      <div class="card-icon">🏆</div>
+      <h2>Leaderboard</h2>
+      <p>See top players by fastest times and most games played</p>
+    </div>
+
+    <div class="nav-card" (click)="navigateTo('users')">
+      <div class="card-icon">👥</div>
+      <h2>User List</h2>
+      <p>Browse and filter all registered users with their statistics</p>
+    </div>
+  </div>
+</div>
