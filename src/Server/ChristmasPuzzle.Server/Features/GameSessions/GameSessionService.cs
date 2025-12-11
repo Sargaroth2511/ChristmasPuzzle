@@ -37,29 +37,42 @@ public sealed class GameSessionService : IGameSessionService
 
         if (_userSessions.TryGetValue(userId, out var existingSessionId))
         {
-            if (_sessions.TryGetValue(existingSessionId, out var existingSession) && !existingSession.Completed)
+            if (_sessions.TryGetValue(existingSessionId, out var existingSession))
             {
-                var inactive = DateTime.UtcNow - existingSession.LastUpdatedUtc >= SessionInactivityTimeout;
-                if (!forceRestart && !inactive)
+                // Session exists in _sessions
+                if (!existingSession.Completed)
                 {
-                    _logger.LogInformation("User {UserId} attempted to start a new session but already has active session {SessionId}.", userId, existingSession.SessionId);
-                    return Task.FromResult(StartGameSessionResult.ActiveSession(existingSession.SessionId));
-                }
+                    // Active session - check if it's stale or force restart requested
+                    var inactive = DateTime.UtcNow - existingSession.LastUpdatedUtc >= SessionInactivityTimeout;
+                    if (!forceRestart && !inactive)
+                    {
+                        _logger.LogInformation("User {UserId} attempted to start a new session but already has active session {SessionId}.", userId, existingSession.SessionId);
+                        return Task.FromResult(StartGameSessionResult.ActiveSession(existingSession.SessionId));
+                    }
 
-                if (forceRestart)
-                {
-                    _logger.LogInformation("Force restarting session {SessionId} for user {UserId}.", existingSession.SessionId, userId);
+                    if (forceRestart)
+                    {
+                        _logger.LogInformation("Force restarting session {SessionId} for user {UserId}.", existingSession.SessionId, userId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Expiring stale session {SessionId} for user {UserId}.", existingSession.SessionId, userId);
+                    }
+
+                    _sessions.TryRemove(existingSession.SessionId, out _);
+                    _userSessions.TryRemove(userId, out _);
                 }
                 else
                 {
-                    _logger.LogWarning("Expiring stale session {SessionId} for user {UserId}.", existingSession.SessionId, userId);
+                    // Session is completed, clean up the user mapping
+                    _logger.LogDebug("Removing completed session mapping for user {UserId}, session {SessionId}.", userId, existingSessionId);
+                    _userSessions.TryRemove(userId, out _);
                 }
-
-                _sessions.TryRemove(existingSession.SessionId, out _);
-                _userSessions.TryRemove(userId, out _);
             }
             else
             {
+                // Orphaned entry: session ID exists in _userSessions but not in _sessions
+                _logger.LogWarning("Found orphaned session mapping for user {UserId}, session {SessionId}. Cleaning up.", userId, existingSessionId);
                 _userSessions.TryRemove(userId, out _);
             }
         }
@@ -132,7 +145,11 @@ public sealed class GameSessionService : IGameSessionService
         var placedCount = session.PlacedCount;
         if (placedCount == session.TotalPieces)
         {
-            _logger.LogInformation("Session {SessionId} for user {UserId} has all pieces recorded.", sessionId, userId);
+            // Mark session as completed when last piece is validated
+            session.Completed = true;
+            session.CompletedAtUtc = now;
+            var duration = now - session.StartTimeUtc;
+            _logger.LogInformation("Session {SessionId} for user {UserId} completed. Duration: {Duration:0.##}s", sessionId, userId, duration.TotalSeconds);
         }
 
         return Task.FromResult(RecordPieceSnapResult.Accepted(distance, allowed, session.TotalPieces, placedCount));
@@ -147,29 +164,23 @@ public sealed class GameSessionService : IGameSessionService
             return Task.FromResult(CompleteGameSessionResult.NotFound);
         }
 
-        if (session.Completed)
+        if (!session.Completed || session.CompletedAtUtc == null)
         {
-            return Task.FromResult(CompleteGameSessionResult.AlreadyCompleted(session.SessionId, session.StartTimeUtc, session.CompletedAtUtc ?? session.LastUpdatedUtc, session.PlacedCount, session.TotalPieces));
-        }
-
-        if (session.PlacedCount != session.TotalPieces)
-        {
+            // Session not yet completed (all pieces not validated)
             _logger.LogWarning(
                 "Completion rejected for session {SessionId} (user {UserId}): placed {PlacedCount} / {TotalPieces}.",
                 sessionId, userId, session.PlacedCount, session.TotalPieces);
             return Task.FromResult(CompleteGameSessionResult.IncompletePieces(session.PlacedCount, session.TotalPieces));
         }
 
-        var now = DateTime.UtcNow;
-        session.Completed = true;
-        session.CompletedAtUtc = now;
-        session.LastUpdatedUtc = now;
+        // Session already completed when last piece was validated
+        // Remove user mapping and return the completion data
         _userSessions.TryRemove(userId, out _);
-
-        var duration = now - session.StartTimeUtc;
+        
+        var duration = session.CompletedAtUtc.Value - session.StartTimeUtc;
         var durationSeconds = Math.Max(duration.TotalSeconds, 0);
 
-        return Task.FromResult(CompleteGameSessionResult.Success(session.SessionId, session.StartTimeUtc, now, durationSeconds, session.TotalPieces));
+        return Task.FromResult(CompleteGameSessionResult.Success(session.SessionId, session.StartTimeUtc, session.CompletedAtUtc.Value, durationSeconds, session.TotalPieces));
     }
 
     public Task<GameSession?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)

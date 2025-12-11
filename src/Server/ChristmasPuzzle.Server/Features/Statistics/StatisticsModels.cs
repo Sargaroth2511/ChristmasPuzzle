@@ -64,8 +64,8 @@ public class UserStatDetail
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
-    public string Language { get; set; } = string.Empty;
-    public string Salutation { get; set; } = string.Empty;
+    public int Language { get; set; }
+    public int Salutation { get; set; }
     public double? FastestTimeSeconds { get; set; }
     public string? FastestTimeFormatted { get; set; }
     public int? TotalPuzzlesCompleted { get; set; }

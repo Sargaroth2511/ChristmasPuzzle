@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -31,6 +32,14 @@ builder.Services.AddSingleton<IUserDataService, UserDataService>();
 builder.Services.AddSingleton<IPuzzleDefinitionProvider, SvgPuzzleDefinitionProvider>();
 builder.Services.AddSingleton<IGameSessionService, GameSessionService>();
 builder.Services.AddSingleton<ChristmasPuzzle.Server.Features.Statistics.IStatisticsService, ChristmasPuzzle.Server.Features.Statistics.StatisticsService>();
+
+// Configure forwarded headers for proxy support (IIS, nginx, etc.)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -102,6 +111,9 @@ else
 {
     app.Logger.LogWarning("Angular dist folder not found. Build the client into wwwroot or run 'npm run build' inside ClientApp.");
 }
+
+// Use forwarded headers from proxy (must be before other middleware)
+app.UseForwardedHeaders();
 
 app.UseRouting();
 app.UseCors("ClientOrigin");
