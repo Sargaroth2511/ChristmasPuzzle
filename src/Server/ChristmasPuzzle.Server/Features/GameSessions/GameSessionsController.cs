@@ -19,24 +19,16 @@ public sealed class GameSessionsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<StartGameSessionResponse>> StartSession(Guid uid, [FromBody] StartGameSessionRequest? request, CancellationToken cancellationToken)
+    public async Task<ActionResult<StartGameSessionResponse>> StartSession(Guid uid, CancellationToken cancellationToken)
     {
         if (uid == Guid.Empty)
         {
             return BadRequest(new { error = "UID must be a valid GUID." });
         }
 
-        var result = await _gameSessionService.StartSessionAsync(uid, request?.ForceRestart ?? false, cancellationToken);
-        if (!result.Success)
-        {
-            return Conflict(new StartGameSessionResponse
-            {
-                Success = false,
-                ActiveSessionId = result.ActiveSessionId,
-                Message = "An active session already exists for this user."
-            });
-        }
-
+        var result = await _gameSessionService.StartSessionAsync(uid, cancellationToken);
+        
+        // Always succeeds now - no more session conflicts
         return Ok(new StartGameSessionResponse
         {
             Success = true,

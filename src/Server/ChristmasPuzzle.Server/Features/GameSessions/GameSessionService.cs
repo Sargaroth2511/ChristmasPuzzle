@@ -4,7 +4,7 @@ namespace ChristmasPuzzle.Server.Features.GameSessions;
 
 public interface IGameSessionService
 {
-    Task<StartGameSessionResult> StartSessionAsync(Guid userId, bool forceRestart = false, CancellationToken cancellationToken = default);
+    Task<StartGameSessionResult> StartSessionAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<RecordPieceSnapResult> RecordPieceSnapAsync(Guid userId, Guid sessionId, RecordPieceSnapRequest request, CancellationToken cancellationToken = default);
     Task<CompleteGameSessionResult> CompleteSessionAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
     Task<GameSession?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default);
@@ -22,7 +22,6 @@ public sealed class GameSessionService : IGameSessionService
     private readonly ILogger<GameSessionService> _logger;
 
     private readonly ConcurrentDictionary<Guid, GameSession> _sessions = new();
-    private readonly ConcurrentDictionary<Guid, Guid> _userSessions = new();
 
     public GameSessionService(IPuzzleDefinitionProvider puzzleDefinitionProvider, ILogger<GameSessionService> logger)
     {
@@ -30,53 +29,14 @@ public sealed class GameSessionService : IGameSessionService
         _logger = logger;
     }
 
-    public Task<StartGameSessionResult> StartSessionAsync(Guid userId, bool forceRestart = false, CancellationToken cancellationToken = default)
+    public Task<StartGameSessionResult> StartSessionAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         CleanupExpiredSessions();
 
-        if (_userSessions.TryGetValue(userId, out var existingSessionId))
-        {
-            if (_sessions.TryGetValue(existingSessionId, out var existingSession))
-            {
-                // Session exists in _sessions
-                if (!existingSession.Completed)
-                {
-                    // Active session - check if it's stale or force restart requested
-                    var inactive = DateTime.UtcNow - existingSession.LastUpdatedUtc >= SessionInactivityTimeout;
-                    if (!forceRestart && !inactive)
-                    {
-                        _logger.LogInformation("User {UserId} attempted to start a new session but already has active session {SessionId}.", userId, existingSession.SessionId);
-                        return Task.FromResult(StartGameSessionResult.ActiveSession(existingSession.SessionId));
-                    }
-
-                    if (forceRestart)
-                    {
-                        _logger.LogInformation("Force restarting session {SessionId} for user {UserId}.", existingSession.SessionId, userId);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Expiring stale session {SessionId} for user {UserId}.", existingSession.SessionId, userId);
-                    }
-
-                    _sessions.TryRemove(existingSession.SessionId, out _);
-                    _userSessions.TryRemove(userId, out _);
-                }
-                else
-                {
-                    // Session is completed, clean up the user mapping
-                    _logger.LogDebug("Removing completed session mapping for user {UserId}, session {SessionId}.", userId, existingSessionId);
-                    _userSessions.TryRemove(userId, out _);
-                }
-            }
-            else
-            {
-                // Orphaned entry: session ID exists in _userSessions but not in _sessions
-                _logger.LogWarning("Found orphaned session mapping for user {UserId}, session {SessionId}. Cleaning up.", userId, existingSessionId);
-                _userSessions.TryRemove(userId, out _);
-            }
-        }
-
+        // Always create a new session - no blocking logic
+        // Client remembers sessionId and uses it for validation
+        // This allows users to start new games freely without being blocked by abandoned sessions
         var puzzleDefinition = _puzzleDefinitionProvider.GetDefinition();
         var session = new GameSession
         {
@@ -89,7 +49,8 @@ public sealed class GameSessionService : IGameSessionService
         };
 
         _sessions[session.SessionId] = session;
-        _userSessions[userId] = session.SessionId;
+        
+        _logger.LogInformation("Created new session {SessionId} for user {UserId}.", session.SessionId, userId);
 
         return Task.FromResult(StartGameSessionResult.CreateSuccessful(session.SessionId, puzzleDefinition.Version, session.StartTimeUtc, puzzleDefinition.Pieces.Count));
     }
@@ -174,9 +135,7 @@ public sealed class GameSessionService : IGameSessionService
         }
 
         // Session already completed when last piece was validated
-        // Remove user mapping and return the completion data
-        _userSessions.TryRemove(userId, out _);
-        
+        // Return the completion data
         var duration = session.CompletedAtUtc.Value - session.StartTimeUtc;
         var durationSeconds = Math.Max(duration.TotalSeconds, 0);
 
@@ -200,7 +159,6 @@ public sealed class GameSessionService : IGameSessionService
                 if (_sessions.TryRemove(sessionId, out _))
                 {
                     _logger.LogWarning("Removed inactive session {SessionId} for user {UserId}.", sessionId, session.UserId);
-                    _userSessions.TryRemove(session.UserId, out _);
                 }
             }
 

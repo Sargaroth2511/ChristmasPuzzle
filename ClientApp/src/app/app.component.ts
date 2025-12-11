@@ -813,7 +813,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.flushPendingSnaps();
   }
 
-  private beginBackendSession(forceRestart = false): void {
+  private beginBackendSession(): void {
     if (!this.userValidated || !this.userGuid) {
       return;
     }
@@ -822,15 +822,12 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       return;
     }
 
-    if (forceRestart) {
-      this.resetSessionProgress();
-      this.activeSessionId = undefined;
-      this.sessionPuzzleVersion = undefined;
-    }
+    this.resetSessionProgress();
+    this.activeSessionId = undefined;
+    this.sessionPuzzleVersion = undefined;
 
     this.sessionStartInFlight = true;
-    const requestPayload = forceRestart ? { forceRestart: true } : undefined;
-    this.userService.startGameSession(this.userGuid, requestPayload).subscribe({
+    this.userService.startGameSession(this.userGuid).subscribe({
       next: (response: StartGameSessionResponse) => {
         this.sessionStartInFlight = false;
 
@@ -844,21 +841,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
           return;
         }
 
-        if (!response.success && response.activeSessionId) {
-          if (!forceRestart) {
-            this.beginBackendSession(true);
-            return;
-          }
-          this.activeSessionId = response.activeSessionId;
-          this.sessionPuzzleVersion = response.puzzleVersion;
-          this.sessionErrorMessage = response.message ?? 'Eine andere Spielsitzung ist noch aktiv.';
-          this.cdr.markForCheck();
-          return;
-        }
-
-        if (!response.success) {
-          this.sessionErrorMessage = response.message ?? 'Spielsitzung konnte nicht gestartet werden.';
-        }
+        // Should never happen now that server always succeeds
+        this.sessionErrorMessage = response.message ?? 'Spielsitzung konnte nicht gestartet werden.';
         this.cdr.markForCheck();
       },
       error: (error) => {
