@@ -11,7 +11,7 @@ import { GpuDetectionService, GpuDetectionResult } from './services/gpu-detectio
 
 // ⚠️ TESTING MODE - Set to true to skip InitialScene and go directly to PuzzleScene
 // TODO: Set to false before production deployment
-const TESTING_VIDEO_MODE = true;
+const TESTING_VIDEO_MODE = false;
 
 type PuzzlePiecePlacedPayload = {
   pieceId: string;

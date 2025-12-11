@@ -3,7 +3,7 @@ import decomp from 'poly-decomp';
 
 // ⚠️ TESTING MODE - Set to true to skip puzzle and test video flow
 // TODO: Set to false before production deployment
-const TESTING_VIDEO_MODE = true;
+const TESTING_VIDEO_MODE = false;
 
 import {
   DEFAULT_FILL_ALPHA,
