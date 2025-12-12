@@ -723,7 +723,7 @@ export class PuzzleScene extends Phaser.Scene {
     this.load.text('puzzle-svg', 'assets/pieces/stag_with_all_lines.svg');
     this.load.image('scene-background', 'assets/background/snowy_mauntains_background.png');
     this.load.image('outline-texture', 'assets/background/greyPaper.png');
-    this.load.video('completion-video', `assets/videos/endscene_v3.mp4`, true); // true = no audio, cache buster added
+    this.load.video('completion-video', `assets/videos/endscene_v4.mp4`, true); // true = no audio, cache buster added
     if (!this.textures.exists('hud-coin-spritesheet')) {
       this.load.spritesheet('hud-coin-spritesheet', 'assets/coins/oh22_coin_spin_256x256_12_refined.png', {
         frameWidth: 256,

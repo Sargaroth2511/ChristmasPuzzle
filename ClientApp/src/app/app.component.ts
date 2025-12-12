@@ -66,6 +66,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   userErrorMessage?: string;
 
   activeSessionId?: string;
+  completedSessionId?: string; // Stores session ID when puzzle completes, cleared after submit/discard
   sessionPuzzleVersion?: string;
   sessionStartInFlight = false;
   sessionPiecesAcknowledged = 0;
@@ -489,6 +490,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       this.puzzleComplete = false;
       this.completionTime = payload?.elapsedSeconds;
       this.hideRestartButton = false;
+      // Store session ID for potential discard if user clicks "Neues Spiel"
+      this.completedSessionId = this.activeSessionId;
       this.requestCoinTotal();
       
       // Note: Stats are now only updated when user clicks "Münzen senden"
@@ -750,8 +753,35 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
     this.resetSessionProgress();
     this.sessionErrorMessage = undefined;
+    
+    // If there's a completed session, discard it on the server before restarting
+    // This prevents the "unsaved session" modal from appearing
+    const sessionToDiscard = this.completedSessionId || this.activeSessionId;
     this.activeSessionId = undefined;
+    this.completedSessionId = undefined; // Clear after discard
     this.sessionPuzzleVersion = undefined;
+    
+    if (sessionToDiscard && this.userGuid) {
+      console.log('[restartPuzzle] Discarding session:', sessionToDiscard, 'userGuid:', this.userGuid);
+      this.userService.discardSession(this.userGuid, sessionToDiscard).subscribe({
+        next: () => {
+          console.log('[restartPuzzle] Session discarded successfully');
+          // Session discarded successfully, continue with restart
+          this.continueRestartPuzzle();
+        },
+        error: (err) => {
+          console.log('[restartPuzzle] Failed to discard session:', err);
+          // If discard fails (e.g., session already removed), just continue anyway
+          this.continueRestartPuzzle();
+        }
+      });
+    } else {
+      console.log('[restartPuzzle] No session to discard, activeSessionId:', sessionToDiscard, 'userGuid:', this.userGuid);
+      this.continueRestartPuzzle();
+    }
+  }
+
+  private continueRestartPuzzle(): void {
 
     if (!this.game) {
       this.launchGame();
@@ -812,6 +842,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         this.sessionErrorMessage = undefined;
         this.resetSessionProgress();
         this.activeSessionId = undefined;
+        this.completedSessionId = undefined; // Clear after successful submit
         this.sessionPuzzleVersion = undefined;
 
         // Play completion video in the game scene (success case)

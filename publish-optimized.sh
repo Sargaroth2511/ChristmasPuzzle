@@ -26,8 +26,8 @@ else
     fi
 fi
 
-echo -e "\033[0;33mRunning Angular build...\033[0m"
-npm run build
+echo -e "\033[0;33mRunning Angular production build...\033[0m"
+npm run build:prod
 if [ $? -ne 0 ]; then
     echo -e "\033[0;31mAngular build failed!\033[0m"
     exit 1
