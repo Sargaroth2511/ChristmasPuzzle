@@ -1,8 +1,8 @@
 {
     "app": {
         "title": {
-            "informal": "Help our oh22 Christmas stag!",
-            "formal": "Help our oh22 Christmas stag!"
+            "informal": "Help our oh22 Christmas deer!",
+            "formal": "Help our oh22 Christmas deer!"
         }
     },
     "userInfo": {
@@ -25,7 +25,7 @@
         "newGame": "New Game",
         "submitTime": "Submit Time",
         "continue": "Continue",
-        "letsGo": "Let's go",
+        "letsGo": "Let's Go",
         "close": "Close",
         "nextRound": "Next Round"
     },
@@ -35,8 +35,8 @@
             "formal": "Perfect! You put all 22 pieces together in {{time}}!"
         },
         "perfectDescription": {
-            "informal": "You didn't just save our stag, but also did a good deed – We'll convert this into real coins and donate the amount to a charity organization.<br>Would you like to submit your time, or do you think you can do it even faster?",
-            "formal": "You didn't just save our stag, but also did a good deed – We'll convert this into real coins and donate the amount to a charity organization.<br>Would you like to submit your time, or do you think you can do it even faster?"
+            "informal": "You didn't just save our deer, but also did a good deed – we'll convert this into real coins and donate the amount to a charity organization.<br>Would you like to submit your time, or do you think you can do it even faster?",
+            "formal": "You didn't just save our deer, but also did a good deed – we'll convert this into real coins and donate the amount to a charity organization.<br>Would you like to submit your time, or do you think you can do it even faster?"
         },
         "errorTitle": "Notice",
         "thankYouTitle": {
@@ -44,12 +44,12 @@
             "formal": "Thank you for puzzling with us!"
         },
         "thankYouBody": {
-            "informal": "Your time is now safely logged and helps us turn the Xmas game into a real donation. Feel free to enjoy the finished scene or dive into another round right away.",
-            "formal": "Your time is now safely logged and helps us turn the Xmas game into a real donation. Feel free to enjoy the finished scene or dive into another round right away."
+            "informal": "Your time is now safely logged and helps us turn the Christmas game into a real donation. Feel free to enjoy the finished scene or dive into another round right away.",
+            "formal": "Your time is now safely logged and helps us turn the Christmas game into a real donation. Feel free to enjoy the finished scene or dive into another round right away."
         },
         "thankYouNotStored": {
-            "informal": "We couldn't store this time, but we're still thrilled you helped our stag. Grab your personal link next time so we can celebrate your record.",
-            "formal": "We couldn't store this time, but we're still thrilled you helped our stag. Grab your personal link next time so we can celebrate your record."
+            "informal": "We couldn't store this time, but we're still thrilled you helped our deer. Grab your personal link next time so we can celebrate your record.",
+            "formal": "We couldn't store this time, but we're still thrilled you helped our deer. Grab your personal link next time so we can celebrate your record."
         },
         "thankYouNoSession": {
             "informal": "We couldn't find an active session to submit. Please refresh the page and try again in a moment.",
@@ -65,15 +65,15 @@
         }
     },
     "modals": {
-        "stagTitle": "Oh no!",
-        "stagProblem": {
-            "informal": "Something's wrong with our oh22 Christmas stag…",
-            "formal": "Something's wrong with our oh22 Christmas stag…"
+        "deerTitle": "Oh no!",
+        "deerProblem": {
+            "informal": "Something's wrong with our oh22 Christmas deer…",
+            "formal": "Something's wrong with our oh22 Christmas deer…"
         },
-        "explosionTitle": "Our oh22 Christmas stag has fallen apart!",
+        "explosionTitle": "Our oh22 Christmas deer has fallen apart!",
         "explosionDescription": {
-            "informal": "Help us put the 22 scattered pieces back together so our stag can deliver all the Christmas presents on time.",
-            "formal": "Help us put the 22 scattered pieces back together so our stag can deliver all the Christmas presents on time."
+            "informal": "Help us put the 22 scattered pieces back together so our deer can deliver all the Christmas presents on time.",
+            "formal": "Help us put the 22 scattered pieces back together so our deer can deliver all the Christmas presents on time."
         },
         "performanceWarningTitle": "Performance Notice",
         "performanceWarningMessage": "Your browser is currently using software rendering instead of your graphics card. This may cause the game to run slowly.",
@@ -98,6 +98,19 @@
         "messageFormal": "great to see you!",
         "messageInformal": "great to see you!",
         "messageGeneric": "Enjoy the puzzle!"
+    },
+    "unsavedSession": {
+        "title": {
+            "informal": "You have an unsaved puzzle!",
+            "formal": "You have an unsaved puzzle!"
+        },
+        "message": {
+            "informal": "You completed a puzzle with the following time but haven't submitted it yet. Would you like to save this time now or discard it?",
+            "formal": "You completed a puzzle with the following time but haven't submitted it yet. Would you like to save this time now or discard it?"
+        },
+        "time": "Achieved Time",
+        "save": "Submit Time",
+        "discard": "Discard"
     },
     "language": {
         "name": "English",

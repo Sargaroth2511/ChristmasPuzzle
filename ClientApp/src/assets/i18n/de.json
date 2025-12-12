@@ -35,8 +35,8 @@
             "formal": "Perfekt! Sie haben alle 22 Teile in {{time}} zusammengesetzt!"
         },
         "perfectDescription": {
-            "informal": "Damit hast Du nicht nur unseren Hirsch gerettet, sondern gleichzeitig eine gute Tat vollbracht – Denn wir wandeln das Ganze in echte Münzen um und spenden den Betrag an eine Hilfsorganisation.<br>Möchtest Du Deine Zeit einreichen, oder schaffst Du es vielleicht noch schneller?",
-            "formal": "Damit haben Sie nicht nur unseren Hirsch gerettet, sondern gleichzeitig eine gute Tat vollbracht – Denn wir wandeln das Ganze in echte Münzen um und spenden den Betrag an eine Hilfsorganisation.<br>Möchten Sie Ihre Zeit einreichen, oder schaffen Sie es vielleicht noch schneller?"
+            "informal": "Damit hast Du nicht nur unseren Hirsch gerettet, sondern gleichzeitig eine gute Tat vollbracht – denn wir wandeln das Ganze in echte Münzen um und spenden den Betrag an eine Hilfsorganisation.<br>Möchtest Du Deine Zeit einreichen, oder schaffst Du es vielleicht noch schneller?",
+            "formal": "Damit haben Sie nicht nur unseren Hirsch gerettet, sondern gleichzeitig eine gute Tat vollbracht – denn wir wandeln das Ganze in echte Münzen um und spenden den Betrag an eine Hilfsorganisation.<br>Möchten Sie Ihre Zeit einreichen, oder schaffen Sie es vielleicht noch schneller?"
         },
         "errorTitle": "Hinweis",
         "thankYouTitle": {
@@ -98,6 +98,19 @@
         "messageFormal": "schön, dass Sie da sind!",
         "messageInformal": "schön, dass Du da bist!",
         "messageGeneric": "Viel Spaß beim Puzzle!"
+    },
+    "unsavedSession": {
+        "title": {
+            "informal": "Du hast noch ein ungespeichertes Puzzle!",
+            "formal": "Sie haben noch ein ungespeichertes Puzzle!"
+        },
+        "message": {
+            "informal": "Du hast ein Puzzle mit folgender Zeit abgeschlossen, aber die Zeit noch nicht eingereicht. Möchtest Du diese Zeit jetzt speichern oder verwerfen?",
+            "formal": "Sie haben ein Puzzle mit folgender Zeit abgeschlossen, aber die Zeit noch nicht eingereicht. Möchten Sie diese Zeit jetzt speichern oder verwerfen?"
+        },
+        "time": "Erzielte Zeit",
+        "save": "Zeit einreichen",
+        "discard": "Verwerfen"
     },
     "language": {
         "name": "Deutsch",
