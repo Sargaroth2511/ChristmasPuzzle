@@ -8,6 +8,7 @@ public interface IGameSessionService
     Task<RecordPieceSnapResult> RecordPieceSnapAsync(Guid userId, Guid sessionId, RecordPieceSnapRequest request, CancellationToken cancellationToken = default);
     Task<CompleteGameSessionResult> CompleteSessionAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
     Task<GameSession?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default);
+    Task<bool> DiscardSessionAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default);
 }
 
 public sealed class GameSessionService : IGameSessionService
@@ -16,7 +17,6 @@ public sealed class GameSessionService : IGameSessionService
     private const double DistanceSlackPixels = 4;
     private const double GuidelineToleranceMultiplier = 2.6; // Same as SNAP_DEBUG_MULTIPLIER in client
     private static readonly TimeSpan SessionInactivityTimeout = TimeSpan.FromMinutes(45);
-    private static readonly TimeSpan CompletedRetention = TimeSpan.FromMinutes(10);
 
     private readonly IPuzzleDefinitionProvider _puzzleDefinitionProvider;
     private readonly ILogger<GameSessionService> _logger;
@@ -34,9 +34,34 @@ public sealed class GameSessionService : IGameSessionService
         cancellationToken.ThrowIfCancellationRequested();
         CleanupExpiredSessions();
 
-        // Always create a new session - no blocking logic
+        // Check if user has an existing completed but unsaved session
+        var existingCompletedSession = _sessions.Values
+            .FirstOrDefault(s => s.UserId == userId && s.Completed);
+
+        if (existingCompletedSession != null)
+        {
+            // Return the existing session info without creating a new one
+            var duration = existingCompletedSession.CompletedAtUtc.HasValue
+                ? (existingCompletedSession.CompletedAtUtc.Value - existingCompletedSession.StartTimeUtc).TotalSeconds
+                : 0;
+
+            _logger.LogInformation("User {UserId} has existing completed session {SessionId}. Not creating new session.", userId, existingCompletedSession.SessionId);
+            
+            return Task.FromResult(new StartGameSessionResult
+            {
+                SessionId = null,
+                PuzzleVersion = null,
+                StartTimeUtc = null,
+                TotalPieces = null,
+                ExistingCompletedSessionId = existingCompletedSession.SessionId,
+                ExistingSessionStartTime = existingCompletedSession.StartTimeUtc,
+                ExistingSessionCompletedTime = existingCompletedSession.CompletedAtUtc,
+                ExistingSessionDurationSeconds = duration
+            });
+        }
+
+        // No existing completed session - create a new session
         // Client remembers sessionId and uses it for validation
-        // This allows users to start new games freely without being blocked by abandoned sessions
         var puzzleDefinition = _puzzleDefinitionProvider.GetDefinition();
         var session = new GameSession
         {
@@ -52,7 +77,13 @@ public sealed class GameSessionService : IGameSessionService
         
         _logger.LogInformation("Created new session {SessionId} for user {UserId}.", session.SessionId, userId);
 
-        return Task.FromResult(StartGameSessionResult.CreateSuccessful(session.SessionId, puzzleDefinition.Version, session.StartTimeUtc, puzzleDefinition.Pieces.Count));
+        return Task.FromResult(new StartGameSessionResult
+        {
+            SessionId = session.SessionId,
+            PuzzleVersion = puzzleDefinition.Version,
+            StartTimeUtc = session.StartTimeUtc,
+            TotalPieces = puzzleDefinition.Pieces.Count
+        });
     }
 
     public Task<RecordPieceSnapResult> RecordPieceSnapAsync(Guid userId, Guid sessionId, RecordPieceSnapRequest request, CancellationToken cancellationToken = default)
@@ -135,11 +166,35 @@ public sealed class GameSessionService : IGameSessionService
         }
 
         // Session already completed when last piece was validated
-        // Return the completion data
+        // Return the completion data and REMOVE session from memory
         var duration = session.CompletedAtUtc.Value - session.StartTimeUtc;
         var durationSeconds = Math.Max(duration.TotalSeconds, 0);
 
+        // Remove the session from memory now that it's been saved to the database
+        if (_sessions.TryRemove(sessionId, out _))
+        {
+            _logger.LogInformation("Removed completed session {SessionId} from memory after saving for user {UserId}.", sessionId, userId);
+        }
+
         return Task.FromResult(CompleteGameSessionResult.Success(session.SessionId, session.StartTimeUtc, session.CompletedAtUtc.Value, durationSeconds, session.TotalPieces));
+    }
+
+    public Task<bool> DiscardSessionAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!_sessions.TryGetValue(sessionId, out var session) || session.UserId != userId)
+        {
+            return Task.FromResult(false);
+        }
+
+        if (_sessions.TryRemove(sessionId, out _))
+        {
+            _logger.LogInformation("Discarded session {SessionId} for user {UserId}.", sessionId, userId);
+            return Task.FromResult(true);
+        }
+
+        return Task.FromResult(false);
     }
 
     public Task<GameSession?> GetSessionAsync(Guid sessionId, CancellationToken cancellationToken = default)
@@ -154,19 +209,13 @@ public sealed class GameSessionService : IGameSessionService
         var now = DateTime.UtcNow;
         foreach (var (sessionId, session) in _sessions.ToArray())
         {
+            // Only cleanup incomplete sessions that are inactive
+            // Completed sessions are kept until user explicitly starts a new session
             if (!session.Completed && now - session.LastUpdatedUtc > SessionInactivityTimeout)
             {
                 if (_sessions.TryRemove(sessionId, out _))
                 {
                     _logger.LogWarning("Removed inactive session {SessionId} for user {UserId}.", sessionId, session.UserId);
-                }
-            }
-
-            if (session.Completed && session.CompletedAtUtc is { } completedAt && now - completedAt > CompletedRetention)
-            {
-                if (_sessions.TryRemove(sessionId, out _))
-                {
-                    _logger.LogDebug("Evicted completed session {SessionId} for user {UserId}.", sessionId, session.UserId);
                 }
             }
         }
@@ -175,28 +224,16 @@ public sealed class GameSessionService : IGameSessionService
 
 public sealed record StartGameSessionResult
 {
-    private StartGameSessionResult(bool success, Guid? sessionId = null, string? puzzleVersion = null, DateTime? startTimeUtc = null, int? totalPieces = null, Guid? activeSessionId = null)
-    {
-        Success = success;
-        SessionId = sessionId;
-        PuzzleVersion = puzzleVersion;
-        StartTimeUtc = startTimeUtc;
-        TotalPieces = totalPieces;
-        ActiveSessionId = activeSessionId;
-    }
-
-    public bool Success { get; }
-    public Guid? SessionId { get; }
-    public string? PuzzleVersion { get; }
-    public DateTime? StartTimeUtc { get; }
-    public int? TotalPieces { get; }
-    public Guid? ActiveSessionId { get; }
-
-    public static StartGameSessionResult ActiveSession(Guid activeSessionId) =>
-        new(false, activeSessionId: activeSessionId);
-
-    public static StartGameSessionResult CreateSuccessful(Guid sessionId, string puzzleVersion, DateTime startTimeUtc, int totalPieces) =>
-        new(true, sessionId, puzzleVersion, startTimeUtc, totalPieces);
+    public Guid? SessionId { get; init; }
+    public string? PuzzleVersion { get; init; }
+    public DateTime? StartTimeUtc { get; init; }
+    public int? TotalPieces { get; init; }
+    
+    // Properties for existing completed session
+    public Guid? ExistingCompletedSessionId { get; init; }
+    public DateTime? ExistingSessionStartTime { get; init; }
+    public DateTime? ExistingSessionCompletedTime { get; init; }
+    public double? ExistingSessionDurationSeconds { get; init; }
 }
 
 public sealed record RecordPieceSnapRequest

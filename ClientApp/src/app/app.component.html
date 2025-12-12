@@ -83,6 +83,28 @@
         <button type="button" (click)="closeExplosionModal()">{{ 'buttons.letsGo' | translate }}</button>
       </app-modal>
 
+      <!-- Unsaved Session Modal -->
+      <app-modal [isVisible]="showUnsavedSessionModal" [wide]="true">
+        <h1>{{ ('unsavedSession.title.' + salutationVariant) | translate }}</h1>
+        <p>{{ ('unsavedSession.message.' + salutationVariant) | translate }}</p>
+        <p class="unsaved-session-time">
+          <strong>{{ 'unsavedSession.time' | translate }}:</strong> {{ formatDuration(unsavedSessionDuration) }}
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="secondary" (click)="discardUnsavedSession()">{{ 'unsavedSession.discard' | translate }}</button>
+          <button type="button" class="primary" (click)="saveUnsavedSession()">{{ 'unsavedSession.save' | translate }}</button>
+        </div>
+      </app-modal>
+
+      <!-- Session Expired Modal -->
+      <app-modal [isVisible]="showSessionExpiredModal" [wide]="true">
+        <h1>{{ 'sessionExpired.title' | translate }}</h1>
+        <p>{{ 'sessionExpired.message' | translate }}</p>
+        <div class="modal-actions">
+          <button type="button" class="primary" (click)="startNewGameAfterExpired()">{{ 'sessionExpired.startNew' | translate }}</button>
+        </div>
+      </app-modal>
+
       <!-- Thank You Modal -->
       <app-modal [isVisible]="showThankYouModal" [wide]="true">
         <h1 *ngIf="!thankYouErrorMessage">{{ ('completion.thankYouTitle.' + salutationVariant) | translate }}</h1>

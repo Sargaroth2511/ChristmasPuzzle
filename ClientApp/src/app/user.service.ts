@@ -37,7 +37,13 @@ export interface StartGameSessionResponse {
   puzzleVersion?: string;
   startedAtUtc?: string;
   totalPieces?: number;
-  activeSessionId?: string;
+  
+  // Properties for existing completed session
+  existingCompletedSessionId?: string;
+  existingSessionStartTime?: string;
+  existingSessionCompletedTime?: string;
+  existingSessionDurationSeconds?: number;
+  
   message?: string;
 }
 
@@ -122,6 +128,16 @@ export class UserService {
    */
   completeGameSession(uid: string, sessionId: string): Observable<CompleteGameSessionResponse> {
     return this.http.post<CompleteGameSessionResponse>(`${this.apiBaseUrl}/${uid}/sessions/${sessionId}/complete`, {})
+      .pipe(
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Discard a completed session without saving.
+   */
+  discardSession(uid: string, sessionId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/${uid}/sessions/${sessionId}`)
       .pipe(
         catchError(this.handleError)
       );

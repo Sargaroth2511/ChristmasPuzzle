@@ -75,6 +75,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   thankYouErrorMessage?: string;
   salutationVariant: 'informal' | 'formal' = 'informal';
 
+  // Unsaved completed session modal
+  showUnsavedSessionModal = false;
+  unsavedSessionId?: string;
+  unsavedSessionDuration?: number;
+
+  // Session expired modal
+  showSessionExpiredModal = false;
+
   // GPU Performance Detection
   showPerformanceWarning = false;
   performanceIssue?: GpuDetectionResult;
@@ -643,17 +651,12 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.showUserInfo = true;
 
     if (this.userValidated && this.userGuid) {
-      this.beginBackendSession();
+      // Check for existing session - this will show modal if one exists
+      // If no existing session, it will start the game and timer
+      this.checkForExistingSessionOrStart();
     } else {
       this.resetSessionProgress();
-    }
-    
-    // Start the timer in the puzzle scene
-    if (this.game) {
-      const scene = this.game.scene.getScene('PuzzleScene') as any;
-      if (scene && typeof scene.startTimer === 'function') {
-        scene.startTimer();
-      }
+      this.startGameTimer();
     }
     
     // Enter immersive mode on small devices when starting the puzzle
@@ -663,6 +666,60 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     }
 
     this.cdr.markForCheck();
+  }
+
+  private checkForExistingSessionOrStart(): void {
+    if (this.sessionStartInFlight) {
+      return;
+    }
+
+    this.sessionStartInFlight = true;
+    this.userService.startGameSession(this.userGuid!).subscribe({
+      next: (response: StartGameSessionResponse) => {
+        this.sessionStartInFlight = false;
+
+        if (response.success && response.sessionId) {
+          // New session created - start the game
+          this.activeSessionId = response.sessionId;
+          this.sessionPuzzleVersion = response.puzzleVersion;
+          this.sessionErrorMessage = undefined;
+          this.sessionPiecesAcknowledged = 0;
+          this.startGameTimer();
+          this.flushPendingSnaps();
+          this.cdr.markForCheck();
+          return;
+        }
+
+        // User has an existing completed session - show modal WITHOUT starting timer
+        if (response.existingCompletedSessionId) {
+          this.unsavedSessionId = response.existingCompletedSessionId;
+          this.unsavedSessionDuration = response.existingSessionDurationSeconds;
+          this.showUnsavedSessionModal = true;
+          // Timer will NOT be started - user must save or discard first
+          this.cdr.markForCheck();
+          return;
+        }
+
+        // Should never happen
+        this.sessionErrorMessage = response.message ?? 'Spielsitzung konnte nicht gestartet werden.';
+        this.cdr.markForCheck();
+      },
+      error: (error) => {
+        this.sessionStartInFlight = false;
+        this.sessionErrorMessage = error?.message ?? 'Verbindungsfehler';
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  private startGameTimer(): void {
+    // Start the timer in the puzzle scene
+    if (this.game) {
+      const scene = this.game.scene.getScene('PuzzleScene') as any;
+      if (scene && typeof scene.startTimer === 'function') {
+        scene.startTimer();
+      }
+    }
   }
 
   restartPuzzle(): void {
@@ -748,6 +805,12 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         this.sceneEvents?.emit('play-completion-video');
       },
       error: (error) => {
+        // Check if it's a session-not-found error (expired/removed/multi-tab)
+        if (this.isSessionNotFoundError(error)) {
+          this.handleSessionExpired();
+          return;
+        }
+        
         const message = this.translate.instant(this.getSalutationKey('completion.thankYouError'));
         this.sessionErrorMessage = message;
         // Play video even on error
@@ -781,6 +844,103 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
   startNextRound(): void {
     this.closeThankYouModal();
+    this.restartPuzzle();
+  }
+
+  // Unsaved session modal methods
+  saveUnsavedSession(): void {
+    if (!this.userGuid || !this.unsavedSessionId) {
+      return;
+    }
+
+    // Call complete endpoint for the existing session
+    this.userService.completeGameSession(this.userGuid, this.unsavedSessionId).subscribe({
+      next: (response: CompleteGameSessionResponse) => {
+        if (response.userData) {
+          this.userData = response.userData;
+          this.salutationVariant = this.userData.salutation === Salutation.Formal ? 'formal' : 'informal';
+        }
+
+        // Close modal and now start the new session with timer
+        this.closeUnsavedSessionModal();
+        this.beginBackendSession();
+        this.startGameTimer();
+      },
+      error: (error) => {
+        // Show error but allow user to try again or discard
+        this.sessionErrorMessage = error?.message ?? 'Fehler beim Speichern der Sitzung.';
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  discardUnsavedSession(): void {
+    if (!this.userGuid || !this.unsavedSessionId) {
+      return;
+    }
+
+    // Call discard endpoint
+    this.userService.discardSession(this.userGuid, this.unsavedSessionId).subscribe({
+      next: () => {
+        // Close modal and now start the new session with timer
+        this.closeUnsavedSessionModal();
+        this.beginBackendSession();
+        this.startGameTimer();
+      },
+      error: (error) => {
+        // Show error but allow user to try again
+        this.sessionErrorMessage = error?.message ?? 'Fehler beim Verwerfen der Sitzung.';
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  closeUnsavedSessionModal(): void {
+    this.showUnsavedSessionModal = false;
+    this.unsavedSessionId = undefined;
+    this.unsavedSessionDuration = undefined;
+    this.cdr.markForCheck();
+  }
+
+  formatDuration(seconds?: number): string {
+    if (!seconds) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  // Session expired modal methods
+  private isSessionNotFoundError(error: any): boolean {
+    // Check if it's a 404 AND the error message indicates session not found
+    // This distinguishes session errors from user-not-found errors
+    if (error?.status !== 404) {
+      return false;
+    }
+    
+    const errorMessage = error?.error?.error || error?.message || '';
+    return errorMessage.toLowerCase().includes('session');
+  }
+
+  private handleSessionExpired(): void {
+    // Clear any pending operations
+    this.processingSnap = false;
+    this.pendingSnapQueue = [];
+    
+    // Clear active session
+    this.activeSessionId = undefined;
+    this.sessionPuzzleVersion = undefined;
+    this.sessionErrorMessage = undefined;
+    
+    // Show the expired modal
+    this.showSessionExpiredModal = true;
+    this.cdr.markForCheck();
+  }
+
+  startNewGameAfterExpired(): void {
+    this.showSessionExpiredModal = false;
+    this.cdr.markForCheck();
+    
+    // Restart the puzzle - this will create a new session
     this.restartPuzzle();
   }
 
@@ -841,7 +1001,16 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
           return;
         }
 
-        // Should never happen now that server always succeeds
+        // User has an existing completed session - show modal
+        if (response.existingCompletedSessionId) {
+          this.unsavedSessionId = response.existingCompletedSessionId;
+          this.unsavedSessionDuration = response.existingSessionDurationSeconds;
+          this.showUnsavedSessionModal = true;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        // Should never happen
         this.sessionErrorMessage = response.message ?? 'Spielsitzung konnte nicht gestartet werden.';
         this.cdr.markForCheck();
       },
@@ -884,6 +1053,12 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         this.cdr.markForCheck();
       },
       error: (error) => {
+        // Check if it's a session-not-found error (expired/removed/multi-tab)
+        if (this.isSessionNotFoundError(error)) {
+          this.handleSessionExpired();
+          return;
+        }
+        
         this.sessionErrorMessage = error?.message ?? 'Fehler bei der Validierung des Puzzleteils.';
         this.processingSnap = false;
         this.flushPendingSnaps();

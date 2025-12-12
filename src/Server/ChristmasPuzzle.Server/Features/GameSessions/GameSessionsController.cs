@@ -28,7 +28,22 @@ public sealed class GameSessionsController : ControllerBase
 
         var result = await _gameSessionService.StartSessionAsync(uid, cancellationToken);
         
-        // Always succeeds now - no more session conflicts
+        // Check if user has an existing completed session
+        if (result.ExistingCompletedSessionId.HasValue)
+        {
+            return Ok(new StartGameSessionResponse
+            {
+                Success = false,
+                SessionId = null,
+                ExistingCompletedSessionId = result.ExistingCompletedSessionId.Value,
+                ExistingSessionStartTime = result.ExistingSessionStartTime!.Value,
+                ExistingSessionCompletedTime = result.ExistingSessionCompletedTime!.Value,
+                ExistingSessionDurationSeconds = result.ExistingSessionDurationSeconds!.Value,
+                Message = "User has an existing completed session that must be saved or discarded."
+            });
+        }
+        
+        // New session created successfully
         return Ok(new StartGameSessionResponse
         {
             Success = true,
@@ -37,6 +52,24 @@ public sealed class GameSessionsController : ControllerBase
             StartedAtUtc = result.StartTimeUtc!.Value,
             TotalPieces = result.TotalPieces!.Value
         });
+    }
+
+    [HttpDelete("{sessionId:guid}")]
+    public async Task<ActionResult> DiscardSession(Guid uid, Guid sessionId, CancellationToken cancellationToken)
+    {
+        if (uid == Guid.Empty || sessionId == Guid.Empty)
+        {
+            return BadRequest(new { error = "UID and sessionId must be valid GUIDs." });
+        }
+
+        var success = await _gameSessionService.DiscardSessionAsync(uid, sessionId, cancellationToken);
+        
+        if (!success)
+        {
+            return NotFound(new { error = "Session not found for user." });
+        }
+
+        return NoContent();
     }
 
     [HttpPost("{sessionId:guid}/snaps")]
@@ -105,6 +138,8 @@ public sealed class GameSessionsController : ControllerBase
 
                 var updatedUser = await _userDataService.ApplyGameSessionResultAsync(uid, result.Outcome);
 
+                _logger.LogInformation("User {UserId} saved completed session {SessionId} with time {DurationSeconds}s (Zeit einreichen).", uid, sessionId, result.Outcome.DurationSeconds);
+
                 return Ok(new CompleteGameSessionResponse
                 {
                     SessionId = result.SessionId!.Value,
@@ -151,7 +186,13 @@ public sealed record StartGameSessionResponse
     public string? PuzzleVersion { get; init; }
     public DateTime? StartedAtUtc { get; init; }
     public int? TotalPieces { get; init; }
-    public Guid? ActiveSessionId { get; init; }
+    
+    // Properties for existing completed session
+    public Guid? ExistingCompletedSessionId { get; init; }
+    public DateTime? ExistingSessionStartTime { get; init; }
+    public DateTime? ExistingSessionCompletedTime { get; init; }
+    public double? ExistingSessionDurationSeconds { get; init; }
+    
     public string? Message { get; init; }
 }
 

@@ -259,6 +259,18 @@
           <context context-type="linenumber">120</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="sessionExpired.title" datatype="html">
+        <source>Session Expired</source>
+        <target>Session Expired</target>
+      </trans-unit>
+      <trans-unit id="sessionExpired.message" datatype="html">
+        <source>Deine Spielsitzung ist abgelaufen.</source>
+        <target>Your game session has expired.</target>
+      </trans-unit>
+      <trans-unit id="sessionExpired.startNew" datatype="html">
+        <source>Neues Spiel starten</source>
+        <target>Start New Game</target>
+      </trans-unit>
     </body>
   </file>
 </xliff>
