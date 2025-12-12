@@ -13,7 +13,7 @@ public interface IGameSessionService
 
 public sealed class GameSessionService : IGameSessionService
 {
-    private const double DistanceSlackMultiplier = 1.15;
+    private const double DistanceSlackMultiplier = 1.20;
     private const double DistanceSlackPixels = 4;
     private const double GuidelineToleranceMultiplier = 2.6; // Same as SNAP_DEBUG_MULTIPLIER in client
     private static readonly TimeSpan SessionInactivityTimeout = TimeSpan.FromMinutes(45);
@@ -89,9 +89,17 @@ public sealed class GameSessionService : IGameSessionService
     public Task<RecordPieceSnapResult> RecordPieceSnapAsync(Guid userId, Guid sessionId, RecordPieceSnapRequest request, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
+        
+        // Check if session exists and hasn't been cleaned up
         if (!_sessions.TryGetValue(sessionId, out var session) || session.UserId != userId)
         {
+            return Task.FromResult(RecordPieceSnapResult.NotFound);
+        }
+        
+        // Check if this session should have been cleaned up (expired)
+        if (!session.Completed && DateTime.UtcNow - session.LastUpdatedUtc > SessionInactivityTimeout)
+        {
+            _sessions.TryRemove(sessionId, out _);
             return Task.FromResult(RecordPieceSnapResult.NotFound);
         }
 

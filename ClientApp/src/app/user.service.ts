@@ -145,10 +145,25 @@ export class UserService {
 
   private handleError(error: HttpErrorResponse) {
     if (error.status === 404) {
+      // Check if this is a session-related 404 by inspecting the response body
+      const errorMessage = error.error?.error || error.error?.message || '';
+      if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('session')) {
+        // Preserve the HttpErrorResponse for session errors so they can be detected properly
+        return throwError(() => error);
+      }
       return throwError(() => new Error('User not found. Please check your invitation link.'));
     } else if (error.status === 400) {
       return throwError(() => new Error('Invalid request. Please check your data.'));
-    } else if (error.status === 409 || error.status === 422) {
+    } else if (error.status === 409) {
+      // Check if this is a session-related conflict
+      const errorMessage = error.error?.error || error.error?.message || error.error?.Message || '';
+      if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('session')) {
+        // Preserve the HttpErrorResponse for session conflicts so they can be detected properly
+        return throwError(() => error);
+      }
+      const message = (error.error && (error.error.message || error.error.error)) || 'Request could not be processed.';
+      return throwError(() => new Error(message));
+    } else if (error.status === 422) {
       const message = (error.error && (error.error.message || error.error.error)) || 'Request could not be processed.';
       return throwError(() => new Error(message));
     }

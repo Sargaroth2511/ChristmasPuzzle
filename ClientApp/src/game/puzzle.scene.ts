@@ -1224,6 +1224,14 @@ export class PuzzleScene extends Phaser.Scene {
     // Timer already created in showHudElements, just start counting
   }
 
+  setInputEnabled(enabled: boolean): void {
+    if (enabled) {
+      this.input.enabled = true;
+    } else {
+      this.input.enabled = false;
+    }
+  }
+
   private drawGuide(): void {
     const config = this.config!;
     const outlinePoints = config.outline.map((point) => this.toCanvasPoint(point));
@@ -1688,6 +1696,9 @@ export class PuzzleScene extends Phaser.Scene {
     this.explosionActive = false;
 
     this.resetCoinHud();
+    
+    // Disable input until explosion modal is closed
+    this.setInputEnabled(false);
 
     this.emitter?.emit('explosion-complete');
 

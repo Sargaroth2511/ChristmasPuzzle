@@ -98,8 +98,8 @@
 
       <!-- Session Expired Modal -->
       <app-modal [isVisible]="showSessionExpiredModal" [wide]="true">
-        <h1>{{ 'sessionExpired.title' | translate }}</h1>
-        <p>{{ 'sessionExpired.message' | translate }}</p>
+        <h1>{{ (sessionExpiredReason === 'conflict' ? 'sessionExpired.titleConflict' : 'sessionExpired.title') | translate }}</h1>
+        <p>{{ (sessionExpiredReason === 'conflict' ? 'sessionExpired.messageConflict' : 'sessionExpired.message') | translate }}</p>
         <div class="modal-actions">
           <button type="button" class="primary" (click)="startNewGameAfterExpired()">{{ 'sessionExpired.startNew' | translate }}</button>
         </div>

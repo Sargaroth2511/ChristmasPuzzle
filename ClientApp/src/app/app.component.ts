@@ -82,6 +82,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
   // Session expired modal
   showSessionExpiredModal = false;
+  sessionExpiredReason: 'notfound' | 'conflict' = 'notfound';
 
   // GPU Performance Detection
   showPerformanceWarning = false;
@@ -537,6 +538,12 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
     emitter.on('explosion-complete', () => {
       this.showExplosionModal = true;
+      
+      // Disable input while explosion modal is showing
+      const scene = this.game?.scene.getScene('PuzzleScene') as any;
+      if (scene && typeof scene.setInputEnabled === 'function') {
+        scene.setInputEnabled(false);
+      }
       // Show HUD elements (timer and coins) when modal appears
       const puzzleScene = this.game?.scene.getScene('PuzzleScene') as any;
       if (puzzleScene && typeof puzzleScene.showHudElements === 'function') {
@@ -649,6 +656,12 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.showExplosionModal = false;
     this.showInstructions = true;
     this.showUserInfo = true;
+    
+    // Enable input now that modal is closed
+    const scene = this.game?.scene.getScene('PuzzleScene') as any;
+    if (scene && typeof scene.setInputEnabled === 'function') {
+      scene.setInputEnabled(true);
+    }
 
     if (this.userValidated && this.userGuid) {
       // Check for existing session - this will show modal if one exists
@@ -807,7 +820,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       error: (error) => {
         // Check if it's a session-not-found error (expired/removed/multi-tab)
         if (this.isSessionNotFoundError(error)) {
-          this.handleSessionExpired();
+          this.handleSessionExpired(error);
           return;
         }
         
@@ -911,17 +924,25 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
   // Session expired modal methods
   private isSessionNotFoundError(error: any): boolean {
-    // Check if it's a 404 AND the error message indicates session not found
-    // This distinguishes session errors from user-not-found errors
-    if (error?.status !== 404) {
-      return false;
+    // Handle HttpErrorResponse (has .status property)
+    // Check for both 404 (not found) and 409 (conflict) with session-related messages
+    if (error?.status === 404 || error?.status === 409) {
+      const errorMessage = error?.error?.error || error?.error?.message || error?.error?.Message || error?.message || '';
+      return typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('session');
     }
     
-    const errorMessage = error?.error?.error || error?.message || '';
-    return errorMessage.toLowerCase().includes('session');
+    // Handle plain Error objects (transformed by user.service handleError)
+    // These won't have .status, but might have session-related message
+    if (error instanceof Error && error.message) {
+      // This case shouldn't happen anymore after the user.service fix, but kept for safety
+      return error.message.toLowerCase().includes('session not found') || 
+             error.message.toLowerCase().includes('session already completed');
+    }
+    
+    return false;
   }
 
-  private handleSessionExpired(): void {
+  private handleSessionExpired(error?: any): void {
     // Clear any pending operations
     this.processingSnap = false;
     this.pendingSnapQueue = [];
@@ -930,6 +951,9 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.activeSessionId = undefined;
     this.sessionPuzzleVersion = undefined;
     this.sessionErrorMessage = undefined;
+    
+    // Determine the reason: 409 = conflict, 404 = not found
+    this.sessionExpiredReason = error?.status === 409 ? 'conflict' : 'notfound';
     
     // Show the expired modal
     this.showSessionExpiredModal = true;
@@ -957,8 +981,10 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       return;
     }
 
-    if (!this.activeSessionId && !this.sessionStartInFlight) {
-      this.beginBackendSession();
+    // Session must be created via proper flow (closeExplosionModal -> checkForExistingSessionOrStart)
+    // Don't auto-create here as it bypasses the unsaved session check
+    if (!this.activeSessionId) {
+      return;
     }
 
     const request: RecordPieceSnapRequest = {
@@ -1055,7 +1081,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       error: (error) => {
         // Check if it's a session-not-found error (expired/removed/multi-tab)
         if (this.isSessionNotFoundError(error)) {
-          this.handleSessionExpired();
+          this.handleSessionExpired(error);
           return;
         }
         

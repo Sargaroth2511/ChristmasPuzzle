@@ -112,6 +112,13 @@
         "save": "Zeit einreichen",
         "discard": "Verwerfen"
     },
+    "sessionExpired": {
+        "title": "Sitzung abgelaufen",
+        "message": "Ihre Puzzle-Sitzung ist aufgrund von Inaktivität abgelaufen oder wurde in einem anderen Tab abgeschlossen. Bitte starten Sie ein neues Spiel.",
+        "titleConflict": "Spielstand-Konflikt",
+        "messageConflict": "Ihr Spiel konnte aufgrund von Unstimmigkeiten im Spielstand nicht gespeichert werden. Dies kann passieren, wenn die Sitzung anderweitig verändert oder bereits abgeschlossen wurde. Bitte starten Sie ein neues Spiel.",
+        "startNew": "Neues Spiel starten"
+    },
     "language": {
         "name": "Deutsch",
         "german": "Deutsch",

@@ -112,6 +112,13 @@
         "save": "Submit Time",
         "discard": "Discard"
     },
+    "sessionExpired": {
+        "title": "Session Expired",
+        "message": "Your puzzle session has expired due to inactivity or was completed in another tab. Please start a new game.",
+        "titleConflict": "Game State Conflict",
+        "messageConflict": "Your game could not be saved due to inconsistencies in the game state. This can happen if the session was modified elsewhere or completed already. Please start a new game.",
+        "startNew": "Start New Game"
+    },
     "language": {
         "name": "English",
         "german": "German",
