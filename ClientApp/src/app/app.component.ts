@@ -762,21 +762,17 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.sessionPuzzleVersion = undefined;
     
     if (sessionToDiscard && this.userGuid) {
-      console.log('[restartPuzzle] Discarding session:', sessionToDiscard, 'userGuid:', this.userGuid);
       this.userService.discardSession(this.userGuid, sessionToDiscard).subscribe({
         next: () => {
-          console.log('[restartPuzzle] Session discarded successfully');
           // Session discarded successfully, continue with restart
           this.continueRestartPuzzle();
         },
         error: (err) => {
-          console.log('[restartPuzzle] Failed to discard session:', err);
           // If discard fails (e.g., session already removed), just continue anyway
           this.continueRestartPuzzle();
         }
       });
     } else {
-      console.log('[restartPuzzle] No session to discard, activeSessionId:', sessionToDiscard, 'userGuid:', this.userGuid);
       this.continueRestartPuzzle();
     }
   }
@@ -815,24 +811,17 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       return;
     }
 
-    if (!this.activeSessionId) {
+    // Use completedSessionId which was set when the last piece snapped
+    const sessionIdToComplete = this.completedSessionId || this.activeSessionId;
+    if (!sessionIdToComplete) {
       const message = this.translate.instant(this.getSalutationKey('completion.thankYouNoSession'));
       this.sessionErrorMessage = message;
-      // Play video even without active session (testing mode)
       this.playCompletionVideoThenShowModal(message);
       return;
     }
 
-    if (this.pendingSnapQueue.length > 0 || this.processingSnap) {
-      this.flushPendingSnaps();
-      const message = this.translate.instant(this.getSalutationKey('completion.thankYouSyncing'));
-      this.sessionErrorMessage = message;
-      // Play video even while syncing
-      this.playCompletionVideoThenShowModal(message);
-      return;
-    }
-
-    this.userService.completeGameSession(this.userGuid, this.activeSessionId).subscribe({
+    // Session is already completed on server, just save to DB and remove from memory
+    this.userService.completeGameSession(this.userGuid, sessionIdToComplete).subscribe({
       next: (response: CompleteGameSessionResponse) => {
         if (response.userData) {
           this.userData = response.userData;
@@ -1104,6 +1093,15 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
       next: (response) => {
         if (response && (response.status === 'Accepted' || response.status === 'Duplicate')) {
           this.sessionPiecesAcknowledged = response.placedPieces;
+          
+          // Check if the session auto-completed on the server
+          if (response.sessionCompleted) {
+            // Session is now complete on server, but kept in memory
+            // Show completion UI so user can choose to submit or discard
+            this.completedSessionId = this.activeSessionId;
+            this.puzzleComplete = true;
+            this.cdr.markForCheck();
+          }
         }
         this.processingSnap = false;
         this.flushPendingSnaps();

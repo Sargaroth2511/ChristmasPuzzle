@@ -65,8 +65,8 @@
         }
     },
     "modals": {
-        "deerTitle": "Oh no!",
-        "deerProblem": {
+        "stagTitle": "Oh no!",
+        "stagProblem": {
             "informal": "Something's wrong with our oh22 Christmas deer…",
             "formal": "Something's wrong with our oh22 Christmas deer…"
         },
