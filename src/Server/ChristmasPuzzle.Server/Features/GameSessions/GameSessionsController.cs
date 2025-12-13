@@ -95,7 +95,8 @@ public sealed class GameSessionsController : ControllerBase
                 Distance = result.Distance,
                 AllowedDistance = result.AllowedDistance,
                 TotalPieces = result.TotalPieces,
-                PlacedPieces = result.PlacedPieces
+                PlacedPieces = result.PlacedPieces,
+                SessionCompleted = result.SessionCompleted
             }),
             RecordPieceSnapStatus.UnknownPiece => BadRequest(new { error = "Unknown puzzle piece identifier." }),
             RecordPieceSnapStatus.TooFar => UnprocessableEntity(new RecordPieceSnapResponse
@@ -203,6 +204,7 @@ public sealed record RecordPieceSnapResponse
     public double AllowedDistance { get; init; }
     public int TotalPieces { get; init; }
     public int PlacedPieces { get; init; }
+    public bool SessionCompleted { get; init; } // True if this snap completed the puzzle
     public string? Message { get; init; }
 }
 

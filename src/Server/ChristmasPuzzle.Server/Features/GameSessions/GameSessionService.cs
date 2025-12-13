@@ -105,7 +105,7 @@ public sealed class GameSessionService : IGameSessionService
 
         if (session.Completed)
         {
-            return Task.FromResult(RecordPieceSnapResult.SessionCompleted(session.TotalPieces, session.PlacedCount));
+            return Task.FromResult(RecordPieceSnapResult.AlreadyCompleted(session.TotalPieces, session.PlacedCount));
         }
 
         var puzzle = session.PuzzleDefinition;
@@ -143,16 +143,19 @@ public sealed class GameSessionService : IGameSessionService
         session.LastUpdatedUtc = now;
 
         var placedCount = session.PlacedCount;
+        var sessionCompleted = false;
+        
         if (placedCount == session.TotalPieces)
         {
             // Mark session as completed when last piece is validated
             session.Completed = true;
             session.CompletedAtUtc = now;
+            sessionCompleted = true;
             var duration = now - session.StartTimeUtc;
             _logger.LogInformation("Session {SessionId} for user {UserId} completed. Duration: {Duration:0.##}s", sessionId, userId, duration.TotalSeconds);
         }
 
-        return Task.FromResult(RecordPieceSnapResult.Accepted(distance, allowed, session.TotalPieces, placedCount));
+        return Task.FromResult(RecordPieceSnapResult.Accepted(distance, allowed, session.TotalPieces, placedCount, sessionCompleted));
     }
 
     public Task<CompleteGameSessionResult> CompleteSessionAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default)
@@ -266,13 +269,14 @@ public enum RecordPieceSnapStatus
 
 public sealed record RecordPieceSnapResult
 {
-    private RecordPieceSnapResult(RecordPieceSnapStatus status, double distance = 0, double allowed = 0, int totalPieces = 0, int placedPieces = 0)
+    private RecordPieceSnapResult(RecordPieceSnapStatus status, double distance = 0, double allowed = 0, int totalPieces = 0, int placedPieces = 0, bool sessionCompleted = false)
     {
         Status = status;
         Distance = distance;
         AllowedDistance = allowed;
         TotalPieces = totalPieces;
         PlacedPieces = placedPieces;
+        SessionCompleted = sessionCompleted;
     }
 
     public RecordPieceSnapStatus Status { get; }
@@ -280,11 +284,12 @@ public sealed record RecordPieceSnapResult
     public double AllowedDistance { get; }
     public int TotalPieces { get; }
     public int PlacedPieces { get; }
+    public bool SessionCompleted { get; } // True if this snap completed the puzzle
     public bool IsDuplicate => Status == RecordPieceSnapStatus.Duplicate;
     public bool IsAccepted => Status == RecordPieceSnapStatus.Accepted || Status == RecordPieceSnapStatus.Duplicate;
 
-    public static RecordPieceSnapResult Accepted(double distance, double allowed, int totalPieces, int placedPieces) =>
-        new(RecordPieceSnapStatus.Accepted, distance, allowed, totalPieces, placedPieces);
+    public static RecordPieceSnapResult Accepted(double distance, double allowed, int totalPieces, int placedPieces, bool sessionCompleted = false) =>
+        new(RecordPieceSnapStatus.Accepted, distance, allowed, totalPieces, placedPieces, sessionCompleted);
 
     public static RecordPieceSnapResult Duplicate(double distance, double allowed, int totalPieces, int placedPieces) =>
         new(RecordPieceSnapStatus.Duplicate, distance, allowed, totalPieces, placedPieces);
@@ -296,7 +301,7 @@ public sealed record RecordPieceSnapResult
 
     public static RecordPieceSnapResult NotFound { get; } = new(RecordPieceSnapStatus.SessionNotFound);
 
-    public static RecordPieceSnapResult SessionCompleted(int totalPieces, int placedPieces) =>
+    public static RecordPieceSnapResult AlreadyCompleted(int totalPieces, int placedPieces) =>
         new(RecordPieceSnapStatus.SessionCompleted, totalPieces: totalPieces, placedPieces: placedPieces);
 }
 

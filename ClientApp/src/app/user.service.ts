@@ -61,6 +61,7 @@ export interface RecordPieceSnapResponse {
   allowedDistance: number;
   totalPieces: number;
   placedPieces: number;
+  sessionCompleted: boolean; // True if this snap completed the puzzle
   message?: string;
 }
 
