@@ -21,12 +21,14 @@ public sealed class GameSessionsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<StartGameSessionResponse>> StartSession(Guid uid, CancellationToken cancellationToken)
     {
-        if (uid == Guid.Empty)
+        try
         {
-            return BadRequest(new { error = "UID must be a valid GUID." });
-        }
+            if (uid == Guid.Empty)
+            {
+                return BadRequest(new { error = "UID must be a valid GUID." });
+            }
 
-        var result = await _gameSessionService.StartSessionAsync(uid, cancellationToken);
+            var result = await _gameSessionService.StartSessionAsync(uid, cancellationToken);
         
         // Check if user has an existing completed session
         if (result.ExistingCompletedSessionId.HasValue)
@@ -52,42 +54,58 @@ public sealed class GameSessionsController : ControllerBase
             StartedAtUtc = result.StartTimeUtc!.Value,
             TotalPieces = result.TotalPieces!.Value
         });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error starting session for user {UserId}", uid);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
     }
 
     [HttpDelete("{sessionId:guid}")]
     public async Task<ActionResult> DiscardSession(Guid uid, Guid sessionId, CancellationToken cancellationToken)
     {
-        if (uid == Guid.Empty || sessionId == Guid.Empty)
+        try
         {
-            return BadRequest(new { error = "UID and sessionId must be valid GUIDs." });
-        }
+            if (uid == Guid.Empty || sessionId == Guid.Empty)
+            {
+                return BadRequest(new { error = "UID and sessionId must be valid GUIDs." });
+            }
 
-        var success = await _gameSessionService.DiscardSessionAsync(uid, sessionId, cancellationToken);
-        
-        if (!success)
+            var success = await _gameSessionService.DiscardSessionAsync(uid, sessionId, cancellationToken);
+            
+            if (!success)
+            {
+                return NotFound(new { error = "Session not found for user." });
+            }
+
+            return NoContent();
+        }
+        catch (Exception ex)
         {
-            return NotFound(new { error = "Session not found for user." });
+            _logger.LogWarning(ex, "Error discarding session {SessionId} for user {UserId}", sessionId, uid);
+            return StatusCode(500, new { error = "Internal server error" });
         }
-
-        return NoContent();
     }
 
     [HttpPost("{sessionId:guid}/snaps")]
     public async Task<ActionResult<RecordPieceSnapResponse>> RecordPieceSnap(Guid uid, Guid sessionId, [FromBody] RecordPieceSnapRequest request, CancellationToken cancellationToken)
     {
-        if (uid == Guid.Empty || sessionId == Guid.Empty)
+        try
         {
-            return BadRequest(new { error = "UID and sessionId must be valid GUIDs." });
-        }
+            if (uid == Guid.Empty || sessionId == Guid.Empty)
+            {
+                return BadRequest(new { error = "UID and sessionId must be valid GUIDs." });
+            }
 
-        if (string.IsNullOrWhiteSpace(request.PieceId))
-        {
-            return BadRequest(new { error = "PieceId is required." });
-        }
+            if (string.IsNullOrWhiteSpace(request.PieceId))
+            {
+                return BadRequest(new { error = "PieceId is required." });
+            }
 
-        var result = await _gameSessionService.RecordPieceSnapAsync(uid, sessionId, request, cancellationToken);
+            var result = await _gameSessionService.RecordPieceSnapAsync(uid, sessionId, request, cancellationToken);
 
-        return result.Status switch
+            return result.Status switch
         {
             RecordPieceSnapStatus.Accepted or RecordPieceSnapStatus.Duplicate => Ok(new RecordPieceSnapResponse
             {
@@ -115,42 +133,58 @@ public sealed class GameSessionsController : ControllerBase
             }),
             RecordPieceSnapStatus.SessionNotFound => NotFound(new { error = "Session not found for user." }),
             _ => StatusCode(500, new { error = "Unexpected session state." })
-        };
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error recording snap for session {SessionId}, user {UserId}", sessionId, uid);
+            return StatusCode(500, new { error = "Internal server error" });
+        }
     }
 
     [HttpPost("{sessionId:guid}/complete")]
     public async Task<ActionResult<CompleteGameSessionResponse>> CompleteSession(Guid uid, Guid sessionId, CancellationToken cancellationToken)
     {
-        if (uid == Guid.Empty || sessionId == Guid.Empty)
+        try
         {
-            return BadRequest(new { error = "UID and sessionId must be valid GUIDs." });
-        }
+            if (uid == Guid.Empty || sessionId == Guid.Empty)
+            {
+                return BadRequest(new { error = "UID and sessionId must be valid GUIDs." });
+            }
 
-        var result = await _gameSessionService.CompleteSessionAsync(uid, sessionId, cancellationToken);
+            var result = await _gameSessionService.CompleteSessionAsync(uid, sessionId, cancellationToken);
 
-        switch (result.Status)
+            switch (result.Status)
         {
             case CompleteGameSessionStatus.Completed:
                 if (result.Outcome is null)
                 {
-                    _logger.LogInformation("Session {SessionId} completed without outcome metadata.", result.SessionId);
+                    _logger.LogWarning("Session {SessionId} completed without outcome metadata.", result.SessionId);
                     return StatusCode(500, new { error = "Session outcome unavailable." });
                 }
 
-                var updatedUser = await _userDataService.ApplyGameSessionResultAsync(uid, result.Outcome);
-
-                _logger.LogInformation("User {UserId} saved completed session {SessionId} with time {DurationSeconds}s (Zeit einreichen).", uid, sessionId, result.Outcome.DurationSeconds);
-
-                return Ok(new CompleteGameSessionResponse
+                try
                 {
-                    SessionId = result.SessionId!.Value,
-                    StartedAtUtc = result.StartedAtUtc!.Value,
-                    CompletedAtUtc = result.CompletedAtUtc!.Value,
-                    DurationSeconds = result.Outcome.DurationSeconds,
-                    TotalPieces = result.Outcome.PiecesPlaced,
-                    PlacedPieces = result.Outcome.PiecesPlaced,
-                    UserData = updatedUser
-                });
+                    var updatedUser = await _userDataService.ApplyGameSessionResultAsync(uid, result.Outcome);
+
+                    _logger.LogInformation("User {UserId} saved completed session {SessionId} with time {DurationSeconds}s (Zeit einreichen).", uid, sessionId, result.Outcome.DurationSeconds);
+
+                    return Ok(new CompleteGameSessionResponse
+                    {
+                        SessionId = result.SessionId!.Value,
+                        StartedAtUtc = result.StartedAtUtc!.Value,
+                        CompletedAtUtc = result.CompletedAtUtc!.Value,
+                        DurationSeconds = result.Outcome.DurationSeconds,
+                        TotalPieces = result.Outcome.PiecesPlaced,
+                        PlacedPieces = result.Outcome.PiecesPlaced,
+                        UserData = updatedUser
+                    });
+                }
+                catch (InvalidOperationException)
+                {
+                    // User not found in database
+                    return NotFound(new { error = "User not found." });
+                }
 
             case CompleteGameSessionStatus.IncompletePieces:
                 return Conflict(new CompleteGameSessionResponse
@@ -176,6 +210,12 @@ public sealed class GameSessionsController : ControllerBase
 
             default:
                 return StatusCode(500, new { error = "Unexpected session state." });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error completing session {SessionId} for user {UserId}", sessionId, uid);
+            return StatusCode(500, new { error = "Internal server error" });
         }
     }
 }

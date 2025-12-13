@@ -78,12 +78,12 @@ public class StatisticsAuthMiddleware
                 // Exact match or subdomain match
                 if (hostname.Equals(trimmed) || hostname.EndsWith("." + trimmed))
                 {
-                    _logger.LogInformation("Domain match: {Hostname} matches allowed domain {Domain}", hostname, trimmed);
+                    _logger.LogWarning("Domain match: {Hostname} matches allowed domain {Domain}", hostname, trimmed);
                     return true;
                 }
             }
 
-            _logger.LogInformation("Domain mismatch: {Hostname} not in allowed domains", hostname);
+            _logger.LogWarning("Domain mismatch: {Hostname} not in allowed domains", hostname);
         }
         catch (Exception ex)
         {
@@ -192,7 +192,7 @@ public class StatisticsAuthMiddleware
                 return;
             }
             
-            _logger.LogInformation("Access check passed for {IP}", remoteIp);
+            _logger.LogWarning("Access check passed for {IP}", remoteIp);
         }
 
         // Get configured key from environment variable or appsettings
@@ -200,7 +200,7 @@ public class StatisticsAuthMiddleware
 
         if (string.IsNullOrWhiteSpace(configuredKey))
         {
-            _logger.LogInformation("Statistics:AccessKey is not configured. Set it as an environment variable on IIS.");
+            _logger.LogWarning("Statistics:AccessKey is not configured. Set it as an environment variable on IIS.");
             context.Response.StatusCode = 500;
             await context.Response.WriteAsJsonAsync(new 
             { 
@@ -238,7 +238,7 @@ public class StatisticsAuthMiddleware
         }
 
         // Key is valid, continue to the endpoint
-        _logger.LogInformation("Authorized statistics access from {IP}", 
+        _logger.LogWarning("Authorized statistics access from {IP}", 
             context.Connection.RemoteIpAddress);
         await _next(context);
     }

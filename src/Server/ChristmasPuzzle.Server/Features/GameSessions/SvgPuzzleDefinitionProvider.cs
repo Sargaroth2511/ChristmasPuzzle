@@ -42,7 +42,6 @@ public sealed class SvgPuzzleDefinitionProvider : IPuzzleDefinitionProvider
             throw new InvalidOperationException("Unable to locate puzzle SVG asset.");
         }
 
-        logger.LogInformation("Loading puzzle definition from {SvgPath}", svgPath);
         var svgContent = File.ReadAllText(svgPath);
         var checksum = ComputeChecksum(svgContent);
 
@@ -134,7 +133,6 @@ public sealed class SvgPuzzleDefinitionProvider : IPuzzleDefinitionProvider
             Pieces = pieceMap
         };
 
-        logger.LogInformation("Loaded puzzle definition with {PieceCount} pieces (version {Version}).", definition.Pieces.Count, definition.Version);
         return definition;
     }
 
@@ -159,11 +157,11 @@ public sealed class SvgPuzzleDefinitionProvider : IPuzzleDefinitionProvider
             }
             catch (Exception ex)
             {
-                logger.LogDebug(ex, "Failed to probe SVG path {SvgCandidate}.", path);
+                logger.LogWarning(ex, "Failed to probe SVG path {SvgCandidate}.", path);
             }
         }
 
-        logger.LogInformation("Puzzle SVG could not be located using known search paths.");
+        logger.LogWarning("Puzzle SVG could not be located using known search paths.");
         return null;
     }
 

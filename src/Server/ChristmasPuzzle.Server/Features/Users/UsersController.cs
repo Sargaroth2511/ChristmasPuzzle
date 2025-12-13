@@ -42,9 +42,14 @@ public class UsersController : ControllerBase
             var userData = await _userDataService.GetUserDataAsync(uid, firstName, lastName, language, salutation);
             return Ok(userData);
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
+        {
+            _logger.LogWarning("User {Uid} not found", uid);
+            return NotFound(new { error = ex.Message });
+        }
         catch (Exception ex)
         {
-            _logger.LogInformation(ex, "Error getting user data for UID: {Uid}", uid);
+            _logger.LogWarning(ex, "Error getting user data for UID: {Uid}", uid);
             return StatusCode(500, new { error = "Internal server error" });
         }
     }
@@ -85,7 +90,7 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogInformation(ex, "Error updating user stats for UID: {Uid}", uid);
+            _logger.LogWarning(ex, "Error updating user stats for UID: {Uid}", uid);
             return StatusCode(500, new { error = "Internal server error" });
         }
     }

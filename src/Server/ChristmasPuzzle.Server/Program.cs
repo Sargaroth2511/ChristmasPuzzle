@@ -80,7 +80,7 @@ var app = builder.Build();
 var userDataService = app.Services.GetRequiredService<IUserDataService>();
 app.Logger.LogInformation("UserDataService initialized - seed data merge completed");
 
-if (app.Environment.IsDevelopment())
+if (true)
 {
     app.UseDeveloperExceptionPage();
     // OpenAPI/Swagger only in .NET 9+
@@ -116,6 +116,9 @@ else
 app.UseForwardedHeaders();
 
 app.UseRouting();
+
+// Note: Global exception handler removed - controllers handle their own exceptions
+// with appropriate status codes (404, 409, etc.)
 app.UseCors("ClientOrigin");
 
 // Statistics authentication middleware (protects /api/statistics/*)

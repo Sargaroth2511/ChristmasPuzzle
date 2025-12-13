@@ -31,7 +31,14 @@ public sealed class GameSessionService : IGameSessionService
 
     public Task<StartGameSessionResult> StartSessionAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        // Check cancellation but don't throw - let controller handle gracefully
+        if (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning("Session start cancelled for user {UserId}", userId);
+            // Return empty result - controller will handle
+            return Task.FromResult(new StartGameSessionResult { SessionId = null, PuzzleVersion = null, StartTimeUtc = null, TotalPieces = null });
+        }
+        
         CleanupExpiredSessions();
 
         // Check if user has an existing completed but unsaved session
@@ -120,13 +127,12 @@ public sealed class GameSessionService : IGameSessionService
         var target = new Vector2D(piece.TargetX, piece.TargetY);
         var distance = reportedAnchor.Distance(target);
         
-        // Use client-reported tolerance if available (includes guideline multiplier), otherwise use base tolerance
-        var baseTolerance = request.ClientTolerance ?? piece.SnapTolerance;
+        var baseTolerance = piece.SnapTolerance;
         var allowed = baseTolerance * DistanceSlackMultiplier + DistanceSlackPixels;
 
         if (distance > allowed)
         {
-            _logger.LogInformation(
+            _logger.LogWarning(
                 "Rejecting snap for user {UserId}, session {SessionId}, piece {PieceId}. Distance {Distance:0.##} exceeded allowed {Allowed:0.##}. (ClientTolerance: {ClientTolerance:0.##}, BaseTolerance: {BaseTolerance:0.##})",
                 userId, sessionId, request.PieceId, distance, allowed, request.ClientTolerance, piece.SnapTolerance);
             return Task.FromResult(RecordPieceSnapResult.TooFar(distance, allowed));
@@ -152,7 +158,7 @@ public sealed class GameSessionService : IGameSessionService
             session.CompletedAtUtc = now;
             sessionCompleted = true;
             var duration = now - session.StartTimeUtc;
-            _logger.LogInformation("Session {SessionId} for user {UserId} completed. Duration: {Duration:0.##}s", sessionId, userId, duration.TotalSeconds);
+            _logger.LogInformation("Session {SessionId} for user {UserId} auto-completed on last snap. Duration: {Duration:0.##}s", sessionId, userId, duration.TotalSeconds);
         }
 
         return Task.FromResult(RecordPieceSnapResult.Accepted(distance, allowed, session.TotalPieces, placedCount, sessionCompleted));
@@ -192,10 +198,16 @@ public sealed class GameSessionService : IGameSessionService
 
     public Task<bool> DiscardSessionAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        // Check cancellation but don't throw - let controller handle gracefully
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return Task.FromResult(false);
+        }
 
         if (!_sessions.TryGetValue(sessionId, out var session) || session.UserId != userId)
         {
+            // Session not found or doesn't belong to user - return false (404)
+            _logger.LogWarning("Cannot discard session {SessionId} for user {UserId} - not found or access denied.", sessionId, userId);
             return Task.FromResult(false);
         }
 
@@ -205,6 +217,7 @@ public sealed class GameSessionService : IGameSessionService
             return Task.FromResult(true);
         }
 
+        // Couldn't remove (race condition?) - return false
         return Task.FromResult(false);
     }
 
@@ -292,7 +305,7 @@ public sealed record RecordPieceSnapResult
         new(RecordPieceSnapStatus.Accepted, distance, allowed, totalPieces, placedPieces, sessionCompleted);
 
     public static RecordPieceSnapResult Duplicate(double distance, double allowed, int totalPieces, int placedPieces) =>
-        new(RecordPieceSnapStatus.Duplicate, distance, allowed, totalPieces, placedPieces);
+        new(RecordPieceSnapStatus.Duplicate, distance, allowed, totalPieces, placedPieces, false);
 
     public static RecordPieceSnapResult TooFar(double distance, double allowed) =>
         new(RecordPieceSnapStatus.TooFar, distance, allowed);

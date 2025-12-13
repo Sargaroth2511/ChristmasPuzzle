@@ -29,7 +29,7 @@ public class StatisticsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogInformation(ex, "Error generating statistics overview");
+            _logger.LogWarning(ex, "Error generating statistics overview");
             return StatusCode(500, new { error = "Error generating statistics" });
         }
     }
@@ -64,7 +64,7 @@ public class StatisticsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogInformation(ex, "Error generating leaderboard");
+            _logger.LogWarning(ex, "Error generating leaderboard");
             return StatusCode(500, new { error = "Error generating leaderboard" });
         }
     }
@@ -105,7 +105,7 @@ public class StatisticsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogInformation(ex, "Error retrieving user list");
+            _logger.LogWarning(ex, "Error retrieving user list");
             return StatusCode(500, new { error = "Error retrieving user list" });
         }
     }
@@ -131,7 +131,7 @@ public class StatisticsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogInformation(ex, "Error exporting statistics");
+            _logger.LogWarning(ex, "Error exporting statistics");
             return StatusCode(500, new { error = "Error exporting statistics" });
         }
     }

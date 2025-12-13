@@ -487,34 +487,20 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
 
     emitter.on('puzzle-complete', (payload?: { elapsedSeconds?: number }) => {
       this.clearCompletionOverlayTimer();
-      this.puzzleComplete = false;
       this.completionTime = payload?.elapsedSeconds;
       this.hideRestartButton = false;
-      // Store session ID for potential discard if user clicks "Neues Spiel"
-      this.completedSessionId = this.activeSessionId;
       this.requestCoinTotal();
       
-      // Note: Stats are now only updated when user clicks "Münzen senden"
-      // This gives users control over when to submit their results
+      // DON'T show completion UI yet!
+      // Wait for the backend to confirm the last snap with sessionCompleted=true
+      // This prevents race condition where user clicks "Zeit einreichen" before last snap completes
       
-      // Exit immersive mode on mobile so completion overlay is visible
+      // Exit immersive mode on mobile so completion overlay will be visible when it shows
       const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
       if (viewportWidth <= this.mobileBreakpoint) {
         this.exitImmersiveMode();
       }
       
-      // In testing mode, don't show the completion overlay
-      // The video will play when user clicks "Münzen senden"
-      // After video, the thank you modal shows instead
-      if (!TESTING_VIDEO_MODE) {
-        this.completionOverlayTimer = setTimeout(() => {
-          this.puzzleComplete = true;
-          this.cdr.markForCheck();
-        }, 1000);
-      } else {
-        // In testing mode, show the overlay immediately so user can click "Münzen senden"
-        this.puzzleComplete = true;
-      }
       this.cdr.markForCheck();
     });
 
@@ -796,6 +782,14 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   }
 
   donateCoins(): void {
+    // Wait for all pending snaps to complete before submitting
+    // This prevents race condition where /complete is called while snaps are still processing
+    if (this.processingSnap || this.pendingSnapQueue.length > 0) {
+      // Queue is not empty, wait a bit and try again
+      setTimeout(() => this.donateCoins(), 100);
+      return;
+    }
+
     this.hideRestartButton = true;
     this.hasCompletedPuzzle = true; // Hide header when starting video
     
@@ -945,18 +939,27 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   // Session expired modal methods
   private isSessionNotFoundError(error: any): boolean {
     // Handle HttpErrorResponse (has .status property)
-    // Check for both 404 (not found) and 409 (conflict) with session-related messages
-    if (error?.status === 404 || error?.status === 409) {
+    // Check for 404 (not found), 409 (conflict), or 500 (internal server error) with session-related messages
+    if (error?.status === 404 || error?.status === 409 || error?.status === 500) {
       const errorMessage = error?.error?.error || error?.error?.message || error?.error?.Message || error?.message || '';
-      return typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('session');
+      const messageStr = typeof errorMessage === 'string' ? errorMessage.toLowerCase() : '';
+      
+      // For 500 errors, treat as session expired to give user a chance to restart
+      if (error?.status === 500) {
+        return true;
+      }
+      
+      // For 404/409, check if message mentions session
+      return messageStr.includes('session');
     }
     
     // Handle plain Error objects (transformed by user.service handleError)
     // These won't have .status, but might have session-related message
     if (error instanceof Error && error.message) {
-      // This case shouldn't happen anymore after the user.service fix, but kept for safety
-      return error.message.toLowerCase().includes('session not found') || 
-             error.message.toLowerCase().includes('session already completed');
+      const msg = error.message.toLowerCase();
+      return msg.includes('session not found') || 
+             msg.includes('session already completed') ||
+             msg.includes('internal server error');
     }
     
     return false;
@@ -972,7 +975,8 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.sessionPuzzleVersion = undefined;
     this.sessionErrorMessage = undefined;
     
-    // Determine the reason: 409 = conflict, 404 = not found
+    // Determine the reason: 409 = conflict, 404/500 = not found/expired
+    // Treat 500 errors as session expiration to give user a clean restart option
     this.sessionExpiredReason = error?.status === 409 ? 'conflict' : 'notfound';
     
     // Show the expired modal
@@ -1097,10 +1101,18 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
           // Check if the session auto-completed on the server
           if (response.sessionCompleted) {
             // Session is now complete on server, but kept in memory
-            // Show completion UI so user can choose to submit or discard
+            // NOW show completion UI (this is the proper time - after backend confirms)
             this.completedSessionId = this.activeSessionId;
-            this.puzzleComplete = true;
-            this.cdr.markForCheck();
+            
+            // Show the completion overlay with delay (or immediately in testing mode)
+            if (!TESTING_VIDEO_MODE) {
+              this.completionOverlayTimer = setTimeout(() => {
+                this.puzzleComplete = true;
+                this.cdr.markForCheck();
+              }, 1000);
+            } else {
+              this.puzzleComplete = true;
+            }
           }
         }
         this.processingSnap = false;

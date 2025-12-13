@@ -39,8 +39,6 @@ public class UserDataService : IUserDataService
         var exeDirectory = Path.GetDirectoryName(exeLocation) ?? environment.ContentRootPath;
         var appDataPath = Path.Combine(exeDirectory, "App_Data");
         
-        _logger.LogInformation("Looking for App_Data at: {AppDataPath}", appDataPath);
-        
         // Ensure App_Data directory exists
         if (!Directory.Exists(appDataPath))
         {
@@ -72,7 +70,7 @@ public class UserDataService : IUserDataService
             }
             catch (Exception ex)
             {
-                _logger.LogInformation(ex, "Error reading seed users file");
+                _logger.LogWarning(ex, "Error reading seed users file");
             }
         }
         else
@@ -93,7 +91,7 @@ public class UserDataService : IUserDataService
             }
             catch (Exception ex)
             {
-                _logger.LogInformation(ex, "Error reading existing users file");
+                _logger.LogWarning(ex, "Error reading existing users file");
             }
         }
 
@@ -196,7 +194,6 @@ public class UserDataService : IUserDataService
             if (!user.MaxPiecesAchieved.HasValue || request.PiecesAchieved > user.MaxPiecesAchieved.Value)
             {
                 user.MaxPiecesAchieved = request.PiecesAchieved;
-                _logger.LogInformation("User {Uid} achieved new max pieces: {MaxPieces}", uid, request.PiecesAchieved);
             }
 
             // Update fastest time if puzzle was completed
@@ -244,7 +241,7 @@ public class UserDataService : IUserDataService
         }
         catch (Exception ex)
         {
-            _logger.LogInformation(ex, "Error reading user data file");
+            _logger.LogWarning(ex, "Error reading user data file");
             return new UsersDataStore { Users = new List<UserData>() };
         }
     }
@@ -261,7 +258,7 @@ public class UserDataService : IUserDataService
         }
         catch (Exception ex)
         {
-            _logger.LogInformation(ex, "Error writing user data file");
+            _logger.LogWarning(ex, "Error writing user data file");
             throw;
         }
     }
