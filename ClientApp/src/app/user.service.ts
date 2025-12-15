@@ -74,6 +74,8 @@ export interface CompleteGameSessionResponse {
   placedPieces?: number;
   message?: string;
   userData?: UserData;
+  suspiciousTiming?: boolean;  // True if time not saved due to suspicious timing
+  fastSnapsCount?: number;  // Number of suspiciously fast snaps detected
 }
 
 @Injectable({

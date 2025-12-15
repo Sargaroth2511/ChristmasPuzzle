@@ -119,6 +119,16 @@
         "messageConflict": "Ihr Spiel konnte aufgrund von Unstimmigkeiten im Spielstand nicht gespeichert werden. Dies kann passieren, wenn die Sitzung anderweitig verändert oder bereits abgeschlossen wurde. Bitte starten Sie ein neues Spiel.",
         "startNew": "Neues Spiel starten"
     },
+    "suspiciousTiming": {
+        "title": {
+            "informal": "Wow, Du bist schnell!",
+            "formal": "Wow, Sie sind schnell!"
+        },
+        "message": {
+            "informal": "Deine Zeit konnte leider nicht gespeichert werden. Entweder bist Du so schnell, dass der Server Deine Versuche nicht verarbeiten kann, oder Du bist ein Cheater :)<br><br>Dein Spiel wurde trotzdem gezählt!",
+            "formal": "Ihre Zeit konnte leider nicht gespeichert werden. Entweder sind Sie so schnell, dass der Server Ihre Versuche nicht verarbeiten kann, oder Sie sind ein Cheater :)<br><br>Ihr Spiel wurde trotzdem gezählt!"
+        }
+    },
     "language": {
         "name": "Deutsch",
         "german": "Deutsch",

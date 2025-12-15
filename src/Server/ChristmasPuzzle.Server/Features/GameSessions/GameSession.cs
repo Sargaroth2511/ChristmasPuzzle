@@ -13,6 +13,10 @@ public sealed class GameSession
     public DateTime LastUpdatedUtc { get; set; }
     public bool Completed { get; set; }
     public DateTime? CompletedAtUtc { get; set; }
+    
+    // Track suspicious timing patterns
+    public int SuspiciouslyFastSnapsCount { get; set; }
+    public bool HasSuspiciousTiming { get; set; }
 
     private readonly ConcurrentDictionary<string, PiecePlacement> _placements = new(StringComparer.OrdinalIgnoreCase);
 

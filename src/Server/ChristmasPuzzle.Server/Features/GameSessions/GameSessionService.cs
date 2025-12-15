@@ -17,6 +17,10 @@ public sealed class GameSessionService : IGameSessionService
     private const double DistanceSlackPixels = 4;
     private const double GuidelineToleranceMultiplier = 2.6; // Same as SNAP_DEBUG_MULTIPLIER in client
     private static readonly TimeSpan SessionInactivityTimeout = TimeSpan.FromMinutes(45);
+    
+    // Anti-cheat configuration
+    private static readonly TimeSpan MinTimeBetweenSnaps = TimeSpan.FromMilliseconds(3000);
+    private const int SuspiciousSnapThreshold = 5;
 
     private readonly IPuzzleDefinitionProvider _puzzleDefinitionProvider;
     private readonly ILogger<GameSessionService> _logger;
@@ -146,6 +150,20 @@ public sealed class GameSessionService : IGameSessionService
 
         var placement = new PiecePlacement(request.PieceId, request.AnchorX, request.AnchorY, distance, allowed, now);
         session.AddPlacement(placement);
+        
+        // Check for suspiciously fast snaps (but don't reject - just track)
+        if (session.LastUpdatedUtc != DateTime.MinValue)
+        {
+            var timeSinceLastSnap = now - session.LastUpdatedUtc;
+            if (timeSinceLastSnap < MinTimeBetweenSnaps)
+            {
+                session.SuspiciouslyFastSnapsCount++;
+                _logger.LogWarning(
+                    "Fast snap detected for session {SessionId}: {TimeSinceLastSnap}ms since last snap. Total fast snaps: {FastSnapsCount}",
+                    sessionId, timeSinceLastSnap.TotalMilliseconds, session.SuspiciouslyFastSnapsCount);
+            }
+        }
+        
         session.LastUpdatedUtc = now;
 
         var placedCount = session.PlacedCount;
@@ -158,6 +176,16 @@ public sealed class GameSessionService : IGameSessionService
             session.CompletedAtUtc = now;
             sessionCompleted = true;
             var duration = now - session.StartTimeUtc;
+            
+            // Check if timing is suspicious (threshold exceeded)
+            if (session.SuspiciouslyFastSnapsCount >= SuspiciousSnapThreshold)
+            {
+                session.HasSuspiciousTiming = true;
+                _logger.LogWarning(
+                    "Session {SessionId} completed with suspicious timing: {FastSnapsCount} fast snaps, duration: {Duration:0.##}s",
+                    sessionId, session.SuspiciouslyFastSnapsCount, duration.TotalSeconds);
+            }
+            
             _logger.LogInformation("Session {SessionId} for user {UserId} auto-completed on last snap. Duration: {Duration:0.##}s", sessionId, userId, duration.TotalSeconds);
         }
 
@@ -186,6 +214,26 @@ public sealed class GameSessionService : IGameSessionService
         // Return the completion data and REMOVE session from memory
         var duration = session.CompletedAtUtc.Value - session.StartTimeUtc;
         var durationSeconds = Math.Max(duration.TotalSeconds, 0);
+
+        // Check if timing is suspicious (don't save time, but count donation)
+        if (session.HasSuspiciousTiming)
+        {
+            _logger.LogWarning(
+                "Session {SessionId} has suspicious timing ({FastSnapsCount} fast snaps). Time will not be saved, but game will be counted.",
+                sessionId, session.SuspiciouslyFastSnapsCount);
+            
+            // Remove the session from memory
+            _sessions.TryRemove(sessionId, out _);
+            
+            // Return SuspiciousTiming status (time not saved, but game counted)
+            return Task.FromResult(CompleteGameSessionResult.SuspiciousTiming(
+                session.SessionId, 
+                session.StartTimeUtc, 
+                session.CompletedAtUtc.Value, 
+                durationSeconds, 
+                session.TotalPieces,
+                session.SuspiciouslyFastSnapsCount));
+        }
 
         // Remove the session from memory now that it's been saved to the database
         if (_sessions.TryRemove(sessionId, out _))
@@ -323,7 +371,8 @@ public enum CompleteGameSessionStatus
     Completed,
     SessionNotFound,
     AlreadyCompleted,
-    IncompletePieces
+    IncompletePieces,
+    SuspiciousTiming  // Time not saved, but game counted
 }
 
 public sealed record CompleteGameSessionResult
@@ -336,7 +385,8 @@ public sealed record CompleteGameSessionResult
         double? durationSeconds = null,
         int? totalPieces = null,
         int? placedPieces = null,
-        GameSessionOutcome? outcome = null)
+        GameSessionOutcome? outcome = null,
+        int? suspiciousFastSnapsCount = null)
     {
         Status = status;
         SessionId = sessionId;
@@ -346,6 +396,7 @@ public sealed record CompleteGameSessionResult
         TotalPieces = totalPieces;
         PlacedPieces = placedPieces;
         Outcome = outcome;
+        SuspiciousFastSnapsCount = suspiciousFastSnapsCount;
     }
 
     public CompleteGameSessionStatus Status { get; }
@@ -356,6 +407,7 @@ public sealed record CompleteGameSessionResult
     public int? TotalPieces { get; }
     public int? PlacedPieces { get; }
     public GameSessionOutcome? Outcome { get; }
+    public int? SuspiciousFastSnapsCount { get; }
 
     public bool IsSuccess => Status == CompleteGameSessionStatus.Completed;
 
@@ -369,6 +421,9 @@ public sealed record CompleteGameSessionResult
 
     public static CompleteGameSessionResult IncompletePieces(int placedPieces, int totalPieces) =>
         new(CompleteGameSessionStatus.IncompletePieces, placedPieces: placedPieces, totalPieces: totalPieces);
+    
+    public static CompleteGameSessionResult SuspiciousTiming(Guid sessionId, DateTime startedAtUtc, DateTime completedAtUtc, double durationSeconds, int totalPieces, int fastSnapsCount) =>
+        new(CompleteGameSessionStatus.SuspiciousTiming, sessionId, startedAtUtc, completedAtUtc, durationSeconds, totalPieces, totalPieces, null, fastSnapsCount);
 }
 
 public sealed record GameSessionOutcome(int PiecesPlaced, double DurationSeconds);

@@ -204,6 +204,35 @@ public sealed class GameSessionsController : ControllerBase
                     TotalPieces = result.TotalPieces ?? 0,
                     PlacedPieces = result.PlacedPieces
                 });
+            
+            case CompleteGameSessionStatus.SuspiciousTiming:
+                // Count the game (donation) but don't save the time
+                try
+                {
+                    // Only increment completion count, don't save time
+                    var updatedUser = await _userDataService.IncrementCompletionCountAsync(uid);
+                    
+                    _logger.LogInformation(
+                        "User {UserId} completed session {SessionId} with suspicious timing ({FastSnaps} fast snaps). Game counted, time NOT saved.",
+                        uid, sessionId, result.SuspiciousFastSnapsCount);
+                    
+                    return Ok(new CompleteGameSessionResponse
+                    {
+                        SessionId = result.SessionId!.Value,
+                        StartedAtUtc = result.StartedAtUtc!.Value,
+                        CompletedAtUtc = result.CompletedAtUtc!.Value,
+                        DurationSeconds = null,  // Time not saved
+                        TotalPieces = result.TotalPieces!.Value,
+                        PlacedPieces = result.TotalPieces!.Value,
+                        UserData = updatedUser,
+                        SuspiciousTiming = true,
+                        FastSnapsCount = result.SuspiciousFastSnapsCount
+                    });
+                }
+                catch (InvalidOperationException)
+                {
+                    return NotFound(new { error = "User not found." });
+                }
 
             case CompleteGameSessionStatus.SessionNotFound:
                 return NotFound(new { error = "Session not found for user." });
@@ -258,6 +287,8 @@ public sealed record CompleteGameSessionResponse
     public int? PlacedPieces { get; init; }
     public string? Message { get; init; }
     public UserData? UserData { get; init; }
+    public bool SuspiciousTiming { get; init; }  // True if time not saved due to suspicious timing
+    public int? FastSnapsCount { get; init; }  // Number of suspiciously fast snaps detected
 }
 
 public sealed record StartGameSessionRequest

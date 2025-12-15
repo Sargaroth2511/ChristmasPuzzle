@@ -116,6 +116,16 @@
           <button type="button" (click)="closeThankYouModal()">{{ 'buttons.close' | translate }}</button>
         </div>
       </app-modal>
+      
+      <!-- Suspicious Timing Modal -->
+      <app-modal [isVisible]="showSuspiciousTimingModal" [wide]="true">
+        <h1>{{ ('suspiciousTiming.title.' + salutationVariant) | translate }}</h1>
+        <p [innerHTML]="('suspiciousTiming.message.' + salutationVariant) | translate"></p>
+        <div class="modal-actions">
+          <button type="button" (click)="startNextRoundFromSuspicious()">{{ 'buttons.nextRound' | translate }}</button>
+          <button type="button" (click)="closeSuspiciousTimingModal()">{{ 'buttons.close' | translate }}</button>
+        </div>
+      </app-modal>
 
       <!-- Performance Warning Modal -->
       <app-modal [isVisible]="showPerformanceWarning" [wide]="true">

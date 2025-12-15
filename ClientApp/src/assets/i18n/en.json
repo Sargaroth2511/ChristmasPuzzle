@@ -119,6 +119,16 @@
         "messageConflict": "Your game could not be saved due to inconsistencies in the game state. This can happen if the session was modified elsewhere or completed already. Please start a new game.",
         "startNew": "Start New Game"
     },
+    "suspiciousTiming": {
+        "title": {
+            "informal": "Wow, you're fast!",
+            "formal": "Wow, you're fast!"
+        },
+        "message": {
+            "informal": "Your time could not be saved. Either you are so fast that the server cannot process your snaps, or you are a cheater :)<br><br>Your game was still counted!",
+            "formal": "Your time could not be saved. Either you are so fast that the server cannot process your snaps, or you are a cheater :)<br><br>Your game was still counted!"
+        }
+    },
     "language": {
         "name": "English",
         "german": "German",

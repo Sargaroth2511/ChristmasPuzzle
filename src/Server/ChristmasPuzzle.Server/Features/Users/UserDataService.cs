@@ -22,6 +22,11 @@ public interface IUserDataService
     /// Apply a validated game session result produced by the backend to the user's statistics.
     /// </summary>
     Task<UserData> ApplyGameSessionResultAsync(Guid uid, GameSessionOutcome outcome);
+    
+    /// <summary>
+    /// Increment puzzle completion count without saving a time (for suspicious completions).
+    /// </summary>
+    Task<UserData> IncrementCompletionCountAsync(Guid uid);
 }
 
 public class UserDataService : IUserDataService
@@ -229,6 +234,36 @@ public class UserDataService : IUserDataService
         };
 
         return UpdateUserStatsAsync(uid, sanitizedRequest);
+    }
+    
+    public async Task<UserData> IncrementCompletionCountAsync(Guid uid)
+    {
+        await _fileLock.WaitAsync();
+        try
+        {
+            var store = await ReadDataStoreAsync();
+            var user = store.Users.FirstOrDefault(u => u.Uid == uid);
+
+            if (user == null)
+            {
+                throw new InvalidOperationException($"User with UID {uid} not found");
+            }
+
+            // Only increment completion count, do not update time or pieces
+            user.TotalPuzzlesCompleted = (user.TotalPuzzlesCompleted ?? 0) + 1;
+            user.LastAccessedUtc = DateTime.UtcNow;
+
+            await WriteDataStoreAsync(store);
+            
+            _logger.LogInformation("User {Uid} completion count incremented to {Count} (suspicious timing, no time saved)", 
+                uid, user.TotalPuzzlesCompleted);
+            
+            return user;
+        }
+        finally
+        {
+            _fileLock.Release();
+        }
     }
 
     private async Task<UsersDataStore> ReadDataStoreAsync()

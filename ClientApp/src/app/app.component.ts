@@ -75,6 +75,10 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   showThankYouModal = false;
   thankYouErrorMessage?: string;
   salutationVariant: 'informal' | 'formal' = 'informal';
+  
+  // Suspicious timing modal
+  showSuspiciousTimingModal = false;
+  suspiciousFastSnapsCount = 0;
 
   // Unsaved completed session modal
   showUnsavedSessionModal = false;
@@ -828,8 +832,15 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         this.completedSessionId = undefined; // Clear after successful submit
         this.sessionPuzzleVersion = undefined;
 
-        // Play completion video in the game scene (success case)
-        this.sceneEvents?.emit('play-completion-video');
+        // Check if timing was suspicious
+        if (response.suspiciousTiming) {
+          this.suspiciousFastSnapsCount = response.fastSnapsCount || 0;
+          this.showSuspiciousTimingModal = true;
+          this.cdr.markForCheck();
+        } else {
+          // Play completion video in the game scene (success case)
+          this.sceneEvents?.emit('play-completion-video');
+        }
       },
       error: (error) => {
         // Check if it's a session-not-found error (expired/removed/multi-tab)
@@ -873,6 +884,19 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.closeThankYouModal();
     this.restartPuzzle();
   }
+  
+  closeSuspiciousTimingModal(): void {
+    this.showSuspiciousTimingModal = false;
+    this.puzzleComplete = false;
+    this.showInstructions = false;
+    this.showUserInfo = false;
+    this.cdr.markForCheck();
+  }
+  
+  startNextRoundFromSuspicious(): void {
+    this.closeSuspiciousTimingModal();
+    this.restartPuzzle();
+  }
 
   // Unsaved session modal methods
   saveUnsavedSession(): void {
@@ -886,6 +910,12 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
         if (response.userData) {
           this.userData = response.userData;
           this.salutationVariant = this.userData.salutation === Salutation.Formal ? 'formal' : 'informal';
+        }
+
+        // Check if timing was suspicious
+        if (response.suspiciousTiming) {
+          this.suspiciousFastSnapsCount = response.fastSnapsCount || 0;
+          console.warn(`Suspicious timing detected: ${this.suspiciousFastSnapsCount} fast snaps`);
         }
 
         // Close modal and now start the new session with timer
