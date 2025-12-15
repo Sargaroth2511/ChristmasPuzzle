@@ -19,7 +19,7 @@ public sealed class GameSessionService : IGameSessionService
     private static readonly TimeSpan SessionInactivityTimeout = TimeSpan.FromMinutes(45);
     
     // Anti-cheat configuration
-    private static readonly TimeSpan MinTimeBetweenSnaps = TimeSpan.FromMilliseconds(3000);
+    private static readonly TimeSpan MinTimeBetweenSnaps = TimeSpan.FromMilliseconds(150);
     private const int SuspiciousSnapThreshold = 5;
 
     private readonly IPuzzleDefinitionProvider _puzzleDefinitionProvider;
