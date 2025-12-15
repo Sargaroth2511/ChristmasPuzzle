@@ -80,7 +80,7 @@ var app = builder.Build();
 var userDataService = app.Services.GetRequiredService<IUserDataService>();
 app.Logger.LogInformation("UserDataService initialized - seed data merge completed");
 
-if (true)
+if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
     // OpenAPI/Swagger only in .NET 9+
