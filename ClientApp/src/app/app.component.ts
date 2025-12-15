@@ -79,6 +79,7 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
   // Suspicious timing modal
   showSuspiciousTimingModal = false;
   suspiciousFastSnapsCount = 0;
+  suspiciousTimingFromUnsavedSession = false; // Track if modal was shown from unsaved session flow
 
   // Unsaved completed session modal
   showUnsavedSessionModal = false;
@@ -890,11 +891,20 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
     this.puzzleComplete = false;
     this.showInstructions = false;
     this.showUserInfo = false;
+    
+    // If coming from unsaved session flow, start new session
+    if (this.suspiciousTimingFromUnsavedSession) {
+      this.suspiciousTimingFromUnsavedSession = false;
+      this.beginBackendSession();
+      this.startGameTimer();
+    }
+    
     this.cdr.markForCheck();
   }
   
   startNextRoundFromSuspicious(): void {
-    this.closeSuspiciousTimingModal();
+    this.showSuspiciousTimingModal = false;
+    this.suspiciousTimingFromUnsavedSession = false;
     this.restartPuzzle();
   }
 
@@ -912,14 +922,22 @@ export class AppComponent implements AfterViewInit, OnDestroy, OnInit {
           this.salutationVariant = this.userData.salutation === Salutation.Formal ? 'formal' : 'informal';
         }
 
+        // Close unsaved session modal first
+        this.closeUnsavedSessionModal();
+
         // Check if timing was suspicious
         if (response.suspiciousTiming) {
           this.suspiciousFastSnapsCount = response.fastSnapsCount || 0;
           console.warn(`Suspicious timing detected: ${this.suspiciousFastSnapsCount} fast snaps`);
+          
+          // Show suspicious timing modal instead of starting new session
+          this.suspiciousTimingFromUnsavedSession = true; // Mark that we're in unsaved session flow
+          this.showSuspiciousTimingModal = true;
+          this.cdr.markForCheck();
+          return; // Don't start new session yet
         }
 
-        // Close modal and now start the new session with timer
-        this.closeUnsavedSessionModal();
+        // Normal case: start new session with timer
         this.beginBackendSession();
         this.startGameTimer();
       },
